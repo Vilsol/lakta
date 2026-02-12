@@ -1,0 +1,17 @@
+[tools]
+buf = "1.60.0"
+go = "1.25.4"
+protoc-gen-go = "1.36.10"
+protoc-gen-go-grpc = "1.5.1"
+
+[tasks.example]
+description = "Run the microservice example"
+run = [
+    "docker-compose up -d"
+]
+
+[tasks.generate]
+description = "Generate protobufs"
+run = [
+    "buf generate"
+]

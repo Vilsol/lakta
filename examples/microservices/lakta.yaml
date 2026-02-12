@@ -1,0 +1,54 @@
+modules:
+  otel:
+    otel:
+      default:
+        service_name: "microservices-demo"
+
+  logging:
+    tint:
+      default:
+        level: "debug"
+        time_format: "2006-01-02T15:04:05.000Z07:00"
+
+  health:
+    health:
+      default:
+        component_name: "microservices-demo"
+        component_version: "v1.0.0"
+
+  grpc:
+    server:
+      default:
+        host: "0.0.0.0"
+        port: 50051
+        health_check: true
+    client:
+      data:
+        target: "localhost:50051"
+        insecure: true
+      orchestrator:
+        target: "localhost:50052"
+        insecure: true
+
+  http:
+    fiber:
+      default:
+        host: "0.0.0.0"
+        port: 8080
+        health_path: "/health"
+
+  db:
+    pgx:
+      main:
+        dsn: "postgres://postgres:foo@localhost:5432/postgres?sslmode=disable"
+        max_open_conns: 25
+        log_level: "info"
+        health_check: true
+
+  workflows:
+    temporal:
+      default:
+        target: "localhost:7233"
+        task_queue: "EXAMPLE_ORCHESTRATOR_QUEUE"
+        namespace: "default"
+        insecure: true

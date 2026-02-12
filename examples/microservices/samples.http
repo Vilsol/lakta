@@ -1,0 +1,28 @@
+### List all restaurants
+GET http://localhost:8080/restaurants
+
+### Get a single restaurant
+GET http://localhost:8080/restaurants/33333333-3333-3333-3333-333333333333
+
+### Get a menu of a restaurant
+GET http://localhost:8080/restaurants/33333333-3333-3333-3333-333333333333/menu
+
+### Get a single order
+GET http://localhost:8080/orders/f0000006-0000-0000-0000-000000000006
+
+### Create an order
+POST http://localhost:8080/orders
+Content-Type: application/json
+
+{
+    "customer_id": "c0000004-0000-0000-0000-000000000004",
+    "restaurant_id": "22222222-2222-2222-2222-222222222222",
+    "delivery_address": "foo bar",
+    "items": [
+        {
+            "menu_item_id": "b3333333-3333-3333-3333-333333333333",
+            "quantity": 2
+        }
+    ]
+}
+

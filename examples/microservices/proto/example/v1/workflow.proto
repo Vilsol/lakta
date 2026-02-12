@@ -1,0 +1,131 @@
+syntax = "proto3";
+
+package example.v1;
+
+import "google/protobuf/timestamp.proto";
+import "example/v1/data.proto";
+
+option go_package = "example/v1";
+
+// WorkflowService handles order lifecycle orchestration and state transitions.
+// This service manages the automated progression of orders through various states.
+service WorkflowService {
+  // StartOrderWorkflow initiates the automated workflow for a new order.
+  // The workflow will automatically transition the order through states:
+  // PLACED -> CONFIRMED -> PREPARING -> READY
+  rpc StartOrderWorkflow(StartOrderWorkflowRequest) returns (StartOrderWorkflowResponse);
+
+  // CompleteOrder manually marks an order as delivered.
+  // This transitions the order from READY -> DELIVERED state.
+  rpc CompleteOrder(CompleteOrderRequest) returns (CompleteOrderResponse);
+
+  // CancelOrder cancels an order at any stage before delivery.
+  // This transitions the order to CANCELLED state.
+  rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
+
+  // GetWorkflowStatus retrieves the current workflow execution status for an order.
+  rpc GetWorkflowStatus(GetWorkflowStatusRequest) returns (GetWorkflowStatusResponse);
+}
+
+// WorkflowState represents the execution state of a workflow
+enum WorkflowState {
+  WORKFLOW_STATE_UNSPECIFIED = 0;
+  WORKFLOW_STATE_RUNNING = 1;
+  WORKFLOW_STATE_COMPLETED = 2;
+  WORKFLOW_STATE_FAILED = 3;
+  WORKFLOW_STATE_CANCELLED = 4;
+}
+
+// WorkflowEvent represents events that occur during workflow execution
+enum WorkflowEvent {
+  WORKFLOW_EVENT_UNSPECIFIED = 0;
+  WORKFLOW_EVENT_STARTED = 1;
+  WORKFLOW_EVENT_STATUS_CHANGED = 2;
+  WORKFLOW_EVENT_COMPLETED = 3;
+  WORKFLOW_EVENT_FAILED = 4;
+  WORKFLOW_EVENT_CANCELLED = 5;
+}
+
+// ===============================
+// Workflow Execution Messages
+// ===============================
+
+// WorkflowExecution tracks the state of an order workflow
+message WorkflowExecution {
+  string workflow_id = 1;
+  string order_id = 2;
+  WorkflowState state = 3;
+  OrderStatus current_order_status = 4;
+  google.protobuf.Timestamp started_at = 5;
+  google.protobuf.Timestamp completed_at = 6;
+  // Error message if workflow failed
+  string error_message = 7;
+}
+
+// WorkflowEventRecord represents a single event in workflow history
+message WorkflowEventRecord {
+  WorkflowEvent event_type = 1;
+  OrderStatus order_status = 2;
+  google.protobuf.Timestamp occurred_at = 3;
+  // Additional context about the event
+  string details = 4;
+}
+
+// ===============================
+// StartOrderWorkflow
+// ===============================
+
+message StartOrderWorkflowRequest {
+  string order_id = 1;
+}
+
+message StartOrderWorkflowResponse {
+  string workflow_id = 1;
+  WorkflowExecution execution = 2;
+}
+
+// ===============================
+// CompleteOrder
+// ===============================
+
+message CompleteOrderRequest {
+  string order_id = 1;
+  // Optional delivery notes from driver
+  string delivery_notes = 2;
+}
+
+message CompleteOrderResponse {
+  Order order = 1;
+  WorkflowExecution execution = 2;
+}
+
+// ===============================
+// CancelOrder
+// ===============================
+
+message CancelOrderRequest {
+  string order_id = 1;
+  // Reason for cancellation
+  string cancellation_reason = 2;
+}
+
+message CancelOrderResponse {
+  Order order = 1;
+  WorkflowExecution execution = 2;
+}
+
+// ===============================
+// GetWorkflowStatus
+// ===============================
+
+message GetWorkflowStatusRequest {
+  string order_id = 1;
+}
+
+message GetWorkflowStatusResponse {
+  WorkflowExecution execution = 1;
+  // History of events in chronological order
+  repeated WorkflowEventRecord events = 2;
+  // Next scheduled transition time (if applicable)
+  google.protobuf.Timestamp next_transition_at = 3;
+}

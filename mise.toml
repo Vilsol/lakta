@@ -1,0 +1,9 @@
+[tools]
+go = "1.26.0"
+golangci-lint = "2.9.0"
+
+[tasks.lint]
+run = "golangci-lint run"
+
+[tasks.format]
+run = "golangci-lint run --fix"

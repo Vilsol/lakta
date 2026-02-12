@@ -1,0 +1,199 @@
+syntax = "proto3";
+
+package example.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "example/v1";
+
+// DataService provides data access layer for the food delivery platform.
+// All database operations must go through this service.
+service DataService {
+  // Restaurant operations
+  rpc ListRestaurants(ListRestaurantsRequest) returns (ListRestaurantsResponse);
+  rpc GetRestaurant(GetRestaurantRequest) returns (GetRestaurantResponse);
+  rpc GetMenu(GetMenuRequest) returns (GetMenuResponse);
+
+  // Customer operations
+  rpc GetCustomer(GetCustomerRequest) returns (GetCustomerResponse);
+  rpc CreateCustomer(CreateCustomerRequest) returns (CreateCustomerResponse);
+
+  // Order operations
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+  rpc UpdateOrderStatus(UpdateOrderStatusRequest) returns (UpdateOrderStatusResponse);
+  rpc ListCustomerOrders(ListCustomerOrdersRequest) returns (ListCustomerOrdersResponse);
+}
+
+// ===============================
+// Restaurant Messages
+// ===============================
+
+message Restaurant {
+  string id = 1;
+  string name = 2;
+  string cuisine_type = 3;
+  string address = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message MenuItem {
+  string id = 1;
+  string restaurant_id = 2;
+  string name = 3;
+  // Price in cents (e.g., 1299 = $12.99)
+  int64 price_cents = 4;
+  bool is_available = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message ListRestaurantsRequest {
+  // Optional pagination
+  uint64 limit = 1;
+  uint64 offset = 2;
+}
+
+message ListRestaurantsResponse {
+  repeated Restaurant restaurants = 1;
+  uint64 total = 2;
+}
+
+message GetRestaurantRequest {
+  string id = 1;
+}
+
+message GetRestaurantResponse {
+  Restaurant restaurant = 1;
+}
+
+message GetMenuRequest {
+  string restaurant_id = 1;
+}
+
+message GetMenuResponse {
+  repeated MenuItem items = 1;
+}
+
+// ===============================
+// Customer Messages
+// ===============================
+
+message Customer {
+  string id = 1;
+  string email = 2;
+  string name = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message GetCustomerRequest {
+  string id = 1;
+}
+
+message GetCustomerResponse {
+  Customer customer = 1;
+}
+
+message CreateCustomerRequest {
+  string email = 1;
+  string name = 2;
+}
+
+message CreateCustomerResponse {
+  Customer customer = 1;
+}
+
+// ===============================
+// Order Messages
+// ===============================
+
+message Order {
+  string id = 1;
+  string customer_id = 2;
+  string restaurant_id = 3;
+  OrderStatus status = 4;
+  string delivery_address = 5;
+  // All prices in cents
+  int64 subtotal_cents = 6;
+  int64 delivery_fee_cents = 7;
+  int64 tax_cents = 8;
+  int64 total_cents = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message OrderItem {
+  string id = 1;
+  string order_id = 2;
+  string menu_item_id = 3;
+  int32 quantity = 4;
+  // Price in cents at time of order
+  int64 unit_price_cents = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message OrderItemInput {
+  string menu_item_id = 1;
+  int32 quantity = 2;
+}
+
+message CreateOrderRequest {
+  string customer_id = 1;
+  string restaurant_id = 2;
+  repeated OrderItemInput items = 3;
+  string delivery_address = 4;
+  int64 subtotal_cents = 5;
+  int64 delivery_fee_cents = 6;
+  int64 tax_cents = 7;
+  int64 total_cents = 8;
+}
+
+message CreateOrderResponse {
+  Order order = 1;
+  repeated OrderItem items = 2;
+}
+
+message GetOrderRequest {
+  string id = 1;
+}
+
+message GetOrderResponse {
+  Order order = 1;
+  repeated OrderItem items = 2;
+  // Denormalized data for convenience
+  Customer customer = 3;
+  Restaurant restaurant = 4;
+}
+
+message UpdateOrderStatusRequest {
+  string order_id = 1;
+  OrderStatus new_status = 2;
+}
+
+message UpdateOrderStatusResponse {
+  OrderStatus status = 1;
+}
+
+message ListCustomerOrdersRequest {
+  string customer_id = 1;
+  // Optional filters
+  optional OrderStatus status = 2;
+  // Pagination
+  uint64 limit = 3;
+  uint64 offset = 4;
+}
+
+message ListCustomerOrdersResponse {
+  repeated Order orders = 1;
+  uint64 total = 2;
+}
+
+// OrderStatus represents the current state of an order
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0;
+  ORDER_STATUS_PLACED = 1;
+  ORDER_STATUS_CONFIRMED = 2;
+  ORDER_STATUS_PREPARING = 3;
+  ORDER_STATUS_READY = 4;
+  ORDER_STATUS_DELIVERED = 5;
+  ORDER_STATUS_CANCELLED = 6;
+}
