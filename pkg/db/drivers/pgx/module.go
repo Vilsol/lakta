@@ -23,6 +23,7 @@ var (
 	_ lakta.NamedModule  = (*Module)(nil)
 )
 
+// Module manages pgx connection pool lifecycle.
 type Module struct {
 	config      Config
 	poolConfig  *pgxpool.Config
@@ -30,6 +31,7 @@ type Module struct {
 	stdInstance *sql.DB
 }
 
+// NewModule creates a new pgx database module with the given options.
 func NewModule(options ...Option) *Module {
 	return &Module{config: NewConfig(options...)}
 }
@@ -53,6 +55,7 @@ func (m *Module) LoadConfig(k *koanf.Koanf) error {
 	return nil
 }
 
+// Init loads configuration and prepares the connection pool config.
 func (m *Module) Init(ctx context.Context) error {
 	// Load config from koanf if available
 	if k, err := do.Invoke[*koanf.Koanf](lakta.GetInjector(ctx)); err == nil {
@@ -73,6 +76,7 @@ func (m *Module) Init(ctx context.Context) error {
 	return nil
 }
 
+// StartAsync connects to the database and registers the pool in the DI container.
 func (m *Module) StartAsync(ctx context.Context) error {
 	conn, err := pgxpool.NewWithConfig(ctx, m.poolConfig)
 	if err != nil {

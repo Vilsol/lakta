@@ -79,6 +79,14 @@ linters:
     exhaustive:
       default-signifies-exhaustive: true
 
+    revive:
+      rules:
+        - name: var-naming
+          arguments:
+            - []
+            - []
+            - - skip-package-name-collision-with-go-std: true
+
   exclusions:
     paths:
       - examples/do
@@ -97,5 +105,5 @@ formatters:
       max-len: 160
       tab-len: 4
       shorten-comments: true
-      reformat-tags: true
+      reformat-tags: false
       chain-split-dots: true

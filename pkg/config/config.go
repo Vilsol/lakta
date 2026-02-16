@@ -8,12 +8,24 @@ const (
 	defaultConfigName = "lakta"
 )
 
+// ReloadNotifier can register callbacks for config reload events.
+type ReloadNotifier interface {
+	OnReload(fn func())
+}
+
 // Config holds the configuration for the config module.
 type Config struct {
-	EnvPrefix  string
+	// EnvPrefix specifies the prefix for environment variables used to override configuration values.
+	EnvPrefix string
+
+	// ConfigDirs specifies the directories to search for configuration files in the given order.
 	ConfigDirs []string
+
+	// ConfigName specifies the base name of the configuration file without its file extension.
 	ConfigName string
-	Args       []string
+
+	// Args contains the command-line arguments to be parsed for configuration overrides.
+	Args []string
 }
 
 // Option manipulates Config.

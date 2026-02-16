@@ -3,13 +3,15 @@ package otel
 import (
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/knadh/koanf/v2"
+	"github.com/samber/oops"
 )
 
 // Config represents configuration for OTEL [Module]
 type Config struct {
-	// Instance name (determines config path, cannot come from config file)
+	// Instance name
 	Name string `koanf:"-"`
 
+	// ServiceName specifies the OpenTelemetry service name.
 	ServiceName string `koanf:"service_name"`
 }
 
@@ -32,7 +34,7 @@ func NewConfig(options ...Option) Config {
 
 // LoadFromKoanf loads configuration from koanf instance at the given path.
 func (c *Config) LoadFromKoanf(k *koanf.Koanf, path string) error {
-	return k.Unmarshal(path, c)
+	return oops.Wrapf(k.Unmarshal(path, c), "failed to load config from koanf at path %s", path)
 }
 
 // Option configures the Module.
@@ -41,4 +43,9 @@ type Option func(m *Config)
 // WithName sets the instance name for this module.
 func WithName(name string) Option {
 	return func(m *Config) { m.Name = name }
+}
+
+// WithServiceName sets the OpenTelemetry service name.
+func WithServiceName(name string) Option {
+	return func(m *Config) { m.ServiceName = name }
 }

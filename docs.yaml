@@ -1,0 +1,179 @@
+modules:
+  - category: http
+    type: fiber
+    package: github.com/Vilsol/lakta/pkg/http/fiber
+    configPath: modules.http.fiber.<name>
+    description: represents configuration for HTTP Fiber server [Module]
+    fields:
+      - key: host
+        type: string
+        default: 0.0.0.0
+        envVar: LAKTA_MODULES_HTTP_FIBER_<NAME>_HOST
+        description: host specifies the server's hostname or IP address to bind
+      - key: port
+        type: uint16
+        default: "8080"
+        envVar: LAKTA_MODULES_HTTP_FIBER_<NAME>_PORT
+        description: port specifies the port number the server listens on
+      - key: health_path
+        type: string
+        envVar: LAKTA_MODULES_HTTP_FIBER_<NAME>_HEALTH_PATH
+        description: healthPath defines the endpoint path for the health check
+    passthrough:
+      targetType: Config
+      targetPackage: github.com/gofiber/fiber/v3
+      targetVersion: v3.0.0
+      docsUrl: https://pkg.go.dev/github.com/gofiber/fiber/v3@v3.0.0#Config
+    codeOnly:
+      - option: WithDefaults
+        type: '*fiber.Config'
+        description: sets typed fiber.Config defaults that can be overridden by Raw/koanf values
+      - option: WithRouter
+        type: '[]fiber.Router'
+        description: adds router to the list of routers to be invoked (code-only)
+  - category: grpc
+    type: server
+    package: github.com/Vilsol/lakta/pkg/grpc/server
+    configPath: modules.grpc.server.<name>
+    description: represents configuration for GRPC server [Module]
+    fields:
+      - key: host
+        type: string
+        default: 0.0.0.0
+        envVar: LAKTA_MODULES_GRPC_SERVER_<NAME>_HOST
+        description: host specifies the address for the GRPC server to bind to
+      - key: port
+        type: uint16
+        default: "50051"
+        envVar: LAKTA_MODULES_GRPC_SERVER_<NAME>_PORT
+        description: port represents the port number on which the GRPC server listens
+      - key: health_check
+        type: bool
+        envVar: LAKTA_MODULES_GRPC_SERVER_<NAME>_HEALTH_CHECK
+        description: healthCheck determines whether gRPC health checking is enabled or disabled
+    codeOnly:
+      - option: WithService
+        type: map[*grpc.ServiceDesc]any
+        description: adds service to the list of services to be registered (code-only)
+  - category: grpc
+    type: client
+    package: github.com/Vilsol/lakta/pkg/grpc/client
+    configPath: modules.grpc.client.<name>
+    description: holds gRPC client connection settings
+    fields:
+      - key: target
+        type: string
+        default: localhost:50051
+        envVar: LAKTA_MODULES_GRPC_CLIENT_<NAME>_TARGET
+        description: target specifies the target address for the gRPC client connection
+      - key: insecure
+        type: bool
+        envVar: LAKTA_MODULES_GRPC_CLIENT_<NAME>_INSECURE
+        description: insecure determines whether transport credentials should use an insecure configuration
+    codeOnly:
+      - option: Credentials
+        type: credentials.TransportCredentials
+      - option: WithClient
+        type: '[]client.ClientRegistrar'
+        description: registers a typed client constructor (code-only)
+  - category: db
+    type: pgx
+    package: github.com/Vilsol/lakta/pkg/db/drivers/pgx
+    configPath: modules.db.pgx.<name>
+    description: represents configuration for SQL Databse [Module]
+    fields:
+      - key: dsn
+        type: string
+        required: true
+        envVar: LAKTA_MODULES_DB_PGX_<NAME>_DSN
+        description: dSN is the database connection string used to configure the database connection
+      - key: max_open_conns
+        type: int32
+        default: "10"
+        envVar: LAKTA_MODULES_DB_PGX_<NAME>_MAX_OPEN_CONNS
+        description: maxOpenConns specifies the maximum number of open connections to the database. It maps to the "max_open_conns" configuration
+      - key: log_level
+        type: string
+        default: info
+        enum: trace,debug,info,warn,error,none
+        envVar: LAKTA_MODULES_DB_PGX_<NAME>_LOG_LEVEL
+        description: logLevel specifies the logging level for database operations, supporting values like trace, debug, info, warn, error, none
+      - key: health_check
+        type: bool
+        envVar: LAKTA_MODULES_DB_PGX_<NAME>_HEALTH_CHECK
+        description: healthCheck enables or disables the database health check mechanism
+  - category: otel
+    type: otel
+    package: github.com/Vilsol/lakta/pkg/otel
+    configPath: modules.otel.otel.<name>
+    description: represents configuration for OTEL [Module]
+    fields:
+      - key: service_name
+        type: string
+        default: lakta
+        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_SERVICE_NAME
+        description: serviceName specifies the OpenTelemetry service name
+  - category: health
+    type: health
+    package: github.com/Vilsol/lakta/pkg/health
+    configPath: modules.health.health.<name>
+    description: represents configuration for health check [Module]
+    fields:
+      - key: component_name
+        type: string
+        envVar: LAKTA_MODULES_HEALTH_HEALTH_<NAME>_COMPONENT_NAME
+        description: componentName defines the name of the component
+      - key: component_version
+        type: string
+        envVar: LAKTA_MODULES_HEALTH_HEALTH_<NAME>_COMPONENT_VERSION
+        description: componentVersion represents the version of the component
+    codeOnly:
+      - option: WithCheck
+        type: '[]health.Config'
+        description: adds a health check to be registered on initialization (code-only)
+  - category: logging
+    type: tint
+    package: github.com/Vilsol/lakta/pkg/logging/tint
+    configPath: modules.logging.tint.<name>
+    description: represents configuration for Tint [Module]
+    fields:
+      - key: time_format
+        type: string
+        default: 2006-01-02T15:04:05Z07:00
+        envVar: LAKTA_MODULES_LOGGING_TINT_<NAME>_TIME_FORMAT
+        description: timeFormat specifies the format for timestamping log entries
+    codeOnly:
+      - option: WithWriter
+        type: io.Writer
+        description: sets the output writer (code-only, cannot be configured via files)
+  - category: workflows
+    type: temporal
+    package: github.com/Vilsol/lakta/pkg/workflows/temporal
+    configPath: modules.workflows.temporal.<name>
+    description: holds Temporal client and worker connection settings
+    fields:
+      - key: target
+        type: string
+        default: localhost:7233
+        envVar: LAKTA_MODULES_WORKFLOWS_TEMPORAL_<NAME>_TARGET
+        description: target specifies the Temporal server's target address for client connections
+      - key: task_queue
+        type: string
+        required: true
+        envVar: LAKTA_MODULES_WORKFLOWS_TEMPORAL_<NAME>_TASK_QUEUE
+        description: taskQueue specifies the Temporal task queue name for workflow and activity execution
+      - key: namespace
+        type: string
+        default: default
+        envVar: LAKTA_MODULES_WORKFLOWS_TEMPORAL_<NAME>_NAMESPACE
+        description: namespace defines the Temporal namespace to be used for client and worker operations
+      - key: insecure
+        type: bool
+        envVar: LAKTA_MODULES_WORKFLOWS_TEMPORAL_<NAME>_INSECURE
+        description: insecure indicates whether transport credentials should be bypassed, enabling an insecure connection
+    codeOnly:
+      - option: Credentials
+        type: credentials.TransportCredentials
+      - option: WithRegistrar
+        type: '[]temporal.Registrar'
+        description: adds a workflow/activity registrar (code-only)

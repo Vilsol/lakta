@@ -17,11 +17,13 @@ var (
 	_ lakta.NamedModule  = (*Module)(nil)
 )
 
+// Module manages a gRPC client connection lifecycle.
 type Module struct {
 	config Config
 	conn   *grpc.ClientConn
 }
 
+// NewModule creates a new gRPC client module with the given options.
 func NewModule(options ...Option) *Module {
 	return &Module{config: NewConfig(options...)}
 }
@@ -45,6 +47,7 @@ func (m *Module) LoadConfig(k *koanf.Koanf) error {
 	return nil
 }
 
+// Init loads configuration, creates the gRPC connection, and registers typed clients.
 func (m *Module) Init(ctx context.Context) error {
 	// Load config from koanf if available
 	if k, err := do.Invoke[*koanf.Koanf](lakta.GetInjector(ctx)); err == nil {
@@ -68,6 +71,7 @@ func (m *Module) Init(ctx context.Context) error {
 	return nil
 }
 
+// Shutdown closes the gRPC client connection.
 func (m *Module) Shutdown(_ context.Context) error {
-	return m.conn.Close()
+	return oops.Wrapf(m.conn.Close(), "failed to close gRPC client connection")
 }

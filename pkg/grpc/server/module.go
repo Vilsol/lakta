@@ -29,6 +29,7 @@ var (
 	_ lakta.NamedModule  = (*Module)(nil)
 )
 
+// Module manages a gRPC server lifecycle.
 type Module struct {
 	config Config
 
@@ -39,6 +40,7 @@ type Module struct {
 	runtimeContext context.Context //nolint:containedctx
 }
 
+// NewModule creates a new gRPC server module with the given options.
 func NewModule(options ...Option) *Module {
 	return &Module{config: NewConfig(options...)}
 }
@@ -62,6 +64,7 @@ func (m *Module) LoadConfig(k *koanf.Koanf) error {
 	return nil
 }
 
+// Init loads configuration and creates the gRPC server with interceptors.
 func (m *Module) Init(ctx context.Context) error {
 	// Load config from koanf if available
 	if k, err := do.Invoke[*koanf.Koanf](lakta.GetInjector(ctx)); err == nil {
@@ -70,13 +73,13 @@ func (m *Module) Init(ctx context.Context) error {
 		}
 	}
 
-	contextInjector := func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	contextInjector := func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		span := trace.SpanFromContext(ctx)
 		runtimeCtx := trace.ContextWithSpan(m.runtimeContext, span)
 		return handler(runtimeCtx, req)
 	}
 
-	streamContextInjector := func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	streamContextInjector := func(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		span := trace.SpanFromContext(ss.Context())
 		runtimeCtx := trace.ContextWithSpan(m.runtimeContext, span)
 		return handler(srv, &contextServerStream{ServerStream: ss, ctx: runtimeCtx})
@@ -121,6 +124,7 @@ func (m *Module) Init(ctx context.Context) error {
 	return nil
 }
 
+// Start begins listening and serving gRPC requests.
 func (m *Module) Start(ctx context.Context) error {
 	m.runtimeContext = ctx
 
@@ -158,6 +162,7 @@ func (m *Module) Start(ctx context.Context) error {
 	return nil
 }
 
+// Shutdown gracefully stops the gRPC server.
 func (m *Module) Shutdown(_ context.Context) error {
 	m.server.GracefulStop()
 	return nil

@@ -4,19 +4,22 @@ import (
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/hellofresh/health-go/v5"
 	"github.com/knadh/koanf/v2"
+	"github.com/samber/oops"
 )
 
 // Config represents configuration for health check [Module]
 type Config struct {
-	// Instance name (determines config path, cannot come from config file)
+	// Instance name
 	Name string `koanf:"-"`
 
-	// File-configurable fields
-	ComponentName    string `koanf:"component_name"`
+	// ComponentName defines the name of the component.
+	ComponentName string `koanf:"component_name"`
+
+	// ComponentVersion represents the version of the component.
 	ComponentVersion string `koanf:"component_version"`
 
-	// Code-only fields
-	Checks []health.Config `koanf:"-"`
+	// Checks defines a list of health check configurations for the module.
+	Checks []health.Config `code_only:"WithCheck" koanf:"-"`
 }
 
 // NewDefaultConfig returns default configuration
@@ -40,7 +43,7 @@ func NewConfig(options ...Option) Config {
 
 // LoadFromKoanf loads configuration from koanf instance at the given path.
 func (c *Config) LoadFromKoanf(k *koanf.Koanf, path string) error {
-	return k.Unmarshal(path, c)
+	return oops.Wrapf(k.Unmarshal(path, c), "failed to load config from koanf at path %s", path)
 }
 
 // GetComponent returns the health.Component from config fields.
@@ -57,6 +60,16 @@ type Option func(m *Config)
 // WithName sets the instance name for this module.
 func WithName(name string) Option {
 	return func(m *Config) { m.Name = name }
+}
+
+// WithComponentName sets the component name for health reporting.
+func WithComponentName(name string) Option {
+	return func(m *Config) { m.ComponentName = name }
+}
+
+// WithComponentVersion sets the component version for health reporting.
+func WithComponentVersion(version string) Option {
+	return func(m *Config) { m.ComponentVersion = version }
 }
 
 // WithCheck adds a health check to be registered on initialization (code-only).

@@ -17,11 +17,13 @@ var (
 	_ lakta.NamedModule  = (*Module)(nil)
 )
 
+// Module provides a tint-based slog.Handler via DI.
 type Module struct {
 	config  Config
 	handler slog.Handler
 }
 
+// NewModule creates a new tint logging module with the given options.
 func NewModule(options ...Option) *Module {
 	return &Module{config: NewConfig(options...)}
 }
@@ -45,6 +47,7 @@ func (m *Module) LoadConfig(k *koanf.Koanf) error {
 	return nil
 }
 
+// Init loads configuration, creates the tint handler, and registers it in DI.
 func (m *Module) Init(ctx context.Context) error {
 	// Load config from koanf if available
 	if k, err := do.Invoke[*koanf.Koanf](lakta.GetInjector(ctx)); err == nil {
@@ -53,9 +56,6 @@ func (m *Module) Init(ctx context.Context) error {
 		}
 	}
 
-	// Parse the level string
-	m.config.levelParsed = m.config.ParseLevel()
-
 	m.handler = m.config.NewHandler()
 
 	lakta.Provide(ctx, m.getHandler)
@@ -63,6 +63,7 @@ func (m *Module) Init(ctx context.Context) error {
 	return nil
 }
 
+// Shutdown is a no-op for this module.
 func (m *Module) Shutdown(_ context.Context) error {
 	return nil
 }

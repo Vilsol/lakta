@@ -3,8 +3,6 @@ package temporal
 import (
 	"context"
 	"errors"
-	"log"
-
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/Vilsol/slox"
@@ -23,12 +21,14 @@ var (
 	_ lakta.NamedModule  = (*Module)(nil)
 )
 
+// Module manages a Temporal client and worker lifecycle.
 type Module struct {
 	config Config
 	client client.Client
 	worker worker.Worker
 }
 
+// NewModule creates a new Temporal module with the given options.
 func NewModule(options ...Option) *Module {
 	return &Module{config: NewConfig(options...)}
 }
@@ -52,6 +52,7 @@ func (m *Module) LoadConfig(k *koanf.Koanf) error {
 	return nil
 }
 
+// Init loads configuration and validates required fields.
 func (m *Module) Init(ctx context.Context) error {
 	// Load config from koanf if available
 	if k, err := do.Invoke[*koanf.Koanf](lakta.GetInjector(ctx)); err == nil {
@@ -67,6 +68,7 @@ func (m *Module) Init(ctx context.Context) error {
 	return nil
 }
 
+// Start connects to Temporal, registers workflows/activities, and runs the worker.
 func (m *Module) Start(ctx context.Context) error {
 	tracingInterceptor, err := opentelemetry.NewTracingInterceptor(opentelemetry.TracerOptions{})
 	if err != nil {
@@ -79,7 +81,7 @@ func (m *Module) Start(ctx context.Context) error {
 	)
 	m.client, err = client.Dial(clientOpts)
 	if err != nil {
-		log.Fatalln("Unable to create client", err)
+		return oops.Wrapf(err, "failed to connect to Temporal")
 	}
 	defer m.client.Close()
 
@@ -92,22 +94,23 @@ func (m *Module) Start(ctx context.Context) error {
 		}
 	}
 
-	lakta.Provide(ctx, m.GetClient)
+	lakta.Provide(ctx, m.getClient)
 
-	err = m.worker.Run(worker.InterruptCh())
-	if err != nil {
-		log.Fatalln("Unable to start worker", err)
+	if err = m.worker.Run(worker.InterruptCh()); err != nil {
+		return oops.Wrapf(err, "failed to start worker")
 	}
 
 	return nil
 }
 
-func (m *Module) Shutdown(ctx context.Context) error {
+// Shutdown stops the worker and closes the Temporal client.
+func (m *Module) Shutdown(_ context.Context) error {
 	m.worker.Stop()
 	m.client.Close()
 	return nil
 }
 
-func (m *Module) GetClient(_ do.Injector) (client.Client, error) {
+// getClient returns the Temporal client instance.
+func (m *Module) getClient(_ do.Injector) (client.Client, error) { //nolint:ireturn
 	return m.client, nil
 }

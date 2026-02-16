@@ -12,6 +12,7 @@ import (
 	"github.com/Vilsol/slox"
 )
 
+// DefaultDepth is the maximum call stack depth used for log source rewriting.
 const DefaultDepth = 32
 
 var _ slog.Handler = (*stackRewriter)(nil)
@@ -119,6 +120,8 @@ func (t stackRewriter) WithGroup(name string) slog.Handler {
 	return stackRewriter{upstream: t.upstream.WithGroup(name)}
 }
 
+const unknownModule = "unknown"
+
 func determineModule(filePath, funcName string, mainModule, mainVersion string, modules map[string]string) string {
 	filePath = filepath.ToSlash(filePath)
 
@@ -142,7 +145,7 @@ func determineModule(filePath, funcName string, mainModule, mainVersion string, 
 	// Function names are like: github.com/user/repo/pkg/sub.FuncName
 	lastDot := strings.LastIndex(funcName, ".")
 	if lastDot == -1 {
-		return "unknown"
+		return unknownModule
 	}
 
 	packagePath := funcName[:lastDot]
@@ -164,13 +167,15 @@ func determineModule(filePath, funcName string, mainModule, mainVersion string, 
 		return fmt.Sprintf("%s@%s", longestMatch, matchedVersion)
 	}
 
-	return "unknown"
+	return unknownModule
 }
 
 func extractModuleFromPkgMod(filePath string) string {
 	parts := strings.Split(filePath, "/go/pkg/mod/")
-	if len(parts) < 2 {
-		return "unknown"
+
+	const minParts = 2
+	if len(parts) < minParts {
+		return unknownModule
 	}
 
 	remainder := parts[1]
@@ -184,5 +189,5 @@ func extractModuleFromPkgMod(filePath string) string {
 		}
 	}
 
-	return "unknown"
+	return unknownModule
 }

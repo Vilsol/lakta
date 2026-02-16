@@ -3,38 +3,34 @@ package tint
 import (
 	"io"
 	"log/slog"
+	"math"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/knadh/koanf/v2"
 	"github.com/lmittmann/tint"
+	"github.com/samber/oops"
 )
 
 // Config represents configuration for Tint [Module]
 type Config struct {
-	// Instance name (determines config path, cannot come from config file)
+	// Instance name
 	Name string `koanf:"-"`
 
-	// Code-only fields
-	Writer io.Writer `koanf:"-"`
+	// Writer specifies the output destination for logs.
+	Writer io.Writer `code_only:"WithWriter" koanf:"-"`
 
-	// File-configurable fields
-	Level      string `koanf:"level"`
+	// TimeFormat specifies the format for timestamping log entries.
 	TimeFormat string `koanf:"time_format"`
-
-	levelParsed slog.Level
 }
 
 // NewDefaultConfig returns default configuration
 func NewDefaultConfig() Config {
 	return Config{
-		Name:        config.DefaultInstanceName,
-		Writer:      os.Stderr,
-		Level:       "debug",
-		TimeFormat:  time.RFC3339,
-		levelParsed: slog.LevelDebug,
+		Name:       config.DefaultInstanceName,
+		Writer:     os.Stderr,
+		TimeFormat: time.RFC3339,
 	}
 }
 
@@ -49,35 +45,15 @@ func NewConfig(options ...Option) Config {
 
 // LoadFromKoanf loads configuration from koanf instance at the given path.
 func (c *Config) LoadFromKoanf(k *koanf.Koanf, path string) error {
-	return k.Unmarshal(path, c)
-}
-
-// ParseLevel parses the string level into slog.Level.
-func (c *Config) ParseLevel() slog.Level {
-	switch strings.ToLower(c.Level) {
-	case "debug":
-		return slog.LevelDebug
-	case "info":
-		return slog.LevelInfo
-	case "warn", "warning":
-		return slog.LevelWarn
-	case "error":
-		return slog.LevelError
-	default:
-		return slog.LevelDebug
-	}
-}
-
-// GetLevel returns the parsed slog.Level.
-func (c *Config) GetLevel() slog.Level {
-	return c.levelParsed
+	return oops.Wrapf(k.Unmarshal(path, c), "failed to load config from koanf at path %s", path)
 }
 
 // TintOptions returns tint.Options with config values applied.
+// Level is set to accept all messages; filtering is handled by the slog module's levelFilter.
 func (c *Config) TintOptions() *tint.Options {
 	return &tint.Options{
 		AddSource:  true,
-		Level:      c.levelParsed,
+		Level:      slog.Level(math.MinInt),
 		TimeFormat: c.TimeFormat,
 	}
 }
@@ -93,6 +69,11 @@ type Option func(m *Config)
 // WithName sets the instance name for this module.
 func WithName(name string) Option {
 	return func(m *Config) { m.Name = name }
+}
+
+// WithTimeFormat sets the time format string.
+func WithTimeFormat(format string) Option {
+	return func(m *Config) { m.TimeFormat = format }
 }
 
 // WithWriter sets the output writer (code-only, cannot be configured via files).

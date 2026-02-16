@@ -18,16 +18,23 @@ const (
 
 // Config represents configuration for SQL Databse [Module]
 type Config struct {
-	// Instance name (determines config path, cannot come from config file)
+	// Instance name
 	Name string `koanf:"-"`
 
-	// File-configurable fields
-	DSN          string `koanf:"dsn"`
-	MaxOpenConns int32  `koanf:"max_open_conns"`
-	LogLevel     string `koanf:"log_level"`
-	HealthCheck  bool   `koanf:"health_check"`
+	// DSN is the database connection string used to configure the database connection.
+	DSN string `koanf:"dsn" required:"true"`
 
-	logLevelParsed tracelog.LogLevel
+	// MaxOpenConns specifies the maximum number of open connections to the database. It maps to the "max_open_conns" configuration.
+	MaxOpenConns int32 `koanf:"max_open_conns"`
+
+	// LogLevel specifies the logging level for database operations, supporting values like trace, debug, info, warn, error, none.
+	LogLevel string `enum:"trace,debug,info,warn,error,none" koanf:"log_level"`
+
+	// HealthCheck enables or disables the database health check mechanism.
+	HealthCheck bool `koanf:"health_check"`
+
+	// logLevelParsed stores the parsed representation of the LogLevel field.
+	logLevelParsed tracelog.LogLevel `koanf:"-"`
 }
 
 // NewDefaultConfig returns default configuration
@@ -52,7 +59,7 @@ func NewConfig(options ...Option) Config {
 
 // LoadFromKoanf loads configuration from koanf instance at the given path.
 func (c *Config) LoadFromKoanf(k *koanf.Koanf, path string) error {
-	return k.Unmarshal(path, c)
+	return oops.Wrapf(k.Unmarshal(path, c), "failed to load config from koanf at path %s", path)
 }
 
 // ParseLogLevel parses the string log level into tracelog.LogLevel.
@@ -106,4 +113,24 @@ type Option func(m *Config)
 // WithName sets the instance name for this module.
 func WithName(name string) Option {
 	return func(m *Config) { m.Name = name }
+}
+
+// WithDSN sets the database connection string.
+func WithDSN(dsn string) Option {
+	return func(m *Config) { m.DSN = dsn }
+}
+
+// WithMaxOpenConns sets the maximum number of open connections.
+func WithMaxOpenConns(n int32) Option {
+	return func(m *Config) { m.MaxOpenConns = n }
+}
+
+// WithLogLevel sets the database log level.
+func WithLogLevel(level string) Option {
+	return func(m *Config) { m.LogLevel = level }
+}
+
+// WithHealthCheck enables or disables the database health check.
+func WithHealthCheck(enabled bool) Option {
+	return func(m *Config) { m.HealthCheck = enabled }
 }

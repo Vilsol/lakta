@@ -16,6 +16,7 @@ var (
 	_ lakta.NamedModule  = (*Module)(nil)
 )
 
+// Module manages OpenTelemetry SDK lifecycle.
 type Module struct {
 	config     Config
 	onShutdown func(context.Context) error

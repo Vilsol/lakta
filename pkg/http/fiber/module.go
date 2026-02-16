@@ -27,6 +27,7 @@ var (
 	_ lakta.NamedModule  = (*Module)(nil)
 )
 
+// Module manages a Fiber HTTP server lifecycle.
 type Module struct {
 	config Config
 
@@ -37,6 +38,7 @@ type Module struct {
 	runtimeContext context.Context //nolint:containedctx
 }
 
+// NewModule creates a new Fiber HTTP server module with the given options.
 func NewModule(options ...Option) *Module {
 	return &Module{config: NewConfig(options...)}
 }
@@ -60,6 +62,7 @@ func (m *Module) LoadConfig(k *koanf.Koanf) error {
 	return nil
 }
 
+// Init loads configuration, creates the Fiber app, and registers middleware and routes.
 func (m *Module) Init(ctx context.Context) error {
 	// Load config from koanf if available
 	if k, err := do.Invoke[*koanf.Koanf](lakta.GetInjector(ctx)); err == nil {
@@ -69,6 +72,11 @@ func (m *Module) Init(ctx context.Context) error {
 	}
 
 	app := fiber.New(m.config.ToFiberConfig())
+
+	app.Hooks().OnPreStartupMessage(func(msgData *fiber.PreStartupMessageData) error {
+		msgData.PreventDefault = true
+		return nil
+	})
 
 	app.Use(recover.New(recover.Config{
 		EnableStackTrace: true,
@@ -99,6 +107,7 @@ func (m *Module) Init(ctx context.Context) error {
 	return nil
 }
 
+// Start begins listening and serving HTTP requests.
 func (m *Module) Start(ctx context.Context) error {
 	m.runtimeContext = ctx
 
@@ -141,6 +150,7 @@ func (m *Module) Start(ctx context.Context) error {
 	return nil
 }
 
+// Shutdown is a no-op; fiber handles its own shutdown via listener close.
 func (m *Module) Shutdown(_ context.Context) error {
 	return nil
 }

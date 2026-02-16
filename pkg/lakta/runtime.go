@@ -15,20 +15,26 @@ import (
 	"github.com/sourcegraph/conc/pool"
 )
 
+const DefaultShutdownTimeout = 30 * time.Second
+
+// Runtime orchestrates module initialization, startup, and shutdown.
 type Runtime struct {
 	modules []Module
 }
 
+// NewRuntime creates a runtime with the given modules (order matters for init).
 func NewRuntime(modules ...Module) *Runtime {
 	return &Runtime{
 		modules: modules,
 	}
 }
 
+// Run starts the runtime with a background context.
 func (r *Runtime) Run() error {
 	return r.RunContext(context.Background())
 }
 
+// RunContext initializes, starts, and manages graceful shutdown of all modules.
 func (r *Runtime) RunContext(ctx context.Context) error {
 	injector := do.New()
 	ctx = WithInjector(ctx, injector)
@@ -128,7 +134,7 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 
 	stop()
 
-	shutdownTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
+	shutdownTimeout, cancel := context.WithTimeout(ctx, DefaultShutdownTimeout)
 	defer cancel()
 
 	shutdownPool := pool.New().

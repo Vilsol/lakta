@@ -7,6 +7,7 @@ package main
 
 import (
 	"os"
+	"time"
 
 	v1 "github.com/Vilsol/lakta/examples/microservices/gen/go/example/v1"
 	"github.com/Vilsol/lakta/pkg/config"
@@ -17,6 +18,7 @@ import (
 	"github.com/Vilsol/lakta/pkg/logging/slog"
 	"github.com/Vilsol/lakta/pkg/logging/tint"
 	"github.com/Vilsol/lakta/pkg/otel"
+	"github.com/gofiber/fiber/v3"
 )
 
 func main() {
@@ -40,6 +42,10 @@ func main() {
 			grpcclient.WithClient(v1.NewWorkflowServiceClient),
 		),
 		fiberserver.NewModule(
+			fiberserver.WithDefaults(fiber.Config{
+				ReadTimeout:  30 * time.Second, //nolint:mnd
+				WriteTimeout: 30 * time.Second, //nolint:mnd
+			}),
 			fiberserver.WithRouter(registerRoutes),
 		),
 	)

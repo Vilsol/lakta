@@ -27,6 +27,7 @@ type Module struct {
 	mu          sync.RWMutex
 	configFiles []configFile
 	flagSet     *pflag.FlagSet
+	onReload    []func()
 }
 
 // NewModule creates a new config module.
@@ -54,6 +55,7 @@ func (m *Module) Init(ctx context.Context) error {
 	m.startWatcher(ctx)
 
 	lakta.Provide(ctx, m.provideKoanf)
+	lakta.Provide(ctx, m.provideReloadNotifier)
 
 	return nil
 }
@@ -115,11 +117,23 @@ func (m *Module) provideKoanf(_ do.Injector) (*koanf.Koanf, error) {
 	return m.koanf, nil
 }
 
+func (m *Module) provideReloadNotifier(_ do.Injector) (ReloadNotifier, error) { //nolint:ireturn
+	return m, nil
+}
+
 // Koanf returns the koanf instance (thread-safe for hot-reload).
 func (m *Module) Koanf() *koanf.Koanf {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.koanf
+}
+
+// OnReload registers a callback that is invoked after config is successfully reloaded.
+// Callbacks run under the module's write lock, so they must not call back into the config module.
+func (m *Module) OnReload(fn func()) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.onReload = append(m.onReload, fn)
 }
 
 func (m *Module) reload() error {
@@ -147,5 +161,10 @@ func (m *Module) reload() error {
 	}
 
 	m.koanf = newKoanf
+
+	for _, fn := range m.onReload {
+		fn()
+	}
+
 	return nil
 }
