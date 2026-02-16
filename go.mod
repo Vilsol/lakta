@@ -25,7 +25,6 @@ require (
 	github.com/remychantenay/slog-otel v1.3.5
 	github.com/samber/do/v2 v2.0.0
 	github.com/samber/oops v1.21.0
-	github.com/samber/slog-multi v1.7.1
 	github.com/sourcegraph/conc v0.3.0
 	github.com/spf13/pflag v1.0.10
 	go.opentelemetry.io/contrib/bridges/otelslog v0.15.0
@@ -92,7 +91,6 @@ require (
 	github.com/robfig/cron v1.2.0 // indirect
 	github.com/samber/go-type-to-string v1.8.0 // indirect
 	github.com/samber/lo v1.52.0 // indirect
-	github.com/samber/slog-common v0.20.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect

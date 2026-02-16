@@ -14,7 +14,6 @@ import (
 	slogotel "github.com/remychantenay/slog-otel"
 	"github.com/samber/do/v2"
 	"github.com/samber/oops"
-	slogmulti "github.com/samber/slog-multi"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 )
 
@@ -76,7 +75,7 @@ func (m *Module) Init(ctx context.Context) error {
 		return oops.Wrapf(err, "failed to retrieve logger handler")
 	}
 
-	fanout := slogmulti.Fanout(
+	fanout := slog.NewMultiHandler(
 		slogotel.New(handler),
 		otelslog.NewHandler(m.config.Name),
 	)
@@ -95,6 +94,8 @@ func (m *Module) Init(ctx context.Context) error {
 	}
 
 	lakta.Provide(ctx, m.getLogger)
+
+	slog.SetDefault(m.logger)
 
 	return nil
 }

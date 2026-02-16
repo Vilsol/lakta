@@ -3,6 +3,7 @@ package temporal
 import (
 	"context"
 	"errors"
+
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/Vilsol/slox"
@@ -111,6 +112,8 @@ func (m *Module) Shutdown(_ context.Context) error {
 }
 
 // getClient returns the Temporal client instance.
-func (m *Module) getClient(_ do.Injector) (client.Client, error) { //nolint:ireturn
+//
+//nolint:ireturn
+func (m *Module) getClient(_ do.Injector) (client.Client, error) {
 	return m.client, nil
 }

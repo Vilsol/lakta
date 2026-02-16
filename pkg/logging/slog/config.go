@@ -20,6 +20,9 @@ type Config struct {
 	// Levels defines a map of per-package log level overrides.
 	Levels map[string]string `koanf:"levels"`
 
+	// GlobalDefault indicates whether the logger should be set as the default globally.
+	GlobalDefault bool `koanf:"global_default"`
+
 	// levelParsed stores the parsed log level from the Level field.
 	levelParsed slog.Level
 
@@ -30,8 +33,9 @@ type Config struct {
 // NewDefaultConfig returns default configuration
 func NewDefaultConfig() Config {
 	return Config{
-		Name:  config.DefaultInstanceName,
-		Level: "debug",
+		Name:          config.DefaultInstanceName,
+		Level:         "info",
+		GlobalDefault: true,
 	}
 }
 

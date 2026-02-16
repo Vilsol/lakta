@@ -10,14 +10,15 @@ import (
 	"reflect"
 	"strings"
 
-	pgx "github.com/Vilsol/lakta/pkg/db/drivers/pgx"
+	"github.com/Vilsol/lakta/pkg/db/drivers/pgx"
 	grpcclient "github.com/Vilsol/lakta/pkg/grpc/client"
 	grpcserver "github.com/Vilsol/lakta/pkg/grpc/server"
-	health "github.com/Vilsol/lakta/pkg/health"
+	"github.com/Vilsol/lakta/pkg/health"
 	fiberserver "github.com/Vilsol/lakta/pkg/http/fiber"
-	tint "github.com/Vilsol/lakta/pkg/logging/tint"
-	otel "github.com/Vilsol/lakta/pkg/otel"
-	temporal "github.com/Vilsol/lakta/pkg/workflows/temporal"
+	"github.com/Vilsol/lakta/pkg/logging/slog"
+	"github.com/Vilsol/lakta/pkg/logging/tint"
+	"github.com/Vilsol/lakta/pkg/otel"
+	"github.com/Vilsol/lakta/pkg/workflows/temporal"
 	"golang.org/x/mod/modfile"
 	"gopkg.in/yaml.v3"
 )
@@ -67,6 +68,7 @@ type codeOnlyDoc struct {
 
 func main() {
 	configs := []any{
+		slog.NewDefaultConfig(),
 		fiberserver.NewDefaultConfig(),
 		grpcserver.NewDefaultConfig(),
 		grpcclient.NewDefaultConfig(),

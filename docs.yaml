@@ -1,4 +1,24 @@
 modules:
+  - category: logging
+    type: slog
+    package: github.com/Vilsol/lakta/pkg/logging/slog
+    configPath: modules.logging.slog.<name>
+    description: represents configuration for slog [Module]
+    fields:
+      - key: level
+        type: string
+        default: debug
+        envVar: LAKTA_MODULES_LOGGING_SLOG_<NAME>_LEVEL
+        description: level represents the default log level to be used in the configuration
+      - key: levels
+        type: map[string]string
+        envVar: LAKTA_MODULES_LOGGING_SLOG_<NAME>_LEVELS
+        description: levels defines a map of per-package log level overrides
+      - key: global_default
+        type: bool
+        default: "true"
+        envVar: LAKTA_MODULES_LOGGING_SLOG_<NAME>_GLOBAL_DEFAULT
+        description: globalDefault indicates whether the logger should be set as the default globally
   - category: http
     type: fiber
     package: github.com/Vilsol/lakta/pkg/http/fiber
