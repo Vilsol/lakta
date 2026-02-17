@@ -88,7 +88,7 @@ func (m *Module) Init(ctx context.Context) error {
 
 	// Subscribe to config hot-reloads
 	if notifier, err := do.Invoke[config.ReloadNotifier](injector); err == nil {
-		notifier.OnReload(func() {
+		notifier.OnReload(func(k *koanf.Koanf) {
 			m.reloadLevels(k)
 		})
 	}

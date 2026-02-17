@@ -3,6 +3,8 @@
 // environment variables, and CLI flags with hot-reload support.
 package config
 
+import "github.com/knadh/koanf/v2"
+
 const (
 	defaultEnvPrefix  = "LAKTA_"
 	defaultConfigName = "lakta"
@@ -10,7 +12,7 @@ const (
 
 // ReloadNotifier can register callbacks for config reload events.
 type ReloadNotifier interface {
-	OnReload(fn func())
+	OnReload(fn func(k *koanf.Koanf))
 }
 
 // Config holds the configuration for the config module.

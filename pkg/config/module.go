@@ -27,7 +27,7 @@ type Module struct {
 	mu          sync.RWMutex
 	configFiles []configFile
 	flagSet     *pflag.FlagSet
-	onReload    []func()
+	onReload    []func(k *koanf.Koanf)
 }
 
 // NewModule creates a new config module.
@@ -78,6 +78,7 @@ func (m *Module) loadCLIFlags() error {
 	}
 
 	m.flagSet = pflag.NewFlagSet("config", pflag.ContinueOnError)
+	m.flagSet.ParseErrorsAllowlist.UnknownFlags = true
 
 	// Pre-populate flags from existing koanf keys so posflag can override them
 	for _, key := range m.koanf.Keys() {
@@ -105,7 +106,28 @@ func (m *Module) loadCLIFlags() error {
 	if err := m.koanf.Load(posflag.Provider(m.flagSet, ".", m.koanf), nil); err != nil {
 		return oops.Wrapf(err, "failed to load CLI flags into koanf")
 	}
+
+	// Unknown flags end up in Args() — parse them as --key=value pairs
+	for _, arg := range m.flagSet.Args() {
+		if k, v, ok := parseFlag(arg); ok {
+			if err := m.koanf.Set(k, v); err != nil {
+				return oops.Wrapf(err, "failed to set CLI flag %q", k)
+			}
+		}
+	}
+
 	return nil
+}
+
+func parseFlag(arg string) (string, string, bool) {
+	raw, ok := strings.CutPrefix(arg, "--")
+	if !ok {
+		return "", "", false
+	}
+	if k, v, ok := strings.Cut(raw, "="); ok {
+		return k, v, true
+	}
+	return "", "", false
 }
 
 // Shutdown gracefully shuts down the config module.
@@ -130,7 +152,7 @@ func (m *Module) Koanf() *koanf.Koanf {
 
 // OnReload registers a callback that is invoked after config is successfully reloaded.
 // Callbacks run under the module's write lock, so they must not call back into the config module.
-func (m *Module) OnReload(fn func()) {
+func (m *Module) OnReload(fn func(k *koanf.Koanf)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.onReload = append(m.onReload, fn)
@@ -163,7 +185,7 @@ func (m *Module) reload() error {
 	m.koanf = newKoanf
 
 	for _, fn := range m.onReload {
-		fn()
+		fn(newKoanf)
 	}
 
 	return nil
