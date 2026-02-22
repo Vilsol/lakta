@@ -13,18 +13,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/knadh/koanf/v2"
-	"github.com/samber/do/v2"
 	"github.com/samber/oops"
-)
-
-var (
-	_ lakta.AsyncModule  = (*Module)(nil)
-	_ lakta.Configurable = (*Module)(nil)
-	_ lakta.NamedModule  = (*Module)(nil)
 )
 
 // Module manages pgx connection pool lifecycle.
 type Module struct {
+	lakta.NamedBase
+
 	config      Config
 	poolConfig  *pgxpool.Config
 	instance    *pgxpool.Pool
@@ -33,12 +28,11 @@ type Module struct {
 
 // NewModule creates a new pgx database module with the given options.
 func NewModule(options ...Option) *Module {
-	return &Module{config: NewConfig(options...)}
-}
-
-// Name returns the instance name.
-func (m *Module) Name() string {
-	return m.config.Name
+	cfg := NewConfig(options...)
+	return &Module{
+		NamedBase: lakta.NewNamedBase(cfg.Name),
+		config:    cfg,
+	}
 }
 
 // ConfigPath returns the koanf path for this module's configuration.
@@ -48,22 +42,11 @@ func (m *Module) ConfigPath() string {
 
 // LoadConfig loads configuration from koanf.
 func (m *Module) LoadConfig(k *koanf.Koanf) error {
-	path := m.ConfigPath()
-	if k.Exists(path) {
-		return m.config.LoadFromKoanf(k, path)
-	}
-	return nil
+	return m.config.LoadFromKoanf(k, m.ConfigPath())
 }
 
 // Init loads configuration and prepares the connection pool config.
 func (m *Module) Init(ctx context.Context) error {
-	// Load config from koanf if available
-	if k, err := do.Invoke[*koanf.Koanf](lakta.GetInjector(ctx)); err == nil {
-		if err := m.LoadConfig(k); err != nil {
-			return oops.Wrapf(err, "failed to load config")
-		}
-	}
-
 	// Parse the log level string
 	m.config.logLevelParsed = m.config.ParseLogLevel()
 
@@ -100,11 +83,11 @@ func (m *Module) StartAsync(ctx context.Context) error {
 	m.instance = conn
 	m.stdInstance = stdlib.OpenDBFromPool(m.instance)
 
-	lakta.Provide(ctx, m.getConnection)
-	lakta.Provide(ctx, m.getStdConnection)
+	lakta.ProvideValue(ctx, m.instance)
+	lakta.ProvideValue(ctx, m.stdInstance)
 
 	if m.config.HealthCheck {
-		h, err := do.Invoke[*health.Health](lakta.GetInjector(ctx))
+		h, err := lakta.Invoke[*health.Health](ctx)
 		if err != nil {
 			return oops.Wrapf(err, "failed to get health instance")
 		}
@@ -130,12 +113,4 @@ func (m *Module) Shutdown(_ context.Context) error {
 
 	m.instance.Close()
 	return nil
-}
-
-func (m *Module) getConnection(_ do.Injector) (*pgxpool.Pool, error) {
-	return m.instance, nil
-}
-
-func (m *Module) getStdConnection(_ do.Injector) (*sql.DB, error) {
-	return m.stdInstance, nil
 }

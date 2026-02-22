@@ -1,0 +1,99 @@
+---
+title: HTTP (Fiber)
+description: HTTP server module backed by Fiber v3.
+---
+
+import ModuleConfig from '../../../components/ModuleConfig.astro';
+import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
+
+`pkg/http/fiber` runs a [Fiber v3](https://gofiber.io/) HTTP server as a `SyncModule`.
+
+## Setup
+
+Pass routes via `WithRouter` and Fiber defaults via `WithDefaults`. No separate module needed.
+
+```go
+lakta.NewRuntime(
+    config.NewModule(
+        config.WithConfigDirs(".", "./config"),
+        config.WithArgs(os.Args[1:]),
+    ),
+    tint.NewModule(),
+    slog.NewModule(),
+    otel.NewModule(),
+    health.NewModule(),
+    grpcclient.NewModule(
+        grpcclient.WithName("data"),
+        grpcclient.WithClient(v1.NewDataServiceClient),
+    ),
+    fiberserver.NewModule(
+        fiberserver.WithDefaults(fiber.Config{
+            ReadTimeout:  30 * time.Second,
+            WriteTimeout: 30 * time.Second,
+        }),
+        fiberserver.WithRouter(registerRoutes),
+    ),
+)
+```
+
+## Registering routes
+
+`WithRouter` receives the fully initialized `*fiber.App`. Register all routes in one place:
+
+```go
+func registerRoutes(app *fiber.App) {
+    app.Get("/items", listItems)
+    app.Get("/items/:id", getItem)
+    app.Post("/items", createItem)
+}
+```
+
+## Accessing DI in handlers
+
+Use `lakta.Invoke[T](c.Context())` — the request context carries the injector:
+
+```go
+func listItems(c fiber.Ctx) error {
+    client, err := lakta.Invoke[v1.DataServiceClient](c.Context())
+    if err != nil {
+        return err
+    }
+
+    resp, err := client.ListItems(c.Context(), &v1.ListItemsRequest{
+        Limit:  uint64(fiber.Query[int](c, "limit", 20)),
+        Offset: uint64(fiber.Query[int](c, "offset", 0)),
+    })
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+    }
+
+    return c.JSON(fiber.Map{"items": resp.GetItems()})
+}
+```
+
+## Multi-instance
+
+```go
+fiberserver.NewModule(fiberserver.WithName("admin"), fiberserver.WithRouter(adminRoutes)),
+fiberserver.NewModule(fiberserver.WithName("public"), fiberserver.WithRouter(publicRoutes)),
+```
+
+```yaml
+modules:
+  http:
+    fiber:
+      admin:
+        port: 9090
+        health_path: "/health"
+      public:
+        port: 8080
+        health_path: "/health"
+```
+
+## Configuration Reference
+
+<ModuleConfig category="http" type="fiber" />
+
+### Code-only options
+
+<ModuleCodeOnly category="http" type="fiber" />

@@ -1,0 +1,53 @@
+---
+title: Logging
+description: Structured logging with slog and tint — console-friendly, context-aware.
+---
+
+import ModuleConfig from '../../../components/ModuleConfig.astro';
+import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
+
+Lakta provides two logging modules that work together: `tint` for formatting and `slog` for the standard library logger.
+
+## Setup
+
+```go
+lakta.NewRuntime(
+    config.NewModule(
+        config.WithConfigDirs(".", "./config"),
+        config.WithArgs(os.Args[1:]),
+    ),
+    tint.NewModule(),   // provides slog.Handler
+    slog.NewModule(),   // provides *slog.Logger
+)
+```
+
+## tint module
+
+`pkg/logging/tint` wraps [`github.com/lmittmann/tint`](https://github.com/lmittmann/tint) to produce colorized, human-readable console output.
+
+### Configuration Reference
+
+<ModuleConfig category="logging" type="tint" />
+
+#### Code-only options
+
+<ModuleCodeOnly category="logging" type="tint" />
+
+## slog module
+
+`pkg/logging/slog` registers `*slog.Logger` in DI and sets it as the global default via `slog.SetDefault`.
+
+### Configuration Reference
+
+<ModuleConfig category="logging" type="slog" />
+
+## Context-aware logging
+
+Use [`github.com/Vilsol/slox`](https://github.com/Vilsol/slox) to log with the context-carried logger:
+
+```go
+slox.Info(ctx, "request received", slog.String("path", r.URL.Path))
+slox.Error(ctx, "query failed", slog.Any("err", err))
+```
+
+This ensures log records carry the correct logger (including any fields injected by middleware).

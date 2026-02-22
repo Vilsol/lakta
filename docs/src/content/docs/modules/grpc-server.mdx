@@ -1,0 +1,78 @@
+---
+title: gRPC Server
+description: gRPC server module with middleware, health checks, and reflection support.
+---
+
+import ModuleConfig from '../../../components/ModuleConfig.astro';
+import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
+
+`pkg/grpc/server` runs a gRPC server as a `SyncModule`, pre-wired with grpc-ecosystem middleware for logging, recovery, and tracing.
+
+## Setup
+
+Pass your service implementation directly via `WithService`. No separate module or DI wiring needed.
+
+```go
+lakta.NewRuntime(
+    config.NewModule(
+        config.WithConfigDirs(".", "./config"),
+        config.WithArgs(os.Args[1:]),
+    ),
+    tint.NewModule(),
+    slog.NewModule(),
+    otel.NewModule(),
+    health.NewModule(),
+    grpcserver.NewModule(
+        grpcserver.WithService(&v1.MyService_ServiceDesc, NewServer()),
+    ),
+)
+```
+
+## Implementing a service
+
+```go
+type MyServer struct {
+    v1.UnimplementedMyServiceServer
+}
+
+func NewServer() *MyServer { return &MyServer{} }
+
+func (s *MyServer) GetThing(ctx context.Context, req *pb.GetThingRequest) (*pb.GetThingResponse, error) {
+    svc, err := lakta.Invoke[*MyService](ctx)
+    if err != nil {
+        return nil, err
+    }
+    return svc.GetThing(ctx, req.Id)
+}
+```
+
+Embed `Unimplemented*Server` to satisfy the interface for any methods you haven't implemented yet. Use `lakta.Invoke[T](ctx)` inside handlers to access DI — the request context carries the injector.
+
+## Middleware
+
+The following middleware is applied automatically:
+
+- **Recovery** — converts panics to gRPC `INTERNAL` errors
+- **Logging** — structured request/response logging via slox
+- **OpenTelemetry** — trace propagation (when otel is enabled)
+
+## Multi-instance
+
+```go
+grpcserver.NewModule(
+    grpcserver.WithName("internal"),
+    grpcserver.WithService(&v1.InternalService_ServiceDesc, NewInternalServer()),
+),
+grpcserver.NewModule(
+    grpcserver.WithName("public"),
+    grpcserver.WithService(&v1.PublicService_ServiceDesc, NewPublicServer()),
+),
+```
+
+## Configuration Reference
+
+<ModuleConfig category="grpc" type="server" />
+
+### Code-only options
+
+<ModuleCodeOnly category="grpc" type="server" />

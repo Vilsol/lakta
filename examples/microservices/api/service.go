@@ -4,7 +4,6 @@ import (
 	v1 "github.com/Vilsol/lakta/examples/microservices/gen/go/example/v1"
 	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/gofiber/fiber/v3"
-	"github.com/samber/do/v2"
 )
 
 const (
@@ -23,7 +22,7 @@ func registerRoutes(app *fiber.App) {
 }
 
 func getRestaurants(c fiber.Ctx) error {
-	client, err := do.Invoke[v1.DataServiceClient](lakta.GetInjector(c.Context()))
+	client, err := lakta.Invoke[v1.DataServiceClient](c.Context())
 	if err != nil {
 		return err
 	}
@@ -44,7 +43,7 @@ func getRestaurants(c fiber.Ctx) error {
 }
 
 func getRestaurant(c fiber.Ctx) error {
-	client, err := do.Invoke[v1.DataServiceClient](lakta.GetInjector(c.Context()))
+	client, err := lakta.Invoke[v1.DataServiceClient](c.Context())
 	if err != nil {
 		return err
 	}
@@ -64,7 +63,7 @@ func getRestaurant(c fiber.Ctx) error {
 }
 
 func getRestaurantMenu(c fiber.Ctx) error {
-	client, err := do.Invoke[v1.DataServiceClient](lakta.GetInjector(c.Context()))
+	client, err := lakta.Invoke[v1.DataServiceClient](c.Context())
 	if err != nil {
 		return err
 	}
@@ -94,12 +93,12 @@ type order struct {
 }
 
 func postOrder(c fiber.Ctx) error {
-	dataClient, err := do.Invoke[v1.DataServiceClient](lakta.GetInjector(c.Context()))
+	dataClient, err := lakta.Invoke[v1.DataServiceClient](c.Context())
 	if err != nil {
 		return err
 	}
 
-	workflowClient, err := do.Invoke[v1.WorkflowServiceClient](lakta.GetInjector(c.Context()))
+	workflowClient, err := lakta.Invoke[v1.WorkflowServiceClient](c.Context())
 	if err != nil {
 		return err
 	}
@@ -173,7 +172,7 @@ func postOrder(c fiber.Ctx) error {
 }
 
 func getOrder(c fiber.Ctx) error {
-	client, err := do.Invoke[v1.DataServiceClient](lakta.GetInjector(c.Context()))
+	client, err := lakta.Invoke[v1.DataServiceClient](c.Context())
 	if err != nil {
 		return err
 	}
@@ -196,7 +195,7 @@ func getOrder(c fiber.Ctx) error {
 }
 
 func getCustomerOrders(c fiber.Ctx) error {
-	client, err := do.Invoke[v1.DataServiceClient](lakta.GetInjector(c.Context()))
+	client, err := lakta.Invoke[v1.DataServiceClient](c.Context())
 	if err != nil {
 		return err
 	}

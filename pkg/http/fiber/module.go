@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"reflect"
 
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/Vilsol/lakta/pkg/lakta"
@@ -15,37 +16,30 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/hellofresh/health-go/v5"
 	"github.com/knadh/koanf/v2"
-	"github.com/samber/do/v2"
 	"github.com/samber/oops"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 )
 
-var (
-	_ lakta.SyncModule   = (*Module)(nil)
-	_ lakta.Configurable = (*Module)(nil)
-	_ lakta.NamedModule  = (*Module)(nil)
-)
-
 // Module manages a Fiber HTTP server lifecycle.
 type Module struct {
+	lakta.NamedBase
+	lakta.SyncCtx
+
 	config Config
 
 	server   *fiber.App
 	addrPort netip.AddrPort
 	listener net.Listener
-
-	runtimeContext context.Context //nolint:containedctx
 }
 
 // NewModule creates a new Fiber HTTP server module with the given options.
 func NewModule(options ...Option) *Module {
-	return &Module{config: NewConfig(options...)}
-}
-
-// Name returns the instance name.
-func (m *Module) Name() string {
-	return m.config.Name
+	cfg := NewConfig(options...)
+	return &Module{
+		NamedBase: lakta.NewNamedBase(cfg.Name),
+		config:    cfg,
+	}
 }
 
 // ConfigPath returns the koanf path for this module's configuration.
@@ -55,22 +49,11 @@ func (m *Module) ConfigPath() string {
 
 // LoadConfig loads configuration from koanf.
 func (m *Module) LoadConfig(k *koanf.Koanf) error {
-	path := m.ConfigPath()
-	if k.Exists(path) {
-		return m.config.LoadFromKoanf(k, path)
-	}
-	return nil
+	return m.config.LoadFromKoanf(k, m.ConfigPath())
 }
 
 // Init loads configuration, creates the Fiber app, and registers middleware and routes.
 func (m *Module) Init(ctx context.Context) error {
-	// Load config from koanf if available
-	if k, err := do.Invoke[*koanf.Koanf](lakta.GetInjector(ctx)); err == nil {
-		if err := m.LoadConfig(k); err != nil {
-			return oops.Wrapf(err, "failed to load config")
-		}
-	}
-
 	app := fiber.New(m.config.ToFiberConfig())
 
 	app.Hooks().OnPreStartupMessage(func(msgData *fiber.PreStartupMessageData) error {
@@ -87,7 +70,7 @@ func (m *Module) Init(ctx context.Context) error {
 	// Inject context
 	app.Use(func(c fiber.Ctx) error {
 		span := trace.SpanFromContext(c.Context())
-		runtimeCtx := trace.ContextWithSpan(m.runtimeContext, span)
+		runtimeCtx := trace.ContextWithSpan(m.RuntimeCtx(), span)
 		c.SetContext(runtimeCtx)
 		return c.Next()
 	})
@@ -109,10 +92,8 @@ func (m *Module) Init(ctx context.Context) error {
 
 // Start begins listening and serving HTTP requests.
 func (m *Module) Start(ctx context.Context) error {
-	m.runtimeContext = ctx
-
 	if m.config.HealthPath != "" {
-		h, err := do.Invoke[*health.Health](lakta.GetInjector(ctx))
+		h, err := lakta.Invoke[*health.Health](ctx)
 		if err != nil {
 			return oops.Wrapf(err, "failed to get health instance")
 		}
@@ -150,9 +131,24 @@ func (m *Module) Start(ctx context.Context) error {
 	return nil
 }
 
+// Dependencies declares the optional types this module needs from DI before Init.
+func (m *Module) Dependencies() ([]reflect.Type, []reflect.Type) {
+	return nil, []reflect.Type{
+		reflect.TypeFor[*koanf.Koanf](),
+	}
+}
+
 // Shutdown is a no-op; fiber handles its own shutdown via listener close.
 func (m *Module) Shutdown(_ context.Context) error {
 	return nil
+}
+
+// Addr returns the listener's network address, or nil if the server has not started yet.
+func (m *Module) Addr() net.Addr {
+	if m.listener == nil {
+		return nil
+	}
+	return m.listener.Addr()
 }
 
 // fiber:context-methods migrated

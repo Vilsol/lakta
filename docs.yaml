@@ -7,7 +7,7 @@ modules:
     fields:
       - key: level
         type: string
-        default: debug
+        default: info
         envVar: LAKTA_MODULES_LOGGING_SLOG_<NAME>_LEVEL
         description: level represents the default log level to be used in the configuration
       - key: levels
@@ -133,6 +133,60 @@ modules:
         default: lakta
         envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_SERVICE_NAME
         description: serviceName specifies the OpenTelemetry service name
+      - key: service_version
+        type: string
+        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_SERVICE_VERSION
+        description: serviceVersion is included as semconv.ServiceVersionKey in the resource
+      - key: service_namespace
+        type: string
+        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_SERVICE_NAMESPACE
+        description: serviceNamespace is included as semconv.ServiceNamespaceKey in the resource
+      - key: environment
+        type: string
+        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_ENVIRONMENT
+        description: environment is the deployment environment (e.g. "production", "staging")
+      - key: endpoint
+        type: string
+        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_ENDPOINT
+        description: endpoint overrides the OTLP exporter endpoint. Empty uses the SDK default (env vars)
+      - key: protocol
+        type: string
+        default: grpc
+        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_PROTOCOL
+        description: 'protocol sets the OTLP transport: "grpc" (default), "http/protobuf", or "http/json"'
+      - key: insecure
+        type: bool
+        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_INSECURE
+        description: insecure disables TLS on the OTLP connection — useful for local collectors
+      - key: headers
+        type: map[string]string
+        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_HEADERS
+        description: headers are additional headers sent with every OTLP export (e.g. auth tokens)
+      - key: sample_rate
+        type: float64
+        default: "1"
+        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_SAMPLE_RATE
+        description: sampleRate sets the trace sampling ratio. 1.0 = always sample, 0.0 = never sample
+      - key: metric_interval
+        type: time.Duration
+        default: 1m0s
+        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_METRIC_INTERVAL
+        description: metricInterval sets the periodic metric export interval
+      - key: runtime_interval
+        type: time.Duration
+        default: 1s
+        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_RUNTIME_INTERVAL
+        description: runtimeInterval sets the minimum Go runtime stats collection interval
+      - key: enabled
+        type: bool
+        default: "true"
+        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_ENABLED
+        description: enabled controls whether OTEL is set up. When false, noop providers are registered
+      - key: signals
+        type: '[]string'
+        default: '[traces metrics logs]'
+        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_SIGNALS
+        description: 'signals lists which telemetry signals to enable: "traces", "metrics", "logs"'
   - category: health
     type: health
     package: github.com/Vilsol/lakta/pkg/health

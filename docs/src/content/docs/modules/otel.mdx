@@ -1,0 +1,43 @@
+---
+title: OpenTelemetry
+description: Distributed tracing and metrics via the OpenTelemetry SDK.
+---
+
+import ModuleConfig from '../../../components/ModuleConfig.astro';
+
+`pkg/otel` manages the OpenTelemetry SDK lifecycle — initializing trace, metric, and log providers on startup and flushing them on shutdown.
+
+## Setup
+
+```go
+lakta.NewRuntime(
+    config.NewModule(
+        config.WithConfigDirs(".", "./config"),
+        config.WithArgs(os.Args[1:]),
+    ),
+    tint.NewModule(),
+    slog.NewModule(),
+    otel.NewModule(),   // after logger, before app modules
+)
+```
+
+## What gets registered
+
+| DI type | Description |
+|---------|-------------|
+| `trace.TracerProvider` | OTLP trace exporter |
+| `metric.MeterProvider` | OTLP metric exporter |
+| `*slog.Logger` | OTel log bridge (wraps the existing logger) |
+
+## Using traces
+
+```go
+tracer := do.MustInvoke[trace.TracerProvider](injector).Tracer("my-service")
+
+ctx, span := tracer.Start(ctx, "operation-name")
+defer span.End()
+```
+
+## Configuration Reference
+
+<ModuleConfig category="otel" type="otel" />

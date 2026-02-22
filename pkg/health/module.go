@@ -2,35 +2,30 @@ package health
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/hellofresh/health-go/v5"
 	"github.com/knadh/koanf/v2"
-	"github.com/samber/do/v2"
 	"github.com/samber/oops"
-)
-
-var (
-	_ lakta.Module       = (*Module)(nil)
-	_ lakta.Configurable = (*Module)(nil)
-	_ lakta.NamedModule  = (*Module)(nil)
 )
 
 // Module provides health check functionality using hellofresh/health-go
 type Module struct {
+	lakta.NamedBase
+
 	config Config
 	health *health.Health
 }
 
 // NewModule creates a new health check module
 func NewModule(options ...Option) *Module {
-	return &Module{config: NewConfig(options...)}
-}
-
-// Name returns the instance name.
-func (m *Module) Name() string {
-	return m.config.Name
+	cfg := NewConfig(options...)
+	return &Module{
+		NamedBase: lakta.NewNamedBase(cfg.Name),
+		config:    cfg,
+	}
 }
 
 // ConfigPath returns the koanf path for this module's configuration.
@@ -40,25 +35,13 @@ func (m *Module) ConfigPath() string {
 
 // LoadConfig loads configuration from koanf.
 func (m *Module) LoadConfig(k *koanf.Koanf) error {
-	path := m.ConfigPath()
-	if k.Exists(path) {
-		return m.config.LoadFromKoanf(k, path)
-	}
-	return nil
+	return m.config.LoadFromKoanf(k, m.ConfigPath())
 }
 
 // Init creates the health instance and provides it to the injector
 func (m *Module) Init(ctx context.Context) error {
-	// Load config from koanf if available
-	if k, err := do.Invoke[*koanf.Koanf](lakta.GetInjector(ctx)); err == nil {
-		if err := m.LoadConfig(k); err != nil {
-			return oops.Wrapf(err, "failed to load config")
-		}
-	}
-
-	opts := []health.Option{
-		health.WithComponent(m.config.GetComponent()),
-	}
+	opts := make([]health.Option, 0, 1+len(m.config.Checks))
+	opts = append(opts, health.WithComponent(m.config.GetComponent()))
 
 	for _, check := range m.config.Checks {
 		opts = append(opts, health.WithChecks(check))
@@ -71,16 +54,26 @@ func (m *Module) Init(ctx context.Context) error {
 
 	m.health = h
 
-	lakta.Provide(ctx, m.getHealth)
+	lakta.ProvideValue(ctx, m.health)
 
 	return nil
+}
+
+// Provides returns the types this module registers in DI.
+func (m *Module) Provides() []reflect.Type {
+	return []reflect.Type{
+		reflect.TypeFor[*health.Health](),
+	}
+}
+
+// Dependencies declares the optional types this module needs from DI before Init.
+func (m *Module) Dependencies() ([]reflect.Type, []reflect.Type) {
+	return nil, []reflect.Type{
+		reflect.TypeFor[*koanf.Koanf](),
+	}
 }
 
 // Shutdown is a no-op for the health module
 func (m *Module) Shutdown(_ context.Context) error {
 	return nil
-}
-
-func (m *Module) getHealth(_ do.Injector) (*health.Health, error) {
-	return m.health, nil
 }

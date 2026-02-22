@@ -17,3 +17,14 @@ type NamedModule interface {
 	// Name returns the instance name for this module.
 	Name() string
 }
+
+// ReloadNotifier can register callbacks invoked after config hot-reload.
+type ReloadNotifier interface {
+	OnReload(fn func(k *koanf.Koanf))
+}
+
+// HotReloadable is implemented by modules that react to config hot-reload.
+// The runtime automatically registers them with the ReloadNotifier after all Init calls complete.
+type HotReloadable interface {
+	OnReload(k *koanf.Koanf)
+}

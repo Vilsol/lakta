@@ -2,6 +2,7 @@ package lakta
 
 import (
 	"context"
+	"reflect"
 )
 
 // Module is the base interface for all lakta modules.
@@ -20,4 +21,17 @@ type SyncModule interface {
 type AsyncModule interface {
 	Module
 	StartAsync(ctx context.Context) error
+}
+
+// Provider declares what types this module registers in DI.
+// The runtime uses this to build the dependency graph for Init ordering.
+type Provider interface {
+	Provides() []reflect.Type
+}
+
+// Dependent declares what types this module needs from DI before Init runs.
+// Required types with no registered provider cause a startup error before any Init fires.
+// Optional types with no registered provider are silently skipped.
+type Dependent interface {
+	Dependencies() (required, optional []reflect.Type)
 }

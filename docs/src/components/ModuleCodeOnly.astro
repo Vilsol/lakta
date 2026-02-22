@@ -1,0 +1,63 @@
+---
+import docs from 'virtual:lakta-docs';
+
+interface Props {
+	category: string;
+	type: string;
+}
+
+const { category, type } = Astro.props;
+const mod = docs.modules.find((m) => m.category === category && m.type === type);
+if (!mod) throw new Error(`No module doc found for ${category}/${type} in docs.yaml`);
+
+function typeClass(t: string): string {
+	if (t === 'string') return 'type-string';
+	if (t === 'bool') return 'type-bool';
+	if (/^(int|uint|float|time\.)/.test(t)) return 'type-number';
+	if (t.startsWith('map[')) return 'type-map';
+	if (t.startsWith('[]')) return 'type-slice';
+	if (t.startsWith('*')) return 'type-pointer';
+	return 'type-other';
+}
+---
+
+{mod.codeOnly && mod.codeOnly.length > 0 && (
+	<>
+		<p>These options can only be set in Go code via <code>With*()</code> functions, not via config files or environment variables.</p>
+		<table>
+			<thead>
+				<tr>
+					<th>Option</th>
+					<th>Type</th>
+					<th>Description</th>
+				</tr>
+			</thead>
+			<tbody>
+				{mod.codeOnly.map((o) => (
+					<tr>
+						<td><code>{o.option}(...)</code></td>
+						<td><code class:list={['field-type', typeClass(o.type)]}>{o.type}</code></td>
+						<td>{o.description ?? ''}</td>
+					</tr>
+				))}
+			</tbody>
+		</table>
+	</>
+)}
+
+<style>
+	.type-string  { color: #4ade80; }
+	.type-bool    { color: #818cf8; }
+	.type-number  { color: #fb923c; }
+	.type-map     { color: #facc15; }
+	.type-slice   { color: #22d3ee; }
+	.type-pointer { color: #f472b6; }
+	.type-other   { color: var(--sl-color-accent); }
+
+	:root[data-theme='light'] .type-string  { color: #16a34a; }
+	:root[data-theme='light'] .type-bool    { color: #4f46e5; }
+	:root[data-theme='light'] .type-number  { color: #ea580c; }
+	:root[data-theme='light'] .type-map     { color: #a16207; }
+	:root[data-theme='light'] .type-slice   { color: #0891b2; }
+	:root[data-theme='light'] .type-pointer { color: #db2777; }
+</style>

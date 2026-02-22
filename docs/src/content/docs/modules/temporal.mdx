@@ -1,0 +1,103 @@
+---
+title: Temporal Workflows
+description: Async workflow orchestration via the Temporal SDK.
+---
+
+import ModuleConfig from '../../../components/ModuleConfig.astro';
+import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
+
+`pkg/workflows/temporal` connects to a [Temporal](https://temporal.io/) server and manages a worker process for your workflows and activities.
+
+## Setup
+
+Register workflows and activities inline via `WithRegistrar`:
+
+```go
+lakta.NewRuntime(
+    config.NewModule(
+        config.WithConfigDirs(".", "./config"),
+        config.WithArgs(os.Args[1:]),
+    ),
+    tint.NewModule(),
+    slog.NewModule(),
+    otel.NewModule(),
+    health.NewModule(),
+    grpcclient.NewModule(
+        grpcclient.WithName("data"),
+        grpcclient.WithClient(v1.NewDataServiceClient),
+    ),
+    temporal.NewModule(
+        temporal.WithRegistrar(func(ctx context.Context, w worker.Worker) error {
+            w.RegisterWorkflow(OrderWorkflow)
+            w.RegisterActivity(UpdateOrderStatusActivity)
+            return nil
+        }),
+    ),
+    grpcserver.NewModule(
+        grpcserver.WithService(&v1.WorkflowService_ServiceDesc, NewServer()),
+    ),
+)
+```
+
+## Workflows
+
+Workflows are plain Go functions. They may not call external services directly — use activities for that:
+
+```go
+const taskQueue = "MY_TASK_QUEUE"
+
+func OrderWorkflow(ctx workflow.Context, orderID string) error {
+    ao := workflow.ActivityOptions{StartToCloseTimeout: 10 * time.Second}
+    ctx = workflow.WithActivityOptions(ctx, ao)
+    return workflow.ExecuteActivity(ctx, UpdateOrderStatusActivity, orderID, "processing").Get(ctx, nil)
+}
+```
+
+## Activities
+
+Activities can access DI via `lakta.Invoke[T](ctx)`:
+
+```go
+func UpdateOrderStatusActivity(ctx context.Context, orderID string, status string) error {
+    client, err := lakta.Invoke[v1.DataServiceClient](ctx)
+    if err != nil {
+        return err
+    }
+    _, err = client.UpdateOrderStatus(ctx, &v1.UpdateOrderStatusRequest{
+        OrderId:   orderID,
+        NewStatus: v1.OrderStatus(v1.OrderStatus_value["ORDER_STATUS_"+strings.ToUpper(status)]),
+    })
+    return err
+}
+```
+
+## Starting a workflow from a gRPC handler
+
+The Temporal `client.Client` is available in DI:
+
+```go
+func (s *WorkflowServer) StartOrderWorkflow(ctx context.Context, req *v1.StartOrderWorkflowRequest) (*v1.StartOrderWorkflowResponse, error) {
+    c, err := lakta.Invoke[client.Client](ctx)
+    if err != nil {
+        return nil, status.Error(codes.Internal, err.Error())
+    }
+
+    _, err = c.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
+        ID:        fmt.Sprintf("order-workflow-%s", req.GetOrderId()),
+        TaskQueue: taskQueue,
+    }, OrderWorkflow, req.GetOrderId())
+    if err != nil {
+        return nil, status.Error(codes.Internal, err.Error())
+    }
+
+    return &v1.StartOrderWorkflowResponse{}, nil
+}
+```
+
+## Configuration Reference
+
+<ModuleConfig category="workflows" type="temporal" />
+
+### Code-only options
+
+<ModuleCodeOnly category="workflows" type="temporal" />

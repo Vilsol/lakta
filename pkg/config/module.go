@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -10,31 +11,38 @@ import (
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/knadh/koanf/v2"
-	"github.com/samber/do/v2"
 	"github.com/samber/oops"
 	"github.com/spf13/pflag"
 )
 
-var _ lakta.Module = (*Module)(nil)
-
 // IsConfigModule is a marker method to identify this module as the config module.
 func (m *Module) IsConfigModule() {}
 
+// Provides returns the types this module registers in DI.
+func (m *Module) Provides() []reflect.Type {
+	return []reflect.Type{
+		reflect.TypeFor[*koanf.Koanf](),
+		reflect.TypeFor[ReloadNotifier](),
+	}
+}
+
 // Module is the configuration module that loads and provides configuration.
 type Module struct {
-	config      Config
-	koanf       *koanf.Koanf
-	mu          sync.RWMutex
-	configFiles []configFile
-	flagSet     *pflag.FlagSet
-	onReload    []func(k *koanf.Koanf)
+	config         Config
+	koanf          *koanf.Koanf
+	mu             sync.RWMutex
+	configFiles    []configFile
+	flagSet        *pflag.FlagSet
+	onReload       []func(k *koanf.Koanf)
+	watcherFactory func() (fileWatcher, error)
 }
 
 // NewModule creates a new config module.
 func NewModule(options ...Option) *Module {
 	return &Module{
-		config: NewConfig(options...),
-		koanf:  koanf.New("."),
+		config:         NewConfig(options...),
+		koanf:          koanf.New("."),
+		watcherFactory: defaultWatcherFactory,
 	}
 }
 
@@ -54,8 +62,8 @@ func (m *Module) Init(ctx context.Context) error {
 
 	m.startWatcher(ctx)
 
-	lakta.Provide(ctx, m.provideKoanf)
-	lakta.Provide(ctx, m.provideReloadNotifier)
+	lakta.ProvideValue(ctx, m.koanf)
+	lakta.ProvideValue[ReloadNotifier](ctx, m)
 
 	return nil
 }
@@ -133,14 +141,6 @@ func parseFlag(arg string) (string, string, bool) {
 // Shutdown gracefully shuts down the config module.
 func (m *Module) Shutdown(_ context.Context) error {
 	return nil
-}
-
-func (m *Module) provideKoanf(_ do.Injector) (*koanf.Koanf, error) {
-	return m.koanf, nil
-}
-
-func (m *Module) provideReloadNotifier(_ do.Injector) (ReloadNotifier, error) { //nolint:ireturn
-	return m, nil
 }
 
 // Koanf returns the koanf instance (thread-safe for hot-reload).

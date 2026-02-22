@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"reflect"
 
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/Vilsol/lakta/pkg/lakta"
@@ -12,7 +13,6 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/knadh/koanf/v2"
-	"github.com/samber/do/v2"
 	"github.com/samber/oops"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel/trace"
@@ -23,31 +23,25 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var (
-	_ lakta.SyncModule   = (*Module)(nil)
-	_ lakta.Configurable = (*Module)(nil)
-	_ lakta.NamedModule  = (*Module)(nil)
-)
-
 // Module manages a gRPC server lifecycle.
 type Module struct {
+	lakta.NamedBase
+	lakta.SyncCtx
+
 	config Config
 
 	server   *grpc.Server
 	addrPort netip.AddrPort
 	listener net.Listener
-
-	runtimeContext context.Context //nolint:containedctx
 }
 
 // NewModule creates a new gRPC server module with the given options.
 func NewModule(options ...Option) *Module {
-	return &Module{config: NewConfig(options...)}
-}
-
-// Name returns the instance name.
-func (m *Module) Name() string {
-	return m.config.Name
+	cfg := NewConfig(options...)
+	return &Module{
+		NamedBase: lakta.NewNamedBase(cfg.Name),
+		config:    cfg,
+	}
 }
 
 // ConfigPath returns the koanf path for this module's configuration.
@@ -57,31 +51,20 @@ func (m *Module) ConfigPath() string {
 
 // LoadConfig loads configuration from koanf.
 func (m *Module) LoadConfig(k *koanf.Koanf) error {
-	path := m.ConfigPath()
-	if k.Exists(path) {
-		return m.config.LoadFromKoanf(k, path)
-	}
-	return nil
+	return m.config.LoadFromKoanf(k, m.ConfigPath())
 }
 
 // Init loads configuration and creates the gRPC server with interceptors.
 func (m *Module) Init(ctx context.Context) error {
-	// Load config from koanf if available
-	if k, err := do.Invoke[*koanf.Koanf](lakta.GetInjector(ctx)); err == nil {
-		if err := m.LoadConfig(k); err != nil {
-			return oops.Wrapf(err, "failed to load config")
-		}
-	}
-
 	contextInjector := func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		span := trace.SpanFromContext(ctx)
-		runtimeCtx := trace.ContextWithSpan(m.runtimeContext, span)
+		runtimeCtx := trace.ContextWithSpan(m.RuntimeCtx(), span)
 		return handler(runtimeCtx, req)
 	}
 
 	streamContextInjector := func(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		span := trace.SpanFromContext(ss.Context())
-		runtimeCtx := trace.ContextWithSpan(m.runtimeContext, span)
+		runtimeCtx := trace.ContextWithSpan(m.RuntimeCtx(), span)
 		return handler(srv, &contextServerStream{ServerStream: ss, ctx: runtimeCtx})
 	}
 
@@ -126,8 +109,6 @@ func (m *Module) Init(ctx context.Context) error {
 
 // Start begins listening and serving gRPC requests.
 func (m *Module) Start(ctx context.Context) error {
-	m.runtimeContext = ctx
-
 	if m.config.HealthCheck {
 		healthpb.RegisterHealthServer(m.server, newHealthServer(ctx))
 	}
@@ -162,10 +143,25 @@ func (m *Module) Start(ctx context.Context) error {
 	return nil
 }
 
+// Dependencies declares the optional types this module needs from DI before Init.
+func (m *Module) Dependencies() ([]reflect.Type, []reflect.Type) {
+	return nil, []reflect.Type{
+		reflect.TypeFor[*koanf.Koanf](),
+	}
+}
+
 // Shutdown gracefully stops the gRPC server.
 func (m *Module) Shutdown(_ context.Context) error {
 	m.server.GracefulStop()
 	return nil
+}
+
+// Addr returns the listener's network address, or nil if the server has not started yet.
+func (m *Module) Addr() net.Addr {
+	if m.listener == nil {
+		return nil
+	}
+	return m.listener.Addr()
 }
 
 type contextServerStream struct {

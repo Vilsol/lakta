@@ -9,7 +9,6 @@ import (
 	v1 "github.com/Vilsol/lakta/examples/microservices/gen/go/example/v1"
 	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/google/uuid"
-	"github.com/samber/do/v2"
 	"github.com/samber/oops"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -19,7 +18,7 @@ type DataServer struct {
 }
 
 func (s *DataServer) ListRestaurants(ctx context.Context, request *v1.ListRestaurantsRequest) (*v1.ListRestaurantsResponse, error) {
-	db, err := do.Invoke[*squirrel.StatementBuilderType](lakta.GetInjector(ctx))
+	db, err := lakta.Invoke[*squirrel.StatementBuilderType](ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +59,7 @@ func (s *DataServer) ListRestaurants(ctx context.Context, request *v1.ListRestau
 }
 
 func (s *DataServer) GetRestaurant(ctx context.Context, request *v1.GetRestaurantRequest) (*v1.GetRestaurantResponse, error) {
-	db, err := do.Invoke[*squirrel.StatementBuilderType](lakta.GetInjector(ctx))
+	db, err := lakta.Invoke[*squirrel.StatementBuilderType](ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +83,7 @@ func (s *DataServer) GetRestaurant(ctx context.Context, request *v1.GetRestauran
 }
 
 func (s *DataServer) GetMenu(ctx context.Context, request *v1.GetMenuRequest) (*v1.GetMenuResponse, error) {
-	db, err := do.Invoke[*squirrel.StatementBuilderType](lakta.GetInjector(ctx))
+	db, err := lakta.Invoke[*squirrel.StatementBuilderType](ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +124,7 @@ func (s *DataServer) GetMenu(ctx context.Context, request *v1.GetMenuRequest) (*
 }
 
 func (s *DataServer) GetCustomer(ctx context.Context, request *v1.GetCustomerRequest) (*v1.GetCustomerResponse, error) {
-	db, err := do.Invoke[*squirrel.StatementBuilderType](lakta.GetInjector(ctx))
+	db, err := lakta.Invoke[*squirrel.StatementBuilderType](ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +148,7 @@ func (s *DataServer) GetCustomer(ctx context.Context, request *v1.GetCustomerReq
 }
 
 func (s *DataServer) CreateCustomer(ctx context.Context, request *v1.CreateCustomerRequest) (*v1.CreateCustomerResponse, error) {
-	db, err := do.Invoke[*squirrel.StatementBuilderType](lakta.GetInjector(ctx))
+	db, err := lakta.Invoke[*squirrel.StatementBuilderType](ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +176,7 @@ func (s *DataServer) CreateCustomer(ctx context.Context, request *v1.CreateCusto
 }
 
 func (s *DataServer) CreateOrder(ctx context.Context, request *v1.CreateOrderRequest) (*v1.CreateOrderResponse, error) {
-	db, err := do.Invoke[*squirrel.StatementBuilderType](lakta.GetInjector(ctx))
+	db, err := lakta.Invoke[*squirrel.StatementBuilderType](ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +211,7 @@ func (s *DataServer) CreateOrder(ctx context.Context, request *v1.CreateOrderReq
 }
 
 func (s *DataServer) GetOrder(ctx context.Context, request *v1.GetOrderRequest) (*v1.GetOrderResponse, error) {
-	db, err := do.Invoke[*squirrel.StatementBuilderType](lakta.GetInjector(ctx))
+	db, err := lakta.Invoke[*squirrel.StatementBuilderType](ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +273,7 @@ func (s *DataServer) GetOrder(ctx context.Context, request *v1.GetOrderRequest) 
 }
 
 func (s *DataServer) UpdateOrderStatus(ctx context.Context, request *v1.UpdateOrderStatusRequest) (*v1.UpdateOrderStatusResponse, error) {
-	db, err := do.Invoke[*squirrel.StatementBuilderType](lakta.GetInjector(ctx))
+	db, err := lakta.Invoke[*squirrel.StatementBuilderType](ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +298,7 @@ func (s *DataServer) UpdateOrderStatus(ctx context.Context, request *v1.UpdateOr
 }
 
 func (s *DataServer) ListCustomerOrders(ctx context.Context, request *v1.ListCustomerOrdersRequest) (*v1.ListCustomerOrdersResponse, error) {
-	db, err := do.Invoke[*squirrel.StatementBuilderType](lakta.GetInjector(ctx))
+	db, err := lakta.Invoke[*squirrel.StatementBuilderType](ctx)
 	if err != nil {
 		return nil, err
 	}

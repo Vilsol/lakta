@@ -58,7 +58,8 @@ type bindModule[T any] struct {
 // it in DI as *Binding[T]. Path segments are joined with "." (e.g. "app", "limits" → "app.limits").
 func Bind[T any](pathSegments ...string) *bindModule[T] {
 	return &bindModule[T]{
-		path: strings.Join(pathSegments, "."),
+		path:    strings.Join(pathSegments, "."),
+		binding: &Binding[T]{},
 	}
 }
 
@@ -90,7 +91,6 @@ func (m *bindModule[T]) Init(ctx context.Context) error {
 		return err
 	}
 
-	m.binding = &Binding[T]{}
 	m.binding.cached.Store(cfg)
 
 	lakta.Provide(ctx, func(_ do.Injector) (*Binding[T], error) {

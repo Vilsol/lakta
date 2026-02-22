@@ -1,0 +1,54 @@
+---
+title: Health Checks
+description: Liveness and readiness endpoints via hellofresh/health-go.
+---
+
+import ModuleConfig from '../../../components/ModuleConfig.astro';
+import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
+
+`pkg/health` exposes HTTP health check endpoints using [`hellofresh/health-go`](https://github.com/hellofresh/health-go).
+
+## Setup
+
+```go
+lakta.NewRuntime(
+    config.NewModule(
+        config.WithConfigDirs(".", "./config"),
+        config.WithArgs(os.Args[1:]),
+    ),
+    slog.NewModule(),
+    fiber.NewModule(),  // health endpoints are registered on the HTTP server
+    health.NewModule(),
+    myapp.NewModule(),
+)
+```
+
+## Endpoints
+
+| Path | Description |
+|------|-------------|
+| `GET /health/live` | Liveness — is the process alive? |
+| `GET /health/ready` | Readiness — can the service handle requests? |
+
+## Registering custom checks
+
+```go
+func (m *MyModule) Init(ctx context.Context) error {
+    h := do.MustInvoke[*health.Health](lakta.GetInjector(ctx))
+    h.Register(health.Config{
+        Name: "database",
+        Check: func(ctx context.Context) error {
+            return m.pool.Ping(ctx)
+        },
+    })
+    return nil
+}
+```
+
+## Configuration Reference
+
+<ModuleConfig category="health" type="health" />
+
+### Code-only options
+
+<ModuleCodeOnly category="health" type="health" />

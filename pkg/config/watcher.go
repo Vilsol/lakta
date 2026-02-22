@@ -6,16 +6,39 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/samber/oops"
 )
 
-const debounceDelay = 100 * time.Millisecond
+// fileWatcher abstracts fsnotify.Watcher so the watcher can be replaced in tests.
+type fileWatcher interface {
+	Add(name string) error
+	Events() <-chan fsnotify.Event
+	Errors() <-chan error
+	Close() error
+}
+
+type fsnotifyAdapter struct{ w *fsnotify.Watcher }
+
+func (a *fsnotifyAdapter) Add(name string) error         { return oops.Wrapf(a.w.Add(name), "fsnotify add") }
+func (a *fsnotifyAdapter) Events() <-chan fsnotify.Event { return a.w.Events }
+func (a *fsnotifyAdapter) Errors() <-chan error          { return a.w.Errors }
+func (a *fsnotifyAdapter) Close() error                  { return oops.Wrapf(a.w.Close(), "fsnotify close") }
+
+//nolint:ireturn
+func defaultWatcherFactory() (fileWatcher, error) {
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		return nil, oops.Wrapf(err, "failed to create fsnotify watcher")
+	}
+	return &fsnotifyAdapter{w: w}, nil
+}
 
 func (m *Module) startWatcher(ctx context.Context) {
 	if len(m.configFiles) == 0 {
 		return
 	}
 
-	watcher, err := fsnotify.NewWatcher()
+	watcher, err := m.watcherFactory()
 	if err != nil {
 		slog.Warn("failed to create config file watcher", slog.Any("error", err))
 		return
@@ -30,7 +53,7 @@ func (m *Module) startWatcher(ctx context.Context) {
 	go m.watchLoop(ctx, watcher)
 }
 
-func (m *Module) watchLoop(ctx context.Context, watcher *fsnotify.Watcher) {
+func (m *Module) watchLoop(ctx context.Context, watcher fileWatcher) {
 	defer func() { _ = watcher.Close() }()
 
 	var debounce *time.Timer
@@ -43,7 +66,7 @@ func (m *Module) watchLoop(ctx context.Context, watcher *fsnotify.Watcher) {
 			}
 			return
 
-		case event, ok := <-watcher.Events:
+		case event, ok := <-watcher.Events():
 			if !ok {
 				return
 			}
@@ -52,7 +75,7 @@ func (m *Module) watchLoop(ctx context.Context, watcher *fsnotify.Watcher) {
 				if debounce != nil {
 					debounce.Stop()
 				}
-				debounce = time.AfterFunc(debounceDelay, func() {
+				debounce = time.AfterFunc(m.config.DebounceDelay, func() {
 					if err := m.reload(); err != nil {
 						slog.Error("failed to reload config", slog.Any("error", err))
 					} else {
@@ -61,7 +84,7 @@ func (m *Module) watchLoop(ctx context.Context, watcher *fsnotify.Watcher) {
 				})
 			}
 
-		case err, ok := <-watcher.Errors:
+		case err, ok := <-watcher.Errors():
 			if !ok {
 				return
 			}

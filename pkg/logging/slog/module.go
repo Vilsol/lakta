@@ -3,11 +3,11 @@ package slog
 import (
 	"context"
 	"log/slog"
+	"reflect"
 	"runtime"
 	"runtime/debug"
 	"strings"
 
-	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/Vilsol/slox"
 	"github.com/knadh/koanf/v2"
@@ -17,10 +17,10 @@ import (
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 )
 
-var _ lakta.Module = (*Module)(nil)
-
 // Module configures and provides a slog.Logger with stack rewriting and per-package level filtering.
 type Module struct {
+	lakta.NamedBase
+
 	logger       *slog.Logger
 	runtimeFrame runtime.Frame
 	config       Config
@@ -39,12 +39,18 @@ func NewModule(options ...Option) *Module {
 
 	// Bubble up to main
 	for f.Function != "main.main" {
-		f, _ = fs.Next()
+		next, more := fs.Next()
+		if !more {
+			break
+		}
+		f = next
 	}
 
+	cfg := NewConfig(options...)
 	return &Module{
+		NamedBase:    lakta.NewNamedBase(cfg.Name),
 		runtimeFrame: f,
-		config:       NewConfig(options...),
+		config:       cfg,
 	}
 }
 
@@ -54,14 +60,11 @@ const loggingPath = "logging"
 func (m *Module) Init(ctx context.Context) error {
 	injector := lakta.GetInjector(ctx)
 
-	k, err := do.Invoke[*koanf.Koanf](injector)
-	if err != nil {
-		return oops.Wrapf(err, "failed to retrieve koanf instance")
-	}
-
-	if k != nil && k.Exists(loggingPath) {
-		if err := m.config.LoadFromKoanf(k, loggingPath); err != nil {
-			return oops.Wrapf(err, "failed to load logging config")
+	if k, err := do.Invoke[*koanf.Koanf](injector); err == nil && k != nil {
+		if k.Exists(loggingPath) {
+			if err := m.config.LoadFromKoanf(k, loggingPath); err != nil {
+				return oops.Wrapf(err, "failed to load logging config")
+			}
 		}
 	}
 
@@ -86,21 +89,14 @@ func (m *Module) Init(ctx context.Context) error {
 		newStackRewriter(ctx, m.filter, m.runtimeFrame),
 	)
 
-	// Subscribe to config hot-reloads
-	if notifier, err := do.Invoke[config.ReloadNotifier](injector); err == nil {
-		notifier.OnReload(func(k *koanf.Koanf) {
-			m.reloadLevels(k)
-		})
-	}
-
-	lakta.Provide(ctx, m.getLogger)
+	lakta.ProvideValue(ctx, m.logger)
 
 	slog.SetDefault(m.logger)
 
 	return nil
 }
 
-func (m *Module) reloadLevels(k *koanf.Koanf) {
+func (m *Module) OnReload(k *koanf.Koanf) {
 	cfg := NewDefaultConfig()
 	if k.Exists(loggingPath) {
 		if err := cfg.LoadFromKoanf(k, loggingPath); err != nil {
@@ -157,12 +153,23 @@ func prefixMatchesAnyModule(prefix string, modulePaths []string) bool {
 	return false
 }
 
+// Provides returns the types this module registers in DI.
+func (m *Module) Provides() []reflect.Type {
+	return []reflect.Type{
+		reflect.TypeFor[*slog.Logger](),
+	}
+}
+
+// Dependencies declares the types this module needs from DI before Init.
+func (m *Module) Dependencies() ([]reflect.Type, []reflect.Type) {
+	return []reflect.Type{
+			reflect.TypeFor[slog.Handler](),
+		}, []reflect.Type{
+			reflect.TypeFor[*koanf.Koanf](),
+		}
+}
+
 // Shutdown is a no-op for this module.
 func (m *Module) Shutdown(_ context.Context) error {
 	return nil
-}
-
-// getLogger returns the configured slog.Logger instance.
-func (m *Module) getLogger(_ do.Injector) (*slog.Logger, error) {
-	return m.logger, nil
 }

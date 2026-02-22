@@ -26,3 +26,15 @@ func WithInjector(ctx context.Context, injector do.Injector) context.Context {
 func Provide[T any](ctx context.Context, provider do.Provider[T]) {
 	do.Provide(GetInjector(ctx), provider)
 }
+
+// ProvideValue injects a pre-created value into the injector.
+func ProvideValue[T any](ctx context.Context, value T) {
+	do.Provide(GetInjector(ctx), func(_ do.Injector) (T, error) {
+		return value, nil
+	})
+}
+
+// Invoke retrieves a value of type T from the injector in the context.
+func Invoke[T any](ctx context.Context) (T, error) { //nolint:ireturn
+	return do.Invoke[T](GetInjector(ctx))
+}

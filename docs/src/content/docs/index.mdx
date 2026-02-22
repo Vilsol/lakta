@@ -1,0 +1,101 @@
+---
+title: Lakta
+description: An opinionated Go microservice framework built around modules, dependency injection, and automatic lifecycle management.
+template: splash
+hero:
+  title: |
+    <span
+      class="font-black text-transparent
+        bg-clip-text bg-gradient-to-b
+        from-accent-700 to-accent-400
+        dark:from-accent-500 dark:to-accent-200"
+    >
+      Lakta
+    </span>
+  tagline: An opinionated Go microservice framework. Modules, DI, and lifecycle management — batteries included.
+  actions:
+    - text: Get started
+      link: /getting-started/installation/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/Vilsol/lakta
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Why Lakta?
+
+<CardGrid stagger>
+	<Card title="Automatic init ordering" icon="approve-check">
+		Declare what your module provides and needs. The runtime resolves initialization order via topological sort — no manual wiring.
+	</Card>
+	<Card title="Context-carried DI" icon="puzzle">
+		The injector lives on the context. Access any registered type from gRPC handlers, HTTP handlers, or Temporal activities with a single `lakta.Invoke[T](ctx)` call.
+	</Card>
+	<Card title="Batteries included" icon="list-format">
+		First-class modules for gRPC, HTTP (Fiber), PostgreSQL, OpenTelemetry, health checks, and Temporal workflows — all wired consistently.
+	</Card>
+	<Card title="Graceful lifecycle" icon="rocket">
+		Async and sync start phases run concurrently. SIGTERM triggers reverse-order shutdown with a 30-second deadline. Config hot-reload is built in.
+	</Card>
+</CardGrid>
+
+## A complete service in one file
+
+```go
+func main() {
+    if err := lakta.NewRuntime(
+        config.NewModule(
+            config.WithConfigDirs(".", "./config"),
+            config.WithArgs(os.Args[1:]),
+        ),
+        tint.NewModule(),
+        slog.NewModule(),
+        otel.NewModule(),
+        health.NewModule(),
+        grpcclient.NewModule(
+            grpcclient.WithName("data"),
+            grpcclient.WithClient(v1.NewDataServiceClient),
+        ),
+        fiberserver.NewModule(
+            fiberserver.WithDefaults(fiber.Config{ReadTimeout: 30 * time.Second}),
+            fiberserver.WithRouter(registerRoutes),
+        ),
+    ).Run(); err != nil {
+        os.Exit(1)
+    }
+}
+
+func registerRoutes(app *fiber.App) {
+    app.Get("/orders/:id", func(c fiber.Ctx) error {
+        client, err := lakta.Invoke[v1.DataServiceClient](c.Context())
+        if err != nil {
+            return err
+        }
+        resp, err := client.GetOrder(c.Context(), &v1.GetOrderRequest{Id: c.Params("id")})
+        if err != nil {
+            return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+        }
+        return c.JSON(resp.GetOrder())
+    })
+}
+```
+
+## What's included
+
+<CardGrid>
+	<Card title="Getting Started" icon="open-book">
+		[Install Lakta](/getting-started/installation/), build [your first service](/getting-started/first-service/), and understand the [module lifecycle](/getting-started/lifecycle/).
+	</Card>
+	<Card title="Core Concepts" icon="information">
+		Deep dives into [modules](/core-concepts/modules/), the [runtime](/core-concepts/runtime/), [dependency injection](/core-concepts/dependency-injection/), and [configuration](/core-concepts/configuration/).
+	</Card>
+	<Card title="Module Reference" icon="list-format">
+		Docs for every built-in module: [logging](/modules/logging/), [OpenTelemetry](/modules/otel/), [HTTP](/modules/http/), [gRPC](/modules/grpc-server/), [database](/modules/database/), [health checks](/modules/health/), and [Temporal](/modules/temporal/).
+	</Card>
+	<Card title="Guides" icon="pencil">
+		[Write a custom module](/guides/custom-module/), [test with testkit](/guides/testing/), and walk through the full [microservices example](/guides/microservices-example/).
+	</Card>
+</CardGrid>

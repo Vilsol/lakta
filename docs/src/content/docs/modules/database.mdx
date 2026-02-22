@@ -1,0 +1,54 @@
+---
+title: Database (pgx)
+description: PostgreSQL connection module using pgx/v5.
+---
+
+import ModuleConfig from '../../../components/ModuleConfig.astro';
+
+`pkg/db/drivers/pgx` manages a PostgreSQL connection pool using [`jackc/pgx`](https://github.com/jackc/pgx).
+
+## Setup
+
+```go
+lakta.NewRuntime(
+    config.NewModule(
+        config.WithConfigDirs(".", "./config"),
+        config.WithArgs(os.Args[1:]),
+    ),
+    tint.NewModule(),
+    slog.NewModule(),
+    pgx.NewModule(),
+    myapp.NewModule(),
+)
+```
+
+## Consuming the connection
+
+```go
+func (m *MyModule) Init(ctx context.Context) error {
+    pool := do.MustInvoke[*pgxpool.Pool](lakta.GetInjector(ctx))
+    m.pool = pool
+    return nil
+}
+```
+
+## Multi-instance
+
+```go
+pgx.NewModule(pgx.WithName("primary")),
+pgx.NewModule(pgx.WithName("replica")),
+```
+
+```yaml
+modules:
+  db:
+    pgx:
+      primary:
+        dsn: "postgres://user:pass@primary:5432/mydb"
+      replica:
+        dsn: "postgres://user:pass@replica:5432/mydb"
+```
+
+## Configuration Reference
+
+<ModuleConfig category="db" type="pgx" />

@@ -10,8 +10,6 @@ import (
 	"github.com/samber/oops"
 )
 
-var _ lakta.Module = (*Module)(nil)
-
 // Module provides a squirrel query builder via DI.
 type Module struct{}
 

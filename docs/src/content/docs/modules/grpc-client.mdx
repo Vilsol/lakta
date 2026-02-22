@@ -1,0 +1,96 @@
+---
+title: gRPC Client
+description: Managed gRPC client connections with typed client registration.
+---
+
+import ModuleConfig from '../../../components/ModuleConfig.astro';
+import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
+
+`pkg/grpc/client` establishes a gRPC connection and registers a typed client in DI via `WithClient`.
+
+## Setup
+
+Pass `WithClient` a proto-generated constructor (`func(*grpc.ClientConn) T`). The typed client is registered directly in DI — no need to ever handle the raw connection.
+
+```go
+lakta.NewRuntime(
+    config.NewModule(
+        config.WithConfigDirs(".", "./config"),
+        config.WithArgs(os.Args[1:]),
+    ),
+    tint.NewModule(),
+    slog.NewModule(),
+    otel.NewModule(),
+    grpcclient.NewModule(
+        grpcclient.WithName("data"),
+        grpcclient.WithClient(v1.NewDataServiceClient),
+    ),
+    grpcclient.NewModule(
+        grpcclient.WithName("orchestrator"),
+        grpcclient.WithClient(v1.NewWorkflowServiceClient),
+    ),
+    myapp.NewModule(),
+)
+```
+
+## Consuming the client
+
+Use `lakta.Invoke[T](ctx)` in any handler. The typed interface is what was registered — not the raw `*grpc.ClientConn`.
+
+```go
+// gRPC handler
+func (s *MyServer) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb.PlaceOrderResponse, error) {
+    dataClient, err := lakta.Invoke[v1.DataServiceClient](ctx)
+    if err != nil {
+        return nil, err
+    }
+    return dataClient.CreateOrder(ctx, &v1.CreateOrderRequest{...})
+}
+
+// HTTP handler (Fiber)
+func handlePost(c fiber.Ctx) error {
+    client, err := lakta.Invoke[v1.DataServiceClient](c.Context())
+    if err != nil {
+        return err
+    }
+    resp, err := client.GetThing(c.Context(), &v1.GetThingRequest{Id: c.Params("id")})
+    ...
+}
+```
+
+## Multiple connections
+
+Each instance needs a name and its own config block:
+
+```go
+grpcclient.NewModule(
+    grpcclient.WithName("data"),
+    grpcclient.WithClient(v1.NewDataServiceClient),
+),
+grpcclient.NewModule(
+    grpcclient.WithName("orchestrator"),
+    grpcclient.WithClient(v1.NewWorkflowServiceClient),
+),
+```
+
+```yaml
+modules:
+  grpc:
+    client:
+      data:
+        target: "data-svc:50051"
+        insecure: true
+      orchestrator:
+        target: "orchestrator-svc:50052"
+        insecure: true
+```
+
+See [Multi-instance Modules](/core-concepts/multi-instance) for the full pattern.
+
+## Configuration Reference
+
+<ModuleConfig category="grpc" type="client" />
+
+### Code-only options
+
+<ModuleCodeOnly category="grpc" type="client" />

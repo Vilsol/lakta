@@ -1,0 +1,349 @@
+---
+import docs from 'virtual:lakta-docs';
+
+interface Props {
+	category: string;
+	type: string;
+}
+
+const { category, type } = Astro.props;
+const mod = docs.modules.find((m) => m.category === category && m.type === type);
+if (!mod) throw new Error(`No module doc found for ${category}/${type} in docs.yaml`);
+
+function typeClass(t: string): string {
+	if (t === 'string') return 'type-string';
+	if (t === 'bool') return 'type-bool';
+	if (/^(int|uint|float|time\.)/.test(t)) return 'type-number';
+	if (t.startsWith('map[')) return 'type-map';
+	if (t.startsWith('[]')) return 'type-slice';
+	if (t.startsWith('*')) return 'type-pointer';
+	return 'type-other';
+}
+
+function defaultClass(value: string, t: string): string {
+	if (t === 'bool') return 'type-bool';
+	if (/^(int|uint|float|time\.)/.test(t)) return 'type-number';
+	if (t === 'string') return 'type-string';
+	if (value === 'true' || value === 'false') return 'type-bool';
+	if (/^-?\d/.test(value)) return 'type-number';
+	return '';
+}
+
+function splitEnvVar(envVar: string): { text: string; placeholder: boolean }[] {
+	const parts: { text: string; placeholder: boolean }[] = [];
+	const re = /<[^>]+>/g;
+	let last = 0;
+	let match;
+	while ((match = re.exec(envVar)) !== null) {
+		if (match.index > last) parts.push({ text: envVar.slice(last, match.index), placeholder: false });
+		parts.push({ text: match[0], placeholder: true });
+		last = match.index + match[0].length;
+	}
+	if (last < envVar.length) parts.push({ text: envVar.slice(last), placeholder: false });
+	return parts;
+}
+---
+
+<section>
+	<p>Config path: <code>{mod.configPath}</code></p>
+
+	{mod.fields.length > 0 && (
+		<div class="field-list">
+			{mod.fields.map((f) => (
+				<div class="field-card">
+					<div class="field-header">
+						<span class="field-key">
+							<code>{f.key}</code>
+							{f.required && <span class="required">required</span>}
+							{f.enum && (
+								<button class="enum-badge" data-enum={f.enum} aria-expanded="false">
+									enum
+								</button>
+							)}
+						</span>
+						<span class="field-meta">
+							<code class:list={['field-type', typeClass(f.type)]}>{f.type}</code>
+							{f.default != null && (
+								<span class="field-default">
+									default: <code class:list={[defaultClass(f.default, f.type)]}>{f.default}</code>
+								</span>
+							)}
+						</span>
+					</div>
+					{f.enum && (
+						<div class="enum-values" hidden>
+							{f.enum.split(',').map((v) => (
+								<button class="enum-value" data-copy={v.trim()}>{v.trim()}</button>
+							))}
+						</div>
+					)}
+					{f.description && <p class="field-description">{f.description}</p>}
+					<div class="field-env">
+						<span class="env-label">env</span>
+						<code class="env-var">
+							{splitEnvVar(f.envVar).map((seg) =>
+								seg.placeholder
+									? <span class="env-placeholder">{seg.text}</span>
+									: seg.text
+							)}
+						</code>
+						<button class="copy-btn" data-copy={f.envVar} title="Copy env var">
+							<svg class="icon-copy" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+							<svg class="icon-check" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+						</button>
+					</div>
+				</div>
+			))}
+		</div>
+	)}
+
+	{mod.passthrough && (
+		<p class="passthrough-note">
+			Additional fields are passed through to{' '}
+			<a href={mod.passthrough.docsUrl} target="_blank" rel="noopener noreferrer">
+				<code>{mod.passthrough.targetPackage} {mod.passthrough.targetType}</code>
+			</a>{' '}
+			via <code>mapstructure</code>. See <a href="/guides/config-passthrough">Config Passthrough</a> for details.
+		</p>
+	)}
+</section>
+
+<style>
+	.field-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		margin-block: 1rem;
+	}
+
+	.field-card {
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 6px;
+		padding: 0.75rem 1rem;
+		background: var(--sl-color-black);
+	}
+
+	.field-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+
+	.field-key {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: 1rem;
+	}
+
+	.field-meta {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		flex-shrink: 0;
+	}
+
+	.type-string  { color: #4ade80; }
+	.type-bool    { color: #818cf8; }
+	.type-number  { color: #fb923c; }
+	.type-map     { color: #facc15; }
+	.type-slice   { color: #22d3ee; }
+	.type-pointer { color: #f472b6; }
+	.type-other   { color: var(--sl-color-accent); }
+
+	:root[data-theme='light'] .type-string  { color: #16a34a; }
+	:root[data-theme='light'] .type-bool    { color: #4f46e5; }
+	:root[data-theme='light'] .type-number  { color: #ea580c; }
+	:root[data-theme='light'] .type-map     { color: #a16207; }
+	:root[data-theme='light'] .type-slice   { color: #0891b2; }
+	:root[data-theme='light'] .type-pointer { color: #db2777; }
+
+	.field-default {
+		font-size: 0.85em;
+		color: var(--sl-color-gray-3);
+	}
+
+	.field-description {
+		margin: 0.4rem 0 0;
+		font-size: 0.9em;
+		color: var(--sl-color-gray-2);
+	}
+
+	.field-env {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-top: 0.35rem;
+	}
+
+	.env-label {
+		font-size: 0.7em;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--sl-color-gray-4);
+		flex-shrink: 0;
+	}
+
+	.env-var {
+		font-size: 0.8em;
+		color: var(--sl-color-gray-3);
+	}
+
+	.env-placeholder {
+		opacity: 0.45;
+		font-style: italic;
+	}
+
+	/* --- copy button --- */
+
+	.copy-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		width: 22px;
+		height: 22px;
+		padding: 0;
+		margin: 0;
+		border: none;
+		border-radius: 3px;
+		background: transparent;
+		color: var(--sl-color-gray-4);
+		cursor: pointer;
+		opacity: 0;
+		transition: opacity 0.15s, color 0.15s, background 0.15s;
+	}
+
+	.field-env:hover .copy-btn,
+	.copy-btn:focus-visible {
+		opacity: 1;
+	}
+
+	.copy-btn:hover {
+		background: var(--sl-color-gray-6);
+		color: var(--sl-color-gray-2);
+	}
+
+	.copy-btn svg {
+		display: block;
+		flex-shrink: 0;
+		margin: 0;
+	}
+
+	.copy-btn .icon-check {
+		display: none;
+		color: #4ade80;
+	}
+
+	.copy-btn.copied .icon-copy { display: none; }
+	.copy-btn.copied .icon-check { display: block; }
+
+	/* --- enum badge + expander --- */
+
+	.enum-badge {
+		font-size: 0.7em;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		padding: 0.1em 0.35em;
+		border-radius: 3px;
+		border: none;
+		background: var(--sl-color-accent-low);
+		color: var(--sl-color-accent-high);
+		cursor: pointer;
+		transition: background 0.15s;
+	}
+
+	.enum-badge:hover,
+	.enum-badge[aria-expanded='true'] {
+		background: color-mix(in srgb, var(--sl-color-accent) 25%, transparent);
+	}
+
+	.enum-values {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		margin-top: 0.5rem;
+	}
+
+	.enum-value {
+		font-family: var(--sl-font-mono), monospace;
+		font-size: 0.8em;
+		padding: 0.2em 0.6em;
+		border-radius: 4px;
+		border: 1px solid var(--sl-color-gray-5);
+		background: var(--sl-color-gray-7, var(--sl-color-black));
+		color: var(--sl-color-gray-2);
+		cursor: pointer;
+		transition: border-color 0.15s, color 0.15s;
+	}
+
+	.enum-value:hover {
+		border-color: var(--sl-color-accent);
+		color: var(--sl-color-white);
+	}
+
+	.enum-value.copied {
+		border-color: #4ade80;
+		color: #4ade80;
+	}
+
+	/* --- badges --- */
+
+	.required {
+		font-size: 0.7em;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		padding: 0.1em 0.35em;
+		border-radius: 3px;
+		background: color-mix(in srgb, var(--sl-color-red) 15%, transparent);
+		color: var(--sl-color-red);
+	}
+
+	.passthrough-note {
+		margin-top: 1rem;
+		padding: 0.75rem 1rem;
+		border-left: 3px solid var(--sl-color-accent);
+		background: var(--sl-color-accent-low);
+		border-radius: 0 4px 4px 0;
+	}
+</style>
+
+<script>
+	// Copy env var — replaces <NAME> with "default" before copying
+	document.querySelectorAll<HTMLButtonElement>('.copy-btn').forEach((btn) => {
+		btn.addEventListener('click', async () => {
+			const raw = btn.dataset.copy;
+			if (!raw) return;
+			await navigator.clipboard.writeText(raw.replace(new RegExp('<NAME>', 'gi'), 'DEFAULT'));
+			btn.classList.add('copied');
+			setTimeout(() => btn.classList.remove('copied'), 1500);
+		});
+	});
+
+	// Enum badge toggles the value list
+	document.querySelectorAll<HTMLButtonElement>('.enum-badge').forEach((badge) => {
+		badge.addEventListener('click', () => {
+			const card = badge.closest('.field-card');
+			if (!card) return;
+			const panel = card.querySelector('.enum-values') as HTMLElement | null;
+			if (!panel) return;
+			const open = badge.getAttribute('aria-expanded') === 'true';
+			badge.setAttribute('aria-expanded', String(!open));
+			panel.hidden = open;
+		});
+	});
+
+	// Click an enum value chip to copy it
+	document.querySelectorAll<HTMLButtonElement>('.enum-value').forEach((chip) => {
+		chip.addEventListener('click', async () => {
+			await navigator.clipboard.writeText(chip.dataset.copy ?? chip.textContent ?? '');
+			chip.classList.add('copied');
+			setTimeout(() => chip.classList.remove('copied'), 1500);
+		});
+	});
+</script>

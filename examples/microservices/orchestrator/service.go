@@ -6,7 +6,6 @@ import (
 
 	v1 "github.com/Vilsol/lakta/examples/microservices/gen/go/example/v1"
 	"github.com/Vilsol/lakta/pkg/lakta"
-	"github.com/samber/do/v2"
 	"go.temporal.io/sdk/client"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -21,7 +20,7 @@ func NewServer() *WorkflowServer {
 }
 
 func (s *WorkflowServer) StartOrderWorkflow(ctx context.Context, request *v1.StartOrderWorkflowRequest) (*v1.StartOrderWorkflowResponse, error) {
-	c, err := do.Invoke[client.Client](lakta.GetInjector(ctx))
+	c, err := lakta.Invoke[client.Client](ctx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
