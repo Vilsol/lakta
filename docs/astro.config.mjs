@@ -32,6 +32,8 @@ function laktaDocsPlugin() {
 
 // https://astro.build/config
 export default defineConfig({
+	site: 'https://vilsol.github.io',
+	base: '/lakta',
 	integrations: [
 		starlight({
 			title: 'Lakta',
