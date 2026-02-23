@@ -17,7 +17,7 @@ pkg/mymodule/
 
 ## config.go
 
-```go
+```go compile=skip
 package mymodule
 
 import "github.com/knadh/koanf/v2"
@@ -46,7 +46,7 @@ func (c *Config) Address() string {
 
 ## module.go
 
-```go
+```go compile=skip
 package mymodule
 
 type Module struct {
@@ -87,7 +87,7 @@ func (m *Module) Shutdown(ctx context.Context) error {
 
 If your module runs a long-lived server, implement `Start`:
 
-```go
+```go compile=skip
 func (m *Module) Start(ctx context.Context) error {
     return m.server.ListenAndServe(m.config.Address()) // blocks
 }

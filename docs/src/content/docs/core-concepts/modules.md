@@ -7,7 +7,7 @@ Every piece of functionality in Lakta is a **module**. A module is a Go struct t
 
 ## Base interface
 
-```go
+```go compile=decl imports="context"
 type Module interface {
     Init(ctx context.Context) error
     Shutdown(ctx context.Context) error
@@ -20,7 +20,7 @@ Use `Init` to register DI providers and wire up dependencies. Use `Shutdown` to 
 
 For long-running services that must block (HTTP servers, gRPC servers):
 
-```go
+```go compile=skip
 type SyncModule interface {
     Module
     Start(ctx context.Context) error
@@ -33,7 +33,7 @@ type SyncModule interface {
 
 For background workers that run without blocking:
 
-```go
+```go compile=skip
 type AsyncModule interface {
     Module
     StartAsync(ctx context.Context) error
@@ -46,13 +46,13 @@ type AsyncModule interface {
 
 Declares what types this module registers in DI. The runtime uses this to resolve Init order automatically:
 
-```go
+```go compile=decl imports="reflect"
 type Provider interface {
     Provides() []reflect.Type
 }
 ```
 
-```go
+```go compile=skip
 func (m *MyModule) Provides() []reflect.Type {
     return []reflect.Type{reflect.TypeOf((*MyService)(nil))}
 }
@@ -62,13 +62,13 @@ func (m *MyModule) Provides() []reflect.Type {
 
 Declares what types this module needs before its `Init` runs:
 
-```go
+```go compile=decl imports="reflect"
 type Dependent interface {
     Dependencies() (required, optional []reflect.Type)
 }
 ```
 
-```go
+```go compile=skip
 func (m *MyModule) Dependencies() (required, optional []reflect.Type) {
     required = []reflect.Type{reflect.TypeOf((*pgxpool.Pool)(nil))}
     optional = []reflect.Type{reflect.TypeOf((*slog.Logger)(nil))}
@@ -84,7 +84,7 @@ Together, `Provider` and `Dependent` let the runtime topologically sort modules 
 
 Modules that load from the config file:
 
-```go
+```go compile=decl imports="github.com/knadh/koanf/v2"
 type Configurable interface {
     ConfigPath() string
     LoadConfig(*koanf.Koanf) error
@@ -97,7 +97,7 @@ The runtime calls `LoadConfig` automatically before `Init` using the sub-tree at
 
 Enables multiple instances of the same module type:
 
-```go
+```go compile=decl
 type NamedModule interface {
     Name() string
 }
@@ -109,7 +109,7 @@ Embed `lakta.NamedBase` and call `NewNamedBase(name)` for a ready-made implement
 
 When an interceptor set up during `Init` needs the runtime context (only available at `Start` time), embed `lakta.SyncCtx`:
 
-```go
+```go compile=decl imports="context,github.com/Vilsol/lakta/pkg/lakta"
 type MyModule struct {
     lakta.SyncCtx
 }

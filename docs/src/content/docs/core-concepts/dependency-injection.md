@@ -7,7 +7,7 @@ Lakta uses [`github.com/samber/do/v2`](https://github.com/samber/do) for depende
 
 ## Registering a provider
 
-```go
+```go compile=skip
 func (m *MyModule) Init(ctx context.Context) error {
     lakta.Provide(ctx, func(i do.Injector) (*MyService, error) {
         return &MyService{}, nil
@@ -22,7 +22,7 @@ Providers are lazy — they are only constructed when first invoked.
 
 The idiomatic way to consume DI in gRPC and HTTP handlers is `lakta.Invoke[T]`, which takes the request context directly:
 
-```go
+```go compile=skip
 // gRPC handler
 func (s *MyServer) GetThing(ctx context.Context, req *pb.GetThingRequest) (*pb.GetThingResponse, error) {
     svc, err := lakta.Invoke[*MyService](ctx)
@@ -46,7 +46,7 @@ func handleGet(c fiber.Ctx) error {
 
 When wiring modules together in `Init`, retrieve the injector explicitly:
 
-```go
+```go compile=skip
 func (m *MyModule) Init(ctx context.Context) error {
     injector := lakta.GetInjector(ctx)
     dep := do.MustInvoke[*Dependency](injector)
@@ -59,7 +59,7 @@ func (m *MyModule) Init(ctx context.Context) error {
 
 Modules like `grpc/client` register a typed client directly when you provide a constructor via `WithClient`. This means you invoke the interface type, not the raw connection:
 
-```go
+```go compile=skip
 // Registration (in NewRuntime)
 grpcclient.NewModule(
     grpcclient.WithName("data"),

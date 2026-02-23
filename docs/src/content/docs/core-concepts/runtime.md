@@ -7,7 +7,7 @@ description: How NewRuntime orchestrates module lifecycle and signal handling.
 
 ## Creating a runtime
 
-```go
+```go compile=skip
 if err := lakta.NewRuntime(module1, module2, module3, ...).Run(); err != nil {
     os.Exit(1)
 }
@@ -28,7 +28,7 @@ if err := lakta.NewRuntime(module1, module2, module3, ...).Run(); err != nil {
 
 You do not need to pass modules in dependency order. The runtime resolves order automatically from `Provider` and `Dependent` declarations:
 
-```go
+```go compile=skip
 // These can be in any order — the runtime sorts them
 lakta.NewRuntime(
     myapp.NewModule(),       // declares dependency on *pgxpool.Pool, *slog.Logger

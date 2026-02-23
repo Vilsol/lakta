@@ -18,7 +18,7 @@ A shared `lakta.yaml` at the root provides config for all three services.
 
 Owns the PostgreSQL database and exposes a gRPC API for CRUD operations on restaurants, customers, orders, and menus.
 
-```go
+```go compile=skip
 lakta.NewRuntime(
     config.NewModule(
         config.WithConfigDirs(".", "./config"),
@@ -38,7 +38,7 @@ lakta.NewRuntime(
 
 The `sql` module wraps the pgx connection in a `*squirrel.StatementBuilderType` and registers it in DI. gRPC handlers access it directly:
 
-```go
+```go compile=skip
 func (s *DataServer) ListRestaurants(ctx context.Context, req *v1.ListRestaurantsRequest) (*v1.ListRestaurantsResponse, error) {
     db, err := lakta.Invoke[*squirrel.StatementBuilderType](ctx)
     if err != nil {
@@ -57,7 +57,7 @@ func (s *DataServer) ListRestaurants(ctx context.Context, req *v1.ListRestaurant
 
 Runs a Temporal worker for `SingleOrderWorkflow` and exposes a gRPC `WorkflowService` that triggers workflows. It also connects to the data service as a gRPC client so activities can update order status.
 
-```go
+```go compile=skip
 lakta.NewRuntime(
     config.NewModule(
         config.WithConfigDirs(".", "./config"),
@@ -86,7 +86,7 @@ lakta.NewRuntime(
 
 The gRPC handler starts a workflow, and the activity uses the data client to update state:
 
-```go
+```go compile=skip
 // gRPC handler triggers a workflow
 func (s *WorkflowServer) StartOrderWorkflow(ctx context.Context, req *v1.StartOrderWorkflowRequest) (*v1.StartOrderWorkflowResponse, error) {
     c, err := lakta.Invoke[client.Client](ctx)
@@ -118,7 +118,7 @@ func UpdateOrderStatusActivity(ctx context.Context, orderID string, newStatus v1
 
 An HTTP gateway that receives REST requests and fans out to both the data and orchestrator gRPC services.
 
-```go
+```go compile=skip
 lakta.NewRuntime(
     config.NewModule(
         config.WithConfigDirs(".", "./config"),
@@ -148,7 +148,7 @@ lakta.NewRuntime(
 
 Routes call both gRPC clients. For example, placing an order writes to the data service then triggers the orchestrator workflow:
 
-```go
+```go compile=skip
 func postOrder(c fiber.Ctx) error {
     dataClient, err := lakta.Invoke[v1.DataServiceClient](c.Context())
     if err != nil {

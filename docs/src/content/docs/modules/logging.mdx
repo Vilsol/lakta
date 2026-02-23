@@ -10,7 +10,7 @@ Lakta provides two logging modules that work together: `tint` for formatting and
 
 ## Setup
 
-```go
+```go compile=stmt imports="os,github.com/Vilsol/lakta/pkg/config,github.com/Vilsol/lakta/pkg/lakta,github.com/Vilsol/lakta/pkg/logging/slog,github.com/Vilsol/lakta/pkg/logging/tint"
 lakta.NewRuntime(
     config.NewModule(
         config.WithConfigDirs(".", "./config"),
@@ -45,7 +45,7 @@ lakta.NewRuntime(
 
 Use [`github.com/Vilsol/slox`](https://github.com/Vilsol/slox) to log with the context-carried logger:
 
-```go
+```go compile=skip
 slox.Info(ctx, "request received", slog.String("path", r.URL.Path))
 slox.Error(ctx, "query failed", slog.Any("err", err))
 ```

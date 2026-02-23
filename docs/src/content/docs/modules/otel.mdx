@@ -9,7 +9,7 @@ import ModuleConfig from '../../../components/ModuleConfig.astro';
 
 ## Setup
 
-```go
+```go compile=stmt imports="os,github.com/Vilsol/lakta/pkg/config,github.com/Vilsol/lakta/pkg/lakta,github.com/Vilsol/lakta/pkg/logging/slog,github.com/Vilsol/lakta/pkg/logging/tint,github.com/Vilsol/lakta/pkg/otel"
 lakta.NewRuntime(
     config.NewModule(
         config.WithConfigDirs(".", "./config"),
@@ -31,7 +31,7 @@ lakta.NewRuntime(
 
 ## Using traces
 
-```go
+```go compile=skip
 tracer := do.MustInvoke[trace.TracerProvider](injector).Tracer("my-service")
 
 ctx, span := tracer.Start(ctx, "operation-name")

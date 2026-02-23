@@ -13,7 +13,7 @@ A `NamedModule` registers its DI providers under its name rather than the type a
 
 Every built-in module that supports multi-instance ships a `WithName` option:
 
-```go
+```go compile=skip
 lakta.NewRuntime(
     grpcclient.NewModule(grpcclient.WithName("payments")),
     grpcclient.NewModule(grpcclient.WithName("notifications")),
@@ -36,14 +36,14 @@ modules:
 
 Use `do.MustInvokeNamed` with the instance name:
 
-```go
+```go compile=skip
 paymentsConn := do.MustInvokeNamed[*grpc.ClientConn](injector, "payments")
 notifsConn   := do.MustInvokeNamed[*grpc.ClientConn](injector, "notifications")
 ```
 
 ## Implementing NamedBase in custom modules
 
-```go
+```go compile=decl imports="github.com/Vilsol/lakta/pkg/lakta"
 type MyModule struct {
     lakta.NamedBase
 }

@@ -9,7 +9,7 @@ description: Unit and integration testing using Harness, RuntimeHarness, and moc
 
 `NewHarness` creates a context with a DI injector, suitable for testing a single module's `Init` in isolation.
 
-```go
+```go compile=skip
 func TestMyModule_Init(t *testing.T) {
     h := testkit.NewHarness(t)
 
@@ -37,7 +37,7 @@ func TestMyModule_Init(t *testing.T) {
 
 `NewRuntimeHarness` starts a full `Runtime` in a goroutine and gives you a `Shutdown()` to stop it cleanly.
 
-```go
+```go compile=skip
 func TestMyModule_Start(t *testing.T) {
     rh := testkit.NewRuntimeHarness(t,
         config.NewModule(),
@@ -55,7 +55,7 @@ func TestMyModule_Start(t *testing.T) {
 
 Use mock modules to satisfy the runtime when you don't need real implementations:
 
-```go
+```go compile=skip
 mock := testkit.NewMockModule()          // basic Module
 syncMock := testkit.NewMockSyncModule()  // SyncModule, has BlockStart chan
 asyncMock := testkit.NewMockAsyncModule()
@@ -63,7 +63,7 @@ asyncMock := testkit.NewMockAsyncModule()
 
 `MockSyncModule.BlockStart` is a `chan struct{}` — close it to unblock `Start`:
 
-```go
+```go compile=skip
 go func() {
     time.Sleep(100 * time.Millisecond)
     close(syncMock.BlockStart)
@@ -72,7 +72,7 @@ go func() {
 
 ## Hot-reload testing
 
-```go
+```go compile=skip
 h := testkit.NewHarness(t).WithData(initialData)
 notifier := do.MustInvoke[*config.ReloadNotifier](lakta.GetInjector(h.Ctx()))
 notifier.FireReload(newKoanf)  // triggers all registered OnReload callbacks
@@ -82,7 +82,7 @@ notifier.FireReload(newKoanf)  // triggers all registered OnReload callbacks
 
 Always use `testza`:
 
-```go
+```go compile=skip
 testza.AssertNoError(t, err)
 testza.AssertNotNil(t, result)
 testza.AssertEqual(t, expected, actual)

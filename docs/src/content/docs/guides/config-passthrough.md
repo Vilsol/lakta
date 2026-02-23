@@ -9,7 +9,7 @@ Some libraries have large config structs with dozens of fields. Rather than mapp
 
 Declare a `Raw` field with `` koanf:",remain" `` to capture every key not explicitly handled:
 
-```go
+```go compile=decl
 type Config struct {
     Host string         `koanf:"host"`
     Port int            `koanf:"port"`
@@ -19,7 +19,7 @@ type Config struct {
 
 Then use `mapstructure` to decode `Raw` into the library's config struct:
 
-```go
+```go compile=skip
 import "github.com/mitchellh/mapstructure"
 
 func (c *Config) ToFiberConfig() fiber.Config {

@@ -7,7 +7,7 @@ This guide walks you through building a minimal HTTP service with structured log
 
 ## main.go
 
-```go
+```go compile=skip
 package main
 
 import (
@@ -45,7 +45,7 @@ func main() {
 Routes are registered via `WithRouter`, which receives the fully initialized `*fiber.App`.
 DI is available inside handlers through `lakta.Invoke[T](c.Context())`.
 
-```go
+```go compile=skip
 func registerRoutes(app *fiber.App) {
     app.Get("/hello", handleHello)
 }
@@ -61,7 +61,7 @@ func handleHello(c fiber.Ctx) error {
 
 ## Providing a service
 
-```go
+```go compile=decl
 type MyService struct{}
 
 func (s *MyService) Greet() string { return "hello" }
@@ -69,7 +69,7 @@ func (s *MyService) Greet() string { return "hello" }
 
 Register it from a module's `Init`:
 
-```go
+```go compile=skip
 type MyModule struct{}
 
 func NewMyModule() *MyModule { return &MyModule{} }
@@ -86,7 +86,7 @@ func (m *MyModule) Shutdown(ctx context.Context) error { return nil }
 
 Add it to the runtime before the fiber module so DI is populated when routes fire:
 
-```go
+```go compile=skip
 lakta.NewRuntime(
     config.NewModule(...),
     tint.NewModule(),

@@ -11,7 +11,7 @@ Middleware (gRPC interceptors, HTTP middleware) can inject structured fields —
 
 ## Basic usage
 
-```go
+```go compile=skip
 import (
     "log/slog"
     "github.com/Vilsol/slox"
@@ -34,7 +34,7 @@ func (m *MyModule) handleRequest(ctx context.Context, req *Request) {
 
 ## Log levels
 
-```go
+```go compile=skip
 slox.Debug(ctx, "cache miss", slog.String("key", key))
 slox.Info(ctx, "server started", slog.String("addr", addr))
 slox.Warn(ctx, "retry attempt", slog.Int("attempt", n))
@@ -45,10 +45,10 @@ slox.Error(ctx, "fatal query", slog.Any("err", err))
 
 Middleware can enrich the logger for all downstream calls:
 
-```go
+```go compile=decl imports="context,log/slog,github.com/Vilsol/slox"
 func withRequestID(ctx context.Context, id string) context.Context {
-    logger := slox.FromContext(ctx).With(slog.String("request_id", id))
-    return slox.WithContext(ctx, logger)
+    logger := slox.From(ctx).With(slog.String("request_id", id))
+    return slox.Into(ctx, logger)
 }
 ```
 
