@@ -236,7 +236,7 @@ func extractPassthrough(f reflect.StructField, modVersions map[string]string) *p
 
 func formatType(t reflect.Type) string {
 	switch t.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return "*" + formatType(t.Elem())
 	case reflect.Slice:
 		return "[]" + formatType(t.Elem())
