@@ -45,7 +45,7 @@ On `SIGTERM`, `SIGINT`, or any start error, the runtime calls every module's `Sh
 
 Pass `Provider` and `Dependent` to let the runtime determine order for you:
 
-```go compile=skip
+```go compile=decl stubs="MyService" imports="reflect,log/slog,github.com/jackc/pgx/v5/pgxpool"
 type MyModule struct{}
 
 func (m *MyModule) Provides() []reflect.Type {

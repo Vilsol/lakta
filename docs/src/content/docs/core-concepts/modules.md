@@ -20,7 +20,7 @@ Use `Init` to register DI providers and wire up dependencies. Use `Shutdown` to 
 
 For long-running services that must block (HTTP servers, gRPC servers):
 
-```go compile=skip
+```go compile=decl stubs="Module" imports="context"
 type SyncModule interface {
     Module
     Start(ctx context.Context) error
@@ -33,7 +33,7 @@ type SyncModule interface {
 
 For background workers that run without blocking:
 
-```go compile=skip
+```go compile=decl stubs="Module" imports="context"
 type AsyncModule interface {
     Module
     StartAsync(ctx context.Context) error
@@ -52,7 +52,7 @@ type Provider interface {
 }
 ```
 
-```go compile=skip
+```go compile=decl stubs="MyModule,MyService" imports="reflect"
 func (m *MyModule) Provides() []reflect.Type {
     return []reflect.Type{reflect.TypeOf((*MyService)(nil))}
 }
@@ -68,7 +68,7 @@ type Dependent interface {
 }
 ```
 
-```go compile=skip
+```go compile=decl stubs="MyModule" imports="reflect,log/slog,github.com/jackc/pgx/v5/pgxpool"
 func (m *MyModule) Dependencies() (required, optional []reflect.Type) {
     required = []reflect.Type{reflect.TypeOf((*pgxpool.Pool)(nil))}
     optional = []reflect.Type{reflect.TypeOf((*slog.Logger)(nil))}

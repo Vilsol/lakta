@@ -7,7 +7,7 @@ Lakta uses [`github.com/samber/do/v2`](https://github.com/samber/do) for depende
 
 ## Registering a provider
 
-```go compile=skip
+```go compile=decl stubs="MyModule,MyService" imports="context,github.com/samber/do/v2,github.com/Vilsol/lakta/pkg/lakta"
 func (m *MyModule) Init(ctx context.Context) error {
     lakta.Provide(ctx, func(i do.Injector) (*MyService, error) {
         return &MyService{}, nil

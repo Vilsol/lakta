@@ -17,7 +17,7 @@ pkg/mymodule/
 
 ## config.go
 
-```go compile=skip
+```go compile=decl group="custom-module" imports="fmt,github.com/knadh/koanf/v2"
 package mymodule
 
 import "github.com/knadh/koanf/v2"
@@ -26,6 +26,7 @@ type Config struct {
     Host    string `koanf:"host"`
     Port    int    `koanf:"port"`
     Timeout string `koanf:"timeout"`
+    name    string
 }
 
 type Option func(*Config)
@@ -46,7 +47,7 @@ func (c *Config) Address() string {
 
 ## module.go
 
-```go compile=skip
+```go compile=decl group="custom-module" stubs="MyService" imports="context,github.com/knadh/koanf/v2,github.com/samber/do/v2,github.com/Vilsol/lakta/pkg/lakta"
 package mymodule
 
 type Module struct {

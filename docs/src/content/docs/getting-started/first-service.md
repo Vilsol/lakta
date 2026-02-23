@@ -69,7 +69,7 @@ func (s *MyService) Greet() string { return "hello" }
 
 Register it from a module's `Init`:
 
-```go compile=skip
+```go compile=decl stubs="MyService" imports="context,github.com/samber/do/v2,github.com/Vilsol/lakta/pkg/lakta"
 type MyModule struct{}
 
 func NewMyModule() *MyModule { return &MyModule{} }
