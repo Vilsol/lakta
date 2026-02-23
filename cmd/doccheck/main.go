@@ -18,11 +18,17 @@ import (
 //	```go compile=stmt imports="os,github.com/Vilsol/lakta/pkg/config"
 //	```go compile=decl imports="context,github.com/knadh/koanf/v2"
 //	```go compile=skip
+//	```go compile=decl stubs="TypeA,TypeB"
+//	```go compile=decl group="my-group"
 //
 // Modes:
-//   - stmt (default): wrap code in func main() { ... }
+//   - stmt (default): wrap code in func example() { ... }
 //   - decl: just package + imports (for type/func declarations)
 //   - skip: extract but do not compile (documented as intentionally incomplete)
+//
+// Extras:
+//   - stubs="TypeA,TypeB": generate empty struct stubs (type X struct{} + func NewX(...any)*X)
+//   - group="name": combine all blocks with the same group into one compilation unit
 
 const (
 	minArgs  = 2
@@ -114,6 +120,8 @@ type snippet struct {
 	srcLine int
 	mode    string
 	imports []string
+	stubs   []string
+	group   string
 	code    string
 }
 
@@ -125,7 +133,7 @@ func checkFile(path, tmpDir string) error {
 
 	defer func() { _ = f.Close() }()
 
-	snippets := extractSnippets(path, bufio.NewScanner(f))
+	snippets := resolveGroups(extractSnippets(path, bufio.NewScanner(f)))
 
 	failures := 0
 
@@ -147,6 +155,106 @@ func checkFile(path, tmpDir string) error {
 	return nil
 }
 
+// resolveGroups combines snippets sharing the same group name into a single decl-mode
+// snippet placed where the group's first member appeared, merging imports, stubs, and code.
+func resolveGroups(snippets []snippet) []snippet {
+	type groupState struct {
+		insertIdx int
+		members   []snippet
+	}
+
+	groups := make(map[string]*groupState)
+	out := make([]snippet, 0, len(snippets))
+
+	for _, s := range snippets {
+		if s.group == "" {
+			out = append(out, s)
+			continue
+		}
+
+		if gs, ok := groups[s.group]; ok {
+			gs.members = append(gs.members, s)
+		} else {
+			groups[s.group] = &groupState{insertIdx: len(out), members: []snippet{s}}
+			out = append(out, snippet{}) // placeholder
+		}
+	}
+
+	for _, gs := range groups {
+		out[gs.insertIdx] = combineSnippets(gs.members)
+	}
+
+	return out
+}
+
+func combineSnippets(group []snippet) snippet {
+	combined := snippet{
+		srcFile: group[0].srcFile,
+		srcLine: group[0].srcLine,
+		mode:    "decl",
+	}
+
+	seen := make(map[string]bool)
+
+	for _, s := range group {
+		for _, imp := range s.imports {
+			if !seen["i:"+imp] {
+				seen["i:"+imp] = true
+				combined.imports = append(combined.imports, imp)
+			}
+		}
+
+		for _, stub := range s.stubs {
+			if !seen["s:"+stub] {
+				seen["s:"+stub] = true
+				combined.stubs = append(combined.stubs, stub)
+			}
+		}
+
+		combined.code += stripPackageAndImports(s.code)
+	}
+
+	return combined
+}
+
+// stripPackageAndImports removes package declarations and import blocks from code
+// so it can be safely merged into a combined compilation unit.
+func stripPackageAndImports(code string) string {
+	var out strings.Builder
+
+	inImportBlock := false
+
+	for line := range strings.SplitSeq(code, "\n") {
+		trimmed := strings.TrimSpace(line)
+
+		if inImportBlock {
+			if trimmed == ")" {
+				inImportBlock = false
+			}
+
+			continue
+		}
+
+		if strings.HasPrefix(trimmed, "package ") {
+			continue
+		}
+
+		if trimmed == "import (" {
+			inImportBlock = true
+			continue
+		}
+
+		if strings.HasPrefix(trimmed, `import "`) {
+			continue
+		}
+
+		out.WriteString(line)
+		out.WriteString("\n")
+	}
+
+	return out.String()
+}
+
 func extractSnippets(path string, scanner *bufio.Scanner) []snippet {
 	var snippets []snippet
 
@@ -161,7 +269,7 @@ func extractSnippets(path string, scanner *bufio.Scanner) []snippet {
 
 		if !inFence {
 			if info, found := strings.CutPrefix(line, "```go"); found {
-				mode, imports, ok := parseCompileAnnotation(strings.TrimSpace(info))
+				mode, imports, stubs, group, ok := parseCompileAnnotation(strings.TrimSpace(info))
 
 				if ok {
 					current = &snippet{
@@ -169,6 +277,8 @@ func extractSnippets(path string, scanner *bufio.Scanner) []snippet {
 						srcLine: lineNum,
 						mode:    mode,
 						imports: imports,
+						stubs:   stubs,
+						group:   group,
 					}
 
 					inFence = true
@@ -198,8 +308,8 @@ func extractSnippets(path string, scanner *bufio.Scanner) []snippet {
 }
 
 // parseCompileAnnotation parses the info string after ```go.
-// Returns mode, imports, and whether the compile annotation was present.
-func parseCompileAnnotation(info string) (string, []string, bool) {
+// Returns mode, imports, stubs, group, and whether the compile annotation was present.
+func parseCompileAnnotation(info string) (string, []string, []string, string, bool) {
 	parts := strings.Fields(info)
 	compileIdx := -1
 
@@ -211,7 +321,7 @@ func parseCompileAnnotation(info string) (string, []string, bool) {
 	}
 
 	if compileIdx < 0 {
-		return "", nil, false
+		return "", nil, nil, "", false
 	}
 
 	compile := parts[compileIdx]
@@ -224,7 +334,8 @@ func parseCompileAnnotation(info string) (string, []string, bool) {
 		mode = strings.TrimPrefix(compile, "compile=")
 	}
 
-	var imports []string
+	var imports, stubs []string
+	var group string
 
 	for _, p := range parts[compileIdx+1:] {
 		if raw, found := strings.CutPrefix(p, "imports="); found {
@@ -236,9 +347,23 @@ func parseCompileAnnotation(info string) (string, []string, bool) {
 				}
 			}
 		}
+
+		if raw, found := strings.CutPrefix(p, "stubs="); found {
+			raw = strings.Trim(raw, `"`)
+
+			for stub := range strings.SplitSeq(raw, ",") {
+				if stub = strings.TrimSpace(stub); stub != "" {
+					stubs = append(stubs, stub)
+				}
+			}
+		}
+
+		if raw, found := strings.CutPrefix(p, "group="); found {
+			group = strings.Trim(raw, `"`)
+		}
 	}
 
-	return mode, imports, true
+	return mode, imports, stubs, group, true
 }
 
 func compileSnippet(index int, s snippet, tmpDir string) error {
@@ -294,6 +419,30 @@ func buildSource(s snippet) string {
 	}
 
 	b.WriteString("\n")
+
+	// Stub declarations are package-level, placed before mode-specific code.
+	seen := make(map[string]bool)
+
+	for _, stub := range s.stubs {
+		if seen[stub] {
+			continue
+		}
+
+		seen[stub] = true
+
+		b.WriteString("type ")
+		b.WriteString(stub)
+		b.WriteString(" struct{}\n")
+		b.WriteString("func New")
+		b.WriteString(stub)
+		b.WriteString("(args ...any) *")
+		b.WriteString(stub)
+		b.WriteString(" { return nil }\n")
+	}
+
+	if len(s.stubs) > 0 {
+		b.WriteString("\n")
+	}
 
 	switch s.mode {
 	case "stmt":
