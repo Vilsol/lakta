@@ -102,6 +102,7 @@ func (c *Config) NewPoolConfig() (*pgxpool.Config, error) {
 			Config:   tracelog.DefaultTraceLogConfig(),
 		},
 		otelpgx.NewTracer(),
+		newQueryMetricsTracer(poolConfig.ConnConfig.Database),
 	)
 
 	return poolConfig, nil
