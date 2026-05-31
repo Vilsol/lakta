@@ -57,6 +57,8 @@ func collectHistogram(t *testing.T, reader *sdkmetric.ManualReader, name string)
 
 func TestQueryMetricsTracer_RecordsSuccess(t *testing.T) {
 	reader := sdkmetric.NewManualReader()
+	prev := otel.GetMeterProvider()
+	t.Cleanup(func() { otel.SetMeterProvider(prev) })
 	otel.SetMeterProvider(sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader)))
 
 	tr := newQueryMetricsTracer("testdb")
@@ -82,6 +84,8 @@ func TestQueryMetricsTracer_RecordsSuccess(t *testing.T) {
 
 func TestQueryMetricsTracer_RecordsErrorType(t *testing.T) {
 	reader := sdkmetric.NewManualReader()
+	prev := otel.GetMeterProvider()
+	t.Cleanup(func() { otel.SetMeterProvider(prev) })
 	otel.SetMeterProvider(sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader)))
 
 	tr := newQueryMetricsTracer("testdb")
