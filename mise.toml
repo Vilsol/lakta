@@ -7,3 +7,12 @@ run = "golangci-lint run"
 
 [tasks.format]
 run = "golangci-lint run --fix"
+
+[tasks.test]
+run = "go test ./..."
+
+[tasks.govulncheck]
+run = "go run golang.org/x/vuln/cmd/govulncheck@latest ./..."
+
+[tasks.doccheck]
+run = "find docs/src/content/docs -name '*.md' -print0 | xargs -0 go run ./cmd/doccheck"
