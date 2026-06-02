@@ -1,0 +1,79 @@
+---
+import { Code } from '@astrojs/starlight/components';
+import docs from 'virtual:lakta-docs';
+
+interface Field {
+	key: string;
+	type: string;
+	default?: string;
+	enum?: string;
+	required?: boolean;
+}
+
+interface Module {
+	configPath: string;
+	fields?: Field[];
+	passthrough?: { targetPackage: string; targetType: string };
+}
+
+function isNumeric(t: string): boolean {
+	return /^(int|uint|float)/.test(t);
+}
+
+// scalarValue renders the YAML value for a single field, using its documented
+// default where present and a type-appropriate placeholder otherwise.
+function scalarValue(f: Field): string {
+	const d = f.default;
+	if (f.type === 'string') return d != null ? `"${d}"` : '""';
+	if (f.type === 'bool') return d ?? 'false';
+	if (f.type.startsWith('time.')) return d != null ? `"${d}"` : '"0s"';
+	if (isNumeric(f.type)) return d ?? '0';
+	if (f.type.startsWith('[]')) return '[]';
+	if (f.type.startsWith('map[')) return '{}';
+	return d != null ? `"${d}"` : '""';
+}
+
+function trailingComment(f: Field): string {
+	const notes: string[] = [];
+	if (f.required) notes.push('required');
+	if (f.enum) notes.push(`one of: ${f.enum.split(',').join(', ')}`);
+	// A composite type with a documented default can't be shown inline; surface it here.
+	if (f.default != null && (f.type.startsWith('[]') || f.type.startsWith('map['))) {
+		notes.push(`default: ${f.default}`);
+	}
+	return notes.length ? `  # ${notes.join('; ')}` : '';
+}
+
+// buildYaml reconstructs the nested config block from a module's configPath
+// (e.g. "modules.db.pgx.<name>") and its flat field list.
+function buildYaml(mod: Module): string {
+	const segments = mod.configPath.split('.').map((s) => (s === '<name>' ? 'default' : s));
+	const lines = segments.map((seg, i) => `${'  '.repeat(i)}${seg}:`);
+	const fieldIndent = '  '.repeat(segments.length);
+
+	for (const f of mod.fields ?? []) {
+		lines.push(`${fieldIndent}${f.key}: ${scalarValue(f)}${trailingComment(f)}`);
+	}
+
+	if (mod.passthrough) {
+		lines.push(`${fieldIndent}# + any ${mod.passthrough.targetPackage} ${mod.passthrough.targetType} field via raw passthrough`);
+	}
+
+	return lines.join('\n');
+}
+
+function headingFor(configPath: string): string {
+	return configPath.replace(/\.<name>$/, '');
+}
+
+const modules = (docs.modules as Module[])
+	.slice()
+	.sort((a, b) => headingFor(a.configPath).localeCompare(headingFor(b.configPath)));
+---
+
+{modules.map((mod) => (
+	<>
+		<h2 id={headingFor(mod.configPath)}>{headingFor(mod.configPath)}</h2>
+		<Code code={buildYaml(mod)} lang="yaml" />
+	</>
+))}

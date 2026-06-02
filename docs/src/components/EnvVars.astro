@@ -1,0 +1,54 @@
+---
+import docs from 'virtual:lakta-docs';
+
+interface Field {
+	key: string;
+	envVar: string;
+}
+
+interface Module {
+	configPath: string;
+	fields?: Field[];
+}
+
+function headingFor(configPath: string): string {
+	return configPath.replace(/\.<name>$/, '');
+}
+
+// concretize swaps the <name>/<NAME> placeholders for the "default" instance so
+// the reference shows copy-pasteable keys.
+function configKey(configPath: string, key: string): string {
+	return `${configPath.replace('<name>', 'default')}.${key}`;
+}
+
+function envVar(raw: string): string {
+	return raw.replace('<NAME>', 'DEFAULT');
+}
+
+const modules = (docs.modules as Module[])
+	.filter((m) => (m.fields ?? []).length > 0)
+	.slice()
+	.sort((a, b) => headingFor(a.configPath).localeCompare(headingFor(b.configPath)));
+---
+
+{modules.map((mod) => (
+	<>
+		<h3 id={`env-${headingFor(mod.configPath)}`}>{headingFor(mod.configPath)}</h3>
+		<table>
+			<thead>
+				<tr>
+					<th>Config key</th>
+					<th>Environment variable</th>
+				</tr>
+			</thead>
+			<tbody>
+				{(mod.fields ?? []).map((f) => (
+					<tr>
+						<td><code>{configKey(mod.configPath, f.key)}</code></td>
+						<td><code>{envVar(f.envVar)}</code></td>
+					</tr>
+				))}
+			</tbody>
+		</table>
+	</>
+))}

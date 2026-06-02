@@ -12,7 +12,7 @@ import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
 
 Register workflows and activities inline via `WithRegistrar`:
 
-```go
+```go compile=skip
 lakta.NewRuntime(
     config.NewModule(
         config.WithConfigDirs(".", "./config"),
@@ -43,7 +43,7 @@ lakta.NewRuntime(
 
 Workflows are plain Go functions. They may not call external services directly — use activities for that:
 
-```go
+```go compile=skip
 const taskQueue = "MY_TASK_QUEUE"
 
 func OrderWorkflow(ctx workflow.Context, orderID string) error {
@@ -57,7 +57,7 @@ func OrderWorkflow(ctx workflow.Context, orderID string) error {
 
 Activities can access DI via `lakta.Invoke[T](ctx)`:
 
-```go
+```go compile=skip
 func UpdateOrderStatusActivity(ctx context.Context, orderID string, status string) error {
     client, err := lakta.Invoke[v1.DataServiceClient](ctx)
     if err != nil {
@@ -75,7 +75,7 @@ func UpdateOrderStatusActivity(ctx context.Context, orderID string, status strin
 
 The Temporal `client.Client` is available in DI:
 
-```go
+```go compile=skip
 func (s *WorkflowServer) StartOrderWorkflow(ctx context.Context, req *v1.StartOrderWorkflowRequest) (*v1.StartOrderWorkflowResponse, error) {
     c, err := lakta.Invoke[client.Client](ctx)
     if err != nil {

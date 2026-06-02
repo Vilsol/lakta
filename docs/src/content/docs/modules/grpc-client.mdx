@@ -12,7 +12,7 @@ import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
 
 Pass `WithClient` a proto-generated constructor (`func(*grpc.ClientConn) T`). The typed client is registered directly in DI — no need to ever handle the raw connection.
 
-```go
+```go compile=skip
 lakta.NewRuntime(
     config.NewModule(
         config.WithConfigDirs(".", "./config"),
@@ -37,7 +37,7 @@ lakta.NewRuntime(
 
 Use `lakta.Invoke[T](ctx)` in any handler. The typed interface is what was registered — not the raw `*grpc.ClientConn`.
 
-```go
+```go compile=skip
 // gRPC handler
 func (s *MyServer) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb.PlaceOrderResponse, error) {
     dataClient, err := lakta.Invoke[v1.DataServiceClient](ctx)
@@ -62,7 +62,7 @@ func handlePost(c fiber.Ctx) error {
 
 Each instance needs a name and its own config block:
 
-```go
+```go compile=skip
 grpcclient.NewModule(
     grpcclient.WithName("data"),
     grpcclient.WithClient(v1.NewDataServiceClient),

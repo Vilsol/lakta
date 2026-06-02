@@ -3,6 +3,17 @@ title: API Index
 description: Quick reference for key types, functions, and interfaces exported by Lakta.
 ---
 
+<!--
+apicheck:ignore — exported symbols intentionally omitted from this curated index.
+cmd/apicheck (run in CI) fails when a tracked package exports a top-level symbol
+that is neither documented below nor listed here. Add a new public symbol to a
+table above, or to this list with a reason.
+
+pkg/lakta: Provider, Dependent (advanced module-authoring interfaces for init ordering)
+pkg/config: Apply, Config, NewConfig, NewDefaultConfig (low-level/boilerplate config-module internals)
+-->
+
+
 ## pkg/lakta
 
 | Symbol | Description |
@@ -18,7 +29,11 @@ description: Quick reference for key types, functions, and interfaces exported b
 | `NewNamedBase(name string) NamedBase` | Constructor for `NamedBase` |
 | `SyncCtx` | Embed to get `RuntimeCtx() context.Context` in `Start` |
 | `GetInjector(ctx) do.Injector` | Retrieve the DI injector from context |
+| `WithInjector(ctx, injector) context.Context` | Attach a DI injector to a context |
 | `Provide[T](ctx, fn)` | Register a DI provider |
+| `ProvideValue[T](ctx, value)` | Register an already-constructed value in DI |
+| `Invoke[T](ctx) (T, error)` | Resolve a dependency from the context injector |
+| `HotReloadable` | Adds `OnReload(*koanf.Koanf)`; wired by the runtime for config reloads |
 
 ## pkg/config
 
@@ -29,10 +44,14 @@ description: Quick reference for key types, functions, and interfaces exported b
 | `WithConfigName(name string) Option` | Set config file base name (default: `"lakta"`) |
 | `WithArgs(args []string) Option` | Enable CLI flag overrides (`os.Args[1:]`) |
 | `WithEnvPrefix(prefix string) Option` | Set env var prefix (default: `"LAKTA_"`) |
+| `WithDebounceDelay(d time.Duration) Option` | Debounce window for fsnotify hot-reload events |
 | `Bind[T](path ...string) Module` | Bind a config sub-tree to a typed struct; adds as a module |
 | `Get[T](ctx) *T` | Read the current bound value (atomic, zero-alloc) |
 | `GetBinding[T](ctx) *Binding[T]` | Access the binding to register `OnChange` callbacks |
 | `ModulePath(category, type, instance string) string` | Generate a `modules.<category>.<type>.<instance>` path |
+| `UnmarshalKoanf[C](c *C, k *koanf.Koanf, path string) error` | Decode a config sub-tree into a typed struct (used in `LoadConfig`) |
+| `Passthrough[T]` | `map[string]any` field type that captures extra keys for raw passthrough |
+| `Validatable` | Adds `Validate() error`; bound configs are validated on load/reload |
 | `ReloadNotifier` | Subscribe to hot-reload events |
 | `ReloadNotifier.OnReload(fn)` | Register a reload callback |
 
@@ -50,6 +69,9 @@ description: Quick reference for key types, functions, and interfaces exported b
 | `NewMockModule() *MockModule` | Basic module mock |
 | `NewMockSyncModule() *MockSyncModule` | SyncModule mock with `BlockStart chan` |
 | `NewMockAsyncModule() *MockAsyncModule` | AsyncModule mock |
+| `NewMockProviderModule() *MockProviderModule` | Module mock that registers a DI provider |
+| `MapProvider` | `map[string]any` implementing `koanf.Provider` for seeding config |
+| `WaitForAddr(t, m) net.Addr` | Block until a module reports its listen address |
 
 ## pkg/logging/slox
 

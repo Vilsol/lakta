@@ -3,6 +3,8 @@ title: Environment Variables
 description: All config keys can be overridden via environment variables.
 ---
 
+import EnvVars from '../../../components/EnvVars.astro';
+
 Every config key supported by Lakta can be set via an environment variable. This is useful for secrets, deployment-time overrides, and container environments.
 
 ## Naming convention
@@ -19,7 +21,7 @@ Transform the dot-notation config key:
 |------------|---------------------|
 | `modules.grpc.server.default.port` | `LAKTA_MODULES_GRPC_SERVER_DEFAULT_PORT` |
 | `modules.db.pgx.primary.dsn` | `LAKTA_MODULES_DB_PGX_PRIMARY_DSN` |
-| `modules.otel.default.enabled` | `LAKTA_MODULES_OTEL_DEFAULT_ENABLED` |
+| `modules.otel.otel.default.enabled` | `LAKTA_MODULES_OTEL_OTEL_DEFAULT_ENABLED` |
 | `modules.http.fiber.default.port` | `LAKTA_MODULES_HTTP_FIBER_DEFAULT_PORT` |
 
 ## Priority
@@ -40,6 +42,12 @@ env:
       secretKeyRef:
         name: db-secret
         key: dsn
-  - name: LAKTA_MODULES_OTEL_DEFAULT_ENDPOINT
+  - name: LAKTA_MODULES_OTEL_OTEL_DEFAULT_ENDPOINT
     value: "http://otel-collector:4317"
 ```
+
+## Full reference
+
+Generated from the module config structs (showing the `default` instance). Swap `DEFAULT` for any instance name.
+
+<EnvVars />

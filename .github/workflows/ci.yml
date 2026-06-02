@@ -32,3 +32,9 @@ jobs:
 
       - name: Doc check
         run: mise run doccheck
+
+      - name: Docs up to date
+        run: mise run docgen-check
+
+      - name: API index up to date
+        run: mise run apicheck

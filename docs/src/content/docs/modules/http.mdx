@@ -12,7 +12,7 @@ import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
 
 Pass routes via `WithRouter` and Fiber defaults via `WithDefaults`. No separate module needed.
 
-```go
+```go compile=skip
 lakta.NewRuntime(
     config.NewModule(
         config.WithConfigDirs(".", "./config"),
@@ -40,7 +40,7 @@ lakta.NewRuntime(
 
 `WithRouter` receives the fully initialized `*fiber.App`. Register all routes in one place:
 
-```go
+```go compile=skip
 func registerRoutes(app *fiber.App) {
     app.Get("/items", listItems)
     app.Get("/items/:id", getItem)
@@ -52,7 +52,7 @@ func registerRoutes(app *fiber.App) {
 
 Use `lakta.Invoke[T](c.Context())` — the request context carries the injector:
 
-```go
+```go compile=skip
 func listItems(c fiber.Ctx) error {
     client, err := lakta.Invoke[v1.DataServiceClient](c.Context())
     if err != nil {
@@ -73,7 +73,7 @@ func listItems(c fiber.Ctx) error {
 
 ## Multi-instance
 
-```go
+```go compile=skip
 fiberserver.NewModule(fiberserver.WithName("admin"), fiberserver.WithRouter(adminRoutes)),
 fiberserver.NewModule(fiberserver.WithName("public"), fiberserver.WithRouter(publicRoutes)),
 ```

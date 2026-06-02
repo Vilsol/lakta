@@ -9,7 +9,7 @@ import ModuleConfig from '../../../components/ModuleConfig.astro';
 
 ## Setup
 
-```go
+```go compile=skip
 lakta.NewRuntime(
     config.NewModule(
         config.WithConfigDirs(".", "./config"),
@@ -24,7 +24,7 @@ lakta.NewRuntime(
 
 ## Consuming the connection
 
-```go
+```go compile=skip
 func (m *MyModule) Init(ctx context.Context) error {
     pool := do.MustInvoke[*pgxpool.Pool](lakta.GetInjector(ctx))
     m.pool = pool
@@ -34,7 +34,7 @@ func (m *MyModule) Init(ctx context.Context) error {
 
 ## Multi-instance
 
-```go
+```go compile=skip
 pgx.NewModule(pgx.WithName("primary")),
 pgx.NewModule(pgx.WithName("replica")),
 ```
