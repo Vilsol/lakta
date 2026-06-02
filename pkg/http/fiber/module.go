@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/netip"
 	"reflect"
+	"sync"
 
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/Vilsol/lakta/pkg/lakta"
@@ -30,6 +31,8 @@ type Module struct {
 
 	server   *fiber.App
 	addrPort netip.AddrPort
+
+	mu       sync.Mutex
 	listener net.Listener
 }
 
@@ -100,18 +103,21 @@ func (m *Module) Start(ctx context.Context) error {
 		m.server.Get(m.config.HealthPath, adaptor.HTTPHandlerFunc(h.HandlerFunc))
 	}
 
-	var err error
-	m.listener, err = (&net.ListenConfig{}).Listen(ctx, "tcp", m.addrPort.String())
+	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", m.addrPort.String())
 	if err != nil {
 		return oops.Wrapf(err, "failed to listen on %s", m.addrPort)
 	}
+
+	m.mu.Lock()
+	m.listener = listener
+	m.mu.Unlock()
 
 	slox.Info(ctx, "fiber http server started", slog.String("address", m.addrPort.String()))
 
 	var wg errgroup.Group
 
 	wg.Go(func() error {
-		return oops.Wrapf(m.server.Listener(m.listener), "failed to start fiber http server")
+		return oops.Wrapf(m.server.Listener(listener), "failed to start fiber http server")
 	})
 
 	startDone := make(chan error, 1)
@@ -148,8 +154,12 @@ func (m *Module) Shutdown(ctx context.Context) error {
 
 // Addr returns the listener's network address, or nil if the server has not started yet.
 func (m *Module) Addr() net.Addr {
-	if m.listener == nil {
+	m.mu.Lock()
+	listener := m.listener
+	m.mu.Unlock()
+
+	if listener == nil {
 		return nil
 	}
-	return m.listener.Addr()
+	return listener.Addr()
 }
