@@ -58,7 +58,7 @@ type privateType struct{}
 	f, err := parser.ParseFile(fset, "p.go", src, 0)
 	testza.AssertNoError(t, err)
 
-	var got []string
+	got := make([]string, 0, len(f.Decls))
 	for _, d := range f.Decls {
 		got = append(got, exportedFromDecl(d)...)
 	}

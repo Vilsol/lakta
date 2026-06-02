@@ -117,7 +117,7 @@ func extractIgnored(md string) map[string]bool {
 func exportedSymbols(dir string) ([]string, error) {
 	fset := token.NewFileSet()
 
-	pkgs, err := parser.ParseDir(fset, dir, func(fi os.FileInfo) bool {
+	pkgs, err := parser.ParseDir(fset, dir, func(fi os.FileInfo) bool { //nolint:staticcheck
 		return !strings.HasSuffix(fi.Name(), "_test.go")
 	}, 0)
 	if err != nil {
