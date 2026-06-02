@@ -12,7 +12,7 @@ import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
 
 Pass your service implementation directly via `WithService`. No separate module or DI wiring needed.
 
-```go
+```go compile=skip
 lakta.NewRuntime(
     config.NewModule(
         config.WithConfigDirs(".", "./config"),
@@ -30,7 +30,7 @@ lakta.NewRuntime(
 
 ## Implementing a service
 
-```go
+```go compile=skip
 type MyServer struct {
     v1.UnimplementedMyServiceServer
 }
@@ -58,7 +58,7 @@ The following middleware is applied automatically:
 
 ## Multi-instance
 
-```go
+```go compile=skip
 grpcserver.NewModule(
     grpcserver.WithName("internal"),
     grpcserver.WithService(&v1.InternalService_ServiceDesc, NewInternalServer()),

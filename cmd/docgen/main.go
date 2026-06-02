@@ -1,5 +1,7 @@
 package main
 
+//go:generate go run ../genmodules -o configs_gen.go
+
 import (
 	"fmt"
 	"go/ast"
@@ -10,15 +12,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/Vilsol/lakta/pkg/db/drivers/pgx"
-	grpcclient "github.com/Vilsol/lakta/pkg/grpc/client"
-	grpcserver "github.com/Vilsol/lakta/pkg/grpc/server"
-	"github.com/Vilsol/lakta/pkg/health"
-	fiberserver "github.com/Vilsol/lakta/pkg/http/fiber"
-	"github.com/Vilsol/lakta/pkg/logging/slog"
-	"github.com/Vilsol/lakta/pkg/logging/tint"
-	"github.com/Vilsol/lakta/pkg/otel"
-	"github.com/Vilsol/lakta/pkg/workflows/temporal"
 	"golang.org/x/mod/modfile"
 	"gopkg.in/yaml.v3"
 )
@@ -67,25 +60,13 @@ type codeOnlyDoc struct {
 }
 
 func main() {
-	configs := []any{
-		slog.NewDefaultConfig(),
-		fiberserver.NewDefaultConfig(),
-		grpcserver.NewDefaultConfig(),
-		grpcclient.NewDefaultConfig(),
-		pgx.NewDefaultConfig(),
-		otel.NewDefaultConfig(),
-		health.NewDefaultConfig(),
-		tint.NewDefaultConfig(),
-		temporal.NewDefaultConfig(),
-	}
-
 	modVersions, err := parseGoMod()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: could not parse go.mod: %v\n", err)
 	}
 
 	var out output
-	for _, cfg := range configs {
+	for _, cfg := range defaultConfigs {
 		doc := processConfig(cfg, modVersions)
 		out.Modules = append(out.Modules, doc)
 	}

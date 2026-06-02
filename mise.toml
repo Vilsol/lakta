@@ -15,4 +15,14 @@ run = "go test ./..."
 run = "go run golang.org/x/vuln/cmd/govulncheck@latest ./..."
 
 [tasks.doccheck]
-run = "find docs/src/content/docs -name '*.md' -print0 | xargs -0 go run ./cmd/doccheck"
+run = "find docs/src/content/docs \\( -name '*.md' -o -name '*.mdx' \\) -print0 | xargs -0 go run ./cmd/doccheck"
+
+[tasks.docgen]
+run = "go generate ./cmd/docgen && go run ./cmd/docgen > docs.yaml"
+
+[tasks.docgen-check]
+depends = ["docgen"]
+run = "git diff --exit-code -- docs.yaml cmd/docgen/configs_gen.go"
+
+[tasks.apicheck]
+run = "go run ./cmd/apicheck"

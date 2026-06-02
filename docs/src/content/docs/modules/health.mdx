@@ -10,7 +10,7 @@ import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
 
 ## Setup
 
-```go
+```go compile=skip
 lakta.NewRuntime(
     config.NewModule(
         config.WithConfigDirs(".", "./config"),
@@ -32,7 +32,7 @@ lakta.NewRuntime(
 
 ## Registering custom checks
 
-```go
+```go compile=skip
 func (m *MyModule) Init(ctx context.Context) error {
     h := do.MustInvoke[*health.Health](lakta.GetInjector(ctx))
     h.Register(health.Config{
