@@ -2,7 +2,6 @@
 //   - Connects to a PostgreSQL database.
 //   - Exposes a gRPC server that serves database entities.
 //   - Exposes a gRPC server that serves health checks.
-//   - TODO Exposes a HTTP server that serves metrics.
 package main
 
 import (

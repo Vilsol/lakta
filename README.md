@@ -9,7 +9,7 @@ An opinionated golang microservice framework.
 | Log API              | slog          | `log/slog`                           |
 | Log Formatter        | tint          | `github.com/lmittmann/tint`          |
 | Dependency Injection | Do            | `github.com/samber/do/v2`            |
-| Configuration        | Koanf         | `github.com/knadh/koanf`             |
+| Configuration        | Koanf         | `github.com/knadh/koanf/v2`          |
 | Logging              | OpenTelemetry | `go.opentelemetry.io/otel/log`       |
 | Metrics              | OpenTelemetry | `go.opentelemetry.io/otel/metric`    |
 | Tracing              | OpenTelemetry | `go.opentelemetry.io/otel/trace`     |

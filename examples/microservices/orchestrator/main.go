@@ -1,7 +1,7 @@
 // orchestrator microservice
 //   - Connects to the data microservice.
+//   - Runs Temporal workflows that orchestrate order processing.
 //   - Exposes a gRPC server that serves health checks.
-//   - Exposes a HTTP server that serves metrics.
 package main
 
 import (
