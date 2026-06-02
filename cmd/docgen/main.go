@@ -217,7 +217,7 @@ func extractPassthrough(f reflect.StructField, modVersions map[string]string) *p
 
 func formatType(t reflect.Type) string {
 	switch t.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return "*" + formatType(t.Elem())
 	case reflect.Slice:
 		return "[]" + formatType(t.Elem())
@@ -296,7 +296,7 @@ func extractComments(pkgPath string) sourceComments {
 	dir := filepath.Join(".", rel)
 
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, dir, nil, parser.ParseComments)
+	pkgs, err := parser.ParseDir(fset, dir, nil, parser.ParseComments) //nolint:staticcheck
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: could not parse %s: %v\n", dir, err)
 		return sc

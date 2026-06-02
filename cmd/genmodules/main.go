@@ -139,7 +139,7 @@ func discoverModules(pkgRoot, modPath string) ([]module, error) {
 	for _, dir := range dirs {
 		fset := token.NewFileSet()
 
-		pkgs, parseErr := parser.ParseDir(fset, dir, func(fi os.FileInfo) bool {
+		pkgs, parseErr := parser.ParseDir(fset, dir, func(fi os.FileInfo) bool { //nolint:staticcheck
 			return !strings.HasSuffix(fi.Name(), "_test.go")
 		}, 0)
 		if parseErr != nil {
