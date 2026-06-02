@@ -1,8 +1,7 @@
 // api microservice
-//   - TODO Connects to the data and orchestrator microservices.
+//   - Connects to the data and orchestrator microservices.
 //   - Exposes a HTTP server that serves the API.
 //   - Exposes a HTTP server that serves health checks.
-//   - TODO Exposes a HTTP server that serves metrics.
 package main
 
 import (
