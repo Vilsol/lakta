@@ -246,6 +246,39 @@ func TestLevelFilter_WithGroup(t *testing.T) {
 	testza.AssertTrue(t, ok)
 }
 
+func TestLevelFilter_WithAttrsSharesCache(t *testing.T) {
+	t.Parallel()
+
+	handler := &recordingHandler{}
+	f := newLevelFilter(handler, slog.LevelInfo, nil)
+
+	// Prime the parent cache.
+	f.cache.Store("some/pkg.Func", slog.LevelDebug)
+
+	derived, ok := f.WithAttrs([]slog.Attr{slog.String("k", "v")}).(*levelFilter)
+	testza.AssertTrue(t, ok)
+
+	cached, ok := derived.cache.Load("some/pkg.Func")
+	testza.AssertTrue(t, ok)
+	testza.AssertEqual(t, slog.LevelDebug, cached)
+}
+
+func TestLevelFilter_WithGroupSharesCache(t *testing.T) {
+	t.Parallel()
+
+	handler := &recordingHandler{}
+	f := newLevelFilter(handler, slog.LevelInfo, nil)
+
+	f.cache.Store("some/pkg.Func", slog.LevelDebug)
+
+	derived, ok := f.WithGroup("grp").(*levelFilter)
+	testza.AssertTrue(t, ok)
+
+	cached, ok := derived.cache.Load("some/pkg.Func")
+	testza.AssertTrue(t, ok)
+	testza.AssertEqual(t, slog.LevelDebug, cached)
+}
+
 func TestWithLogLevel(t *testing.T) {
 	t.Parallel()
 

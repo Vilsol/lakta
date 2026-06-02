@@ -21,7 +21,6 @@ require (
 	github.com/knadh/koanf/providers/posflag v1.0.1
 	github.com/knadh/koanf/v2 v2.3.2
 	github.com/lmittmann/tint v1.1.3
-	github.com/remychantenay/slog-otel v1.3.5
 	github.com/samber/do/v2 v2.0.0
 	github.com/samber/oops v1.21.0
 	github.com/sourcegraph/conc v0.3.0

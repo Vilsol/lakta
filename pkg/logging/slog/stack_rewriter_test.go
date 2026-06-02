@@ -60,6 +60,46 @@ func TestStackRewriter_WithGroup_ReturnsStackRewriter(t *testing.T) {
 	testza.AssertTrue(t, ok)
 }
 
+func TestStackRewriter_WithAttrs_PreservesModuleFields(t *testing.T) {
+	t.Parallel()
+
+	r := stackRewriter{
+		upstream:          &recordingHandler{},
+		runtimeModule:     "github.com/example/app@v1.0.0",
+		allModules:        map[string]string{"github.com/example/app": "v1.0.0"},
+		mainModulePath:    "github.com/example/app",
+		mainModuleVersion: "v1.0.0",
+	}
+
+	derived, ok := r.WithAttrs([]slog.Attr{slog.String("k", "v")}).(stackRewriter)
+	testza.AssertTrue(t, ok)
+
+	testza.AssertEqual(t, r.runtimeModule, derived.runtimeModule)
+	testza.AssertEqual(t, r.mainModulePath, derived.mainModulePath)
+	testza.AssertEqual(t, r.mainModuleVersion, derived.mainModuleVersion)
+	testza.AssertEqual(t, r.allModules, derived.allModules)
+}
+
+func TestStackRewriter_WithGroup_PreservesModuleFields(t *testing.T) {
+	t.Parallel()
+
+	r := stackRewriter{
+		upstream:          &recordingHandler{},
+		runtimeModule:     "github.com/example/app@v1.0.0",
+		allModules:        map[string]string{"github.com/example/app": "v1.0.0"},
+		mainModulePath:    "github.com/example/app",
+		mainModuleVersion: "v1.0.0",
+	}
+
+	derived, ok := r.WithGroup("grp").(stackRewriter)
+	testza.AssertTrue(t, ok)
+
+	testza.AssertEqual(t, r.runtimeModule, derived.runtimeModule)
+	testza.AssertEqual(t, r.mainModulePath, derived.mainModulePath)
+	testza.AssertEqual(t, r.mainModuleVersion, derived.mainModuleVersion)
+	testza.AssertEqual(t, r.allModules, derived.allModules)
+}
+
 func TestDetermineModule_Std_Runtime(t *testing.T) {
 	t.Parallel()
 

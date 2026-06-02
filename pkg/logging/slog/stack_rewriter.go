@@ -12,8 +12,8 @@ import (
 	"github.com/Vilsol/slox"
 )
 
-// DefaultDepth is the maximum call stack depth used for log source rewriting.
-const DefaultDepth = 32
+// defaultDepth is the maximum call stack depth used for log source rewriting.
+const defaultDepth = 32
 
 var _ slog.Handler = (*stackRewriter)(nil)
 
@@ -74,7 +74,7 @@ func (t stackRewriter) Handle(ctx context.Context, record slog.Record) error {
 		return t.upstream.Handle(ctx, record) //nolint:wrapcheck
 	}
 
-	var pcs [DefaultDepth]uintptr
+	var pcs [defaultDepth]uintptr
 	runtime.Callers(0, pcs[:])
 
 	start := 0
@@ -113,11 +113,13 @@ func (t stackRewriter) Handle(ctx context.Context, record slog.Record) error {
 }
 
 func (t stackRewriter) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return stackRewriter{upstream: t.upstream.WithAttrs(attrs)}
+	t.upstream = t.upstream.WithAttrs(attrs)
+	return t
 }
 
 func (t stackRewriter) WithGroup(name string) slog.Handler {
-	return stackRewriter{upstream: t.upstream.WithGroup(name)}
+	t.upstream = t.upstream.WithGroup(name)
+	return t
 }
 
 const unknownModule = "unknown"
