@@ -31,6 +31,7 @@ func TestQueryName(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			testza.AssertEqual(t, c.want, queryName(c.sql))
 		})
 	}
@@ -55,6 +56,7 @@ func collectHistogram(t *testing.T, reader *sdkmetric.ManualReader, name string)
 	return metricdata.HistogramDataPoint[float64]{}
 }
 
+//nolint:paralleltest // mutates the global otel MeterProvider; serial by design
 func TestQueryMetricsTracer_RecordsSuccess(t *testing.T) {
 	reader := sdkmetric.NewManualReader()
 	prev := otel.GetMeterProvider()
@@ -82,6 +84,7 @@ func TestQueryMetricsTracer_RecordsSuccess(t *testing.T) {
 	testza.AssertFalse(t, hasErr)
 }
 
+//nolint:paralleltest // mutates the global otel MeterProvider; serial by design
 func TestQueryMetricsTracer_RecordsErrorType(t *testing.T) {
 	reader := sdkmetric.NewManualReader()
 	prev := otel.GetMeterProvider()

@@ -17,11 +17,14 @@ const unnamedQuery = "unnamed"
 
 const meterName = "github.com/Vilsol/lakta/pkg/db/drivers/pgx"
 
+// maxQueryAttrs is the capacity hint for the per-query attribute slice: query name, namespace, and optional error type.
+const maxQueryAttrs = 3
+
 // queryName extracts the sqlc query name from a leading "-- name: X :cmd"
 // comment. Falls back to the leading SQL verb (uppercased), then "unnamed".
 // It never returns raw SQL — the result is a bounded-cardinality metric label.
 func queryName(sql string) string {
-	for _, line := range strings.Split(sql, "\n") {
+	for line := range strings.SplitSeq(sql, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
@@ -86,7 +89,7 @@ func (t *queryMetricsTracer) TraceQueryEnd(ctx context.Context, _ *pgx.Conn, dat
 		return
 	}
 
-	attrs := make([]attribute.KeyValue, 0, 3)
+	attrs := make([]attribute.KeyValue, 0, maxQueryAttrs)
 	attrs = append(attrs, attribute.String("db.query.name", val.name), t.namespace)
 	if data.Err != nil {
 		attrs = append(attrs, attribute.String("error.type", errorType(data.Err)))
