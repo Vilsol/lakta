@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log/slog"
+	"reflect"
 	"time"
 
 	"github.com/Vilsol/lakta/pkg/config"
@@ -103,6 +104,21 @@ func (m *Module) StartAsync(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// Provides returns the types this module registers in DI.
+func (m *Module) Provides() []reflect.Type {
+	return []reflect.Type{
+		reflect.TypeFor[*pgxpool.Pool](),
+		reflect.TypeFor[*sql.DB](),
+	}
+}
+
+// Dependencies declares the optional types this module needs from DI before Init.
+func (m *Module) Dependencies() ([]reflect.Type, []reflect.Type) {
+	return nil, []reflect.Type{
+		reflect.TypeFor[*koanf.Koanf](),
+	}
 }
 
 // Shutdown closes the database connection.

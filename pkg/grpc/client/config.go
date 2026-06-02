@@ -39,7 +39,7 @@ type Config struct {
 	ClientRegistrars []ClientRegistrar `code_only:"WithClient" koanf:"-"`
 }
 
-// NewDefaultConfig returns default configuration
+// NewDefaultConfig returns default configuration.
 func NewDefaultConfig() Config {
 	return Config{
 		Name:             config.DefaultInstanceName,

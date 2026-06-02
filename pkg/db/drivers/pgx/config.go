@@ -16,7 +16,7 @@ const (
 	defaultMaxOpenConns = 10
 )
 
-// Config represents configuration for SQL Databse [Module]
+// Config represents configuration for SQL Databse [Module].
 type Config struct {
 	// Instance name
 	Name string `koanf:"-"`
@@ -37,7 +37,7 @@ type Config struct {
 	logLevelParsed tracelog.LogLevel `koanf:"-"`
 }
 
-// NewDefaultConfig returns default configuration
+// NewDefaultConfig returns default configuration.
 func NewDefaultConfig() Config {
 	return Config{
 		Name:           config.DefaultInstanceName,
@@ -50,16 +50,12 @@ func NewDefaultConfig() Config {
 
 // NewConfig returns configuration with provided options based on defaults.
 func NewConfig(options ...Option) Config {
-	cfg := NewDefaultConfig()
-	for _, option := range options {
-		option(&cfg)
-	}
-	return cfg
+	return config.Apply(NewDefaultConfig(), options...)
 }
 
 // LoadFromKoanf loads configuration from koanf instance at the given path.
 func (c *Config) LoadFromKoanf(k *koanf.Koanf, path string) error {
-	return oops.Wrapf(k.Unmarshal(path, c), "failed to load config from koanf at path %s", path)
+	return oops.Wrapf(config.UnmarshalKoanf(c, k, path), "failed to load config from koanf at path %s", path)
 }
 
 // ParseLogLevel parses the string log level into tracelog.LogLevel.
