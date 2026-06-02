@@ -138,9 +138,12 @@ func (m *Module) Dependencies() ([]reflect.Type, []reflect.Type) {
 	}
 }
 
-// Shutdown is a no-op; fiber handles its own shutdown via listener close.
-func (m *Module) Shutdown(_ context.Context) error {
-	return nil
+// Shutdown gracefully drains in-flight requests, honoring the context deadline.
+func (m *Module) Shutdown(ctx context.Context) error {
+	if m.server == nil {
+		return nil
+	}
+	return oops.Wrapf(m.server.ShutdownWithContext(ctx), "failed to shutdown fiber http server")
 }
 
 // Addr returns the listener's network address, or nil if the server has not started yet.
@@ -150,5 +153,3 @@ func (m *Module) Addr() net.Addr {
 	}
 	return m.listener.Addr()
 }
-
-// fiber:context-methods migrated

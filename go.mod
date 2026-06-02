@@ -21,7 +21,6 @@ require (
 	github.com/knadh/koanf/providers/posflag v1.0.1
 	github.com/knadh/koanf/v2 v2.3.2
 	github.com/lmittmann/tint v1.1.3
-	github.com/mitchellh/mapstructure v1.5.0
 	github.com/remychantenay/slog-otel v1.3.5
 	github.com/samber/do/v2 v2.0.0
 	github.com/samber/oops v1.21.0
@@ -77,7 +76,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
-	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
+	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/gofiber/schema v1.7.0 // indirect
 	github.com/gofiber/utils/v2 v2.0.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect

@@ -1,13 +1,12 @@
 package fiberserver
 
 import (
-	"maps"
 	"net/netip"
 
 	"github.com/Vilsol/lakta/pkg/config"
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/gofiber/fiber/v3"
 	"github.com/knadh/koanf/v2"
-	"github.com/mitchellh/mapstructure"
 	"github.com/samber/oops"
 )
 
@@ -55,27 +54,12 @@ func NewDefaultConfig() Config {
 
 // NewConfig returns configuration with provided options based on defaults.
 func NewConfig(options ...Option) Config {
-	cfg := NewDefaultConfig()
-	for _, option := range options {
-		option(&cfg)
-	}
-	return cfg
+	return config.Apply(NewDefaultConfig(), options...)
 }
 
 // LoadFromKoanf loads configuration from koanf instance at the given path.
-// Preserves existing Raw entries as defaults, letting koanf values take precedence.
 func (c *Config) LoadFromKoanf(k *koanf.Koanf, path string) error {
-	existing := c.Raw
-	if err := k.Unmarshal(path, c); err != nil {
-		return oops.Wrapf(err, "failed to load config from koanf at path %s", path)
-	}
-	if len(existing) > 0 {
-		merged := make(config.Passthrough[fiber.Config], len(existing)+len(c.Raw))
-		maps.Copy(merged, existing)
-		maps.Copy(merged, c.Raw)
-		c.Raw = merged
-	}
-	return nil
+	return oops.Wrapf(config.UnmarshalKoanf(c, k, path), "failed to unmarshal config")
 }
 
 // AddrPort returns the parsed address and port for the server.
