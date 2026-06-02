@@ -61,6 +61,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/remychantenay/slog-otel v1.3.5 // indirect
 	github.com/robfig/cron v1.2.0 // indirect
 	github.com/samber/go-type-to-string v1.8.0 // indirect
 	github.com/samber/lo v1.52.0 // indirect

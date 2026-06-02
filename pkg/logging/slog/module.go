@@ -12,6 +12,7 @@ import (
 	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/Vilsol/slox"
 	"github.com/knadh/koanf/v2"
+	slogotel "github.com/remychantenay/slog-otel"
 	"github.com/samber/do/v2"
 	"github.com/samber/oops"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
@@ -79,7 +80,7 @@ func (m *Module) Init(ctx context.Context) error {
 	}
 
 	fanout := slog.NewMultiHandler(
-		handler,
+		slogotel.New(handler),
 		otelslog.NewHandler(m.config.Name),
 	)
 

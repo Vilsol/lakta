@@ -45,6 +45,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
+require github.com/remychantenay/slog-otel v1.3.5
+
 require (
 	atomicgo.dev/assert v0.0.2 // indirect
 	atomicgo.dev/cursor v0.2.0 // indirect
