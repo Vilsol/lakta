@@ -25,8 +25,8 @@ type levelRules struct {
 
 type levelFilter struct {
 	upstream slog.Handler
-	state    atomic.Pointer[levelRules]
-	cache    sync.Map // funcName -> slog.Level
+	state    *atomic.Pointer[levelRules]
+	cache    *sync.Map // funcName -> slog.Level, shared with derived handlers
 }
 
 func buildRules(defaultLevel slog.Level, levels map[string]slog.Level) *levelRules {
@@ -52,7 +52,11 @@ func buildRules(defaultLevel slog.Level, levels map[string]slog.Level) *levelRul
 }
 
 func newLevelFilter(upstream slog.Handler, defaultLevel slog.Level, levels map[string]slog.Level) *levelFilter {
-	f := &levelFilter{upstream: upstream}
+	f := &levelFilter{
+		upstream: upstream,
+		state:    &atomic.Pointer[levelRules]{},
+		cache:    &sync.Map{},
+	}
 	f.state.Store(buildRules(defaultLevel, levels))
 	return f
 }
@@ -93,19 +97,19 @@ func (f *levelFilter) Handle(ctx context.Context, record slog.Record) error {
 }
 
 func (f *levelFilter) WithAttrs(attrs []slog.Attr) slog.Handler {
-	clone := &levelFilter{
+	return &levelFilter{
 		upstream: f.upstream.WithAttrs(attrs),
+		state:    f.state,
+		cache:    f.cache,
 	}
-	clone.state.Store(f.state.Load())
-	return clone
 }
 
 func (f *levelFilter) WithGroup(name string) slog.Handler {
-	clone := &levelFilter{
+	return &levelFilter{
 		upstream: f.upstream.WithGroup(name),
+		state:    f.state,
+		cache:    f.cache,
 	}
-	clone.state.Store(f.state.Load())
-	return clone
 }
 
 func (f *levelFilter) resolveLevel(pc uintptr) slog.Level {

@@ -18,6 +18,7 @@ var (
 	_ lakta.Module        = (*Module)(nil)
 	_ lakta.Provider      = (*Module)(nil)
 	_ lakta.Dependent     = (*Module)(nil)
+	_ lakta.Configurable  = (*Module)(nil)
 	_ lakta.HotReloadable = (*Module)(nil)
 )
 
@@ -102,8 +103,14 @@ func TestSlogModule_ConfigLevelFromKoanf(t *testing.T) {
 
 	upstream := &recordingHandler{}
 	h := testkit.NewHarness(t).WithData(map[string]any{
-		"logging": map[string]any{
-			"level": "debug",
+		"modules": map[string]any{
+			"logging": map[string]any{
+				"slog": map[string]any{
+					"default": map[string]any{
+						"level": "debug",
+					},
+				},
+			},
 		},
 	})
 	h = testkit.WithProvider(h, func(_ do.Injector) (slog.Handler, error) {
@@ -111,6 +118,9 @@ func TestSlogModule_ConfigLevelFromKoanf(t *testing.T) {
 	})
 
 	m := NewModule()
+	k, err := do.Invoke[*koanf.Koanf](h.Injector())
+	testza.AssertNil(t, err)
+	testza.AssertNil(t, m.LoadConfig(k))
 	testza.AssertNil(t, m.Init(h.Ctx()))
 
 	var pcs [1]uintptr
@@ -125,19 +135,34 @@ func TestSlogModule_ReloadUpdatesLevel(t *testing.T) {
 
 	upstream := &recordingHandler{}
 	h := testkit.NewHarness(t).WithData(map[string]any{
-		"logging": map[string]any{"level": "info"},
+		"modules": map[string]any{
+			"logging": map[string]any{
+				"slog": map[string]any{
+					"default": map[string]any{"level": "info"},
+				},
+			},
+		},
 	})
 	h = testkit.WithProvider(h, func(_ do.Injector) (slog.Handler, error) {
 		return upstream, nil
 	})
 
 	m := NewModule()
+	k, err := do.Invoke[*koanf.Koanf](h.Injector())
+	testza.AssertNil(t, err)
+	testza.AssertNil(t, m.LoadConfig(k))
 	testza.AssertNil(t, m.Init(h.Ctx()))
 
 	// Reload with level=error; after this, info records should be dropped.
 	newK := koanf.New(".")
 	testza.AssertNil(t, newK.Load(testkit.MapProvider(map[string]any{
-		"logging": map[string]any{"level": "error"},
+		"modules": map[string]any{
+			"logging": map[string]any{
+				"slog": map[string]any{
+					"default": map[string]any{"level": "error"},
+				},
+			},
+		},
 	}), nil))
 	m.OnReload(newK)
 
@@ -146,6 +171,33 @@ func TestSlogModule_ReloadUpdatesLevel(t *testing.T) {
 	rec := slog.NewRecord(time.Now(), slog.LevelInfo, "info msg", pcs[0])
 	testza.AssertNil(t, m.filter.Handle(context.Background(), rec))
 	testza.AssertEqual(t, 0, len(upstream.records))
+}
+
+func TestSlogModule_ConfigPath(t *testing.T) {
+	t.Parallel()
+
+	testza.AssertEqual(t, "modules.logging.slog.default", NewModule().ConfigPath())
+	testza.AssertEqual(t, "modules.logging.slog.audit", NewModule(WithName("audit")).ConfigPath())
+}
+
+func TestSlogModule_LoadConfigFromHarness(t *testing.T) {
+	t.Parallel()
+
+	h := testkit.NewHarness(t).WithData(map[string]any{
+		"modules": map[string]any{
+			"logging": map[string]any{
+				"slog": map[string]any{
+					"default": map[string]any{"level": "warn"},
+				},
+			},
+		},
+	})
+
+	m := NewModule()
+	k, err := do.Invoke[*koanf.Koanf](h.Injector())
+	testza.AssertNil(t, err)
+	testza.AssertNil(t, m.LoadConfig(k))
+	testza.AssertEqual(t, "warn", m.config.Level)
 }
 
 func TestSlogModule_ShutdownNoop(t *testing.T) {
@@ -161,10 +213,16 @@ func TestSlogModule_ValidateLevelPrefixes_KnownPrefix(t *testing.T) {
 	// A known module prefix (this module itself) — must not warn or fail.
 	upstream := &recordingHandler{}
 	h := testkit.NewHarness(t).WithData(map[string]any{
-		"logging": map[string]any{
-			"level": "info",
-			"levels": map[string]any{
-				"github.com/Vilsol/lakta": "debug",
+		"modules": map[string]any{
+			"logging": map[string]any{
+				"slog": map[string]any{
+					"default": map[string]any{
+						"level": "info",
+						"levels": map[string]any{
+							"github.com/Vilsol/lakta": "debug",
+						},
+					},
+				},
 			},
 		},
 	})
@@ -173,6 +231,9 @@ func TestSlogModule_ValidateLevelPrefixes_KnownPrefix(t *testing.T) {
 	})
 
 	m := NewModule()
+	k, err := do.Invoke[*koanf.Koanf](h.Injector())
+	testza.AssertNil(t, err)
+	testza.AssertNil(t, m.LoadConfig(k))
 	testza.AssertNil(t, m.Init(h.Ctx()))
 }
 
@@ -182,10 +243,16 @@ func TestSlogModule_ValidateLevelPrefixes_UnknownPrefix(t *testing.T) {
 	// An unknown prefix — Init still succeeds, only a warning is logged.
 	upstream := &recordingHandler{}
 	h := testkit.NewHarness(t).WithData(map[string]any{
-		"logging": map[string]any{
-			"level": "info",
-			"levels": map[string]any{
-				"github.com/nonexistent/totally/unknown/pkg": "debug",
+		"modules": map[string]any{
+			"logging": map[string]any{
+				"slog": map[string]any{
+					"default": map[string]any{
+						"level": "info",
+						"levels": map[string]any{
+							"github.com/nonexistent/totally/unknown/pkg": "debug",
+						},
+					},
+				},
 			},
 		},
 	})
@@ -194,5 +261,8 @@ func TestSlogModule_ValidateLevelPrefixes_UnknownPrefix(t *testing.T) {
 	})
 
 	m := NewModule()
+	k, err := do.Invoke[*koanf.Koanf](h.Injector())
+	testza.AssertNil(t, err)
+	testza.AssertNil(t, m.LoadConfig(k))
 	testza.AssertNil(t, m.Init(h.Ctx()))
 }

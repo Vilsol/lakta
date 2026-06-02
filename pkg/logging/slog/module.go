@@ -8,10 +8,10 @@ import (
 	"runtime/debug"
 	"strings"
 
+	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/Vilsol/slox"
 	"github.com/knadh/koanf/v2"
-	slogotel "github.com/remychantenay/slog-otel"
 	"github.com/samber/do/v2"
 	"github.com/samber/oops"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
@@ -54,19 +54,19 @@ func NewModule(options ...Option) *Module {
 	}
 }
 
-const loggingPath = "logging"
+// ConfigPath returns the koanf path for this module's configuration.
+func (m *Module) ConfigPath() string {
+	return config.ModulePath(config.CategoryLogging, "slog", m.config.Name)
+}
+
+// LoadConfig loads configuration from koanf.
+func (m *Module) LoadConfig(k *koanf.Koanf) error {
+	return m.config.LoadFromKoanf(k, m.ConfigPath())
+}
 
 // Init creates the slog.Logger with stack rewriting, level filtering, and registers it in DI.
 func (m *Module) Init(ctx context.Context) error {
 	injector := lakta.GetInjector(ctx)
-
-	if k, err := do.Invoke[*koanf.Koanf](injector); err == nil && k != nil {
-		if k.Exists(loggingPath) {
-			if err := m.config.LoadFromKoanf(k, loggingPath); err != nil {
-				return oops.Wrapf(err, "failed to load logging config")
-			}
-		}
-	}
 
 	m.config.ParseLevel()
 	m.config.ParseLevels()
@@ -79,7 +79,7 @@ func (m *Module) Init(ctx context.Context) error {
 	}
 
 	fanout := slog.NewMultiHandler(
-		slogotel.New(handler),
+		handler,
 		otelslog.NewHandler(m.config.Name),
 	)
 
@@ -98,8 +98,9 @@ func (m *Module) Init(ctx context.Context) error {
 
 func (m *Module) OnReload(k *koanf.Koanf) {
 	cfg := NewDefaultConfig()
-	if k.Exists(loggingPath) {
-		if err := cfg.LoadFromKoanf(k, loggingPath); err != nil {
+	path := m.ConfigPath()
+	if k.Exists(path) {
+		if err := cfg.LoadFromKoanf(k, path); err != nil {
 			slog.Error("failed to reload logging config", slog.Any("error", err))
 			return
 		}
