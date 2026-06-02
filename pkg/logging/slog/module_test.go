@@ -45,9 +45,8 @@ func TestSlogModule_NewModuleDoesNotHang(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // Module.Init mutates the global slog default; serial by design
 func TestSlogModule_InitProvidesLogger(t *testing.T) {
-	t.Parallel()
-
 	h := testkit.NewHarness(t)
 	h = withRecordingHandler(h)
 
@@ -68,9 +67,8 @@ func TestSlogModule_InitWithoutHandlerFails(t *testing.T) {
 	testza.AssertNotNil(t, m.Init(h.Ctx()))
 }
 
+//nolint:paralleltest // Module.Init mutates the global slog default; serial by design
 func TestSlogModule_InitWithoutKoanfSucceeds(t *testing.T) {
-	t.Parallel()
-
 	h := testkit.NewHarness(t) // no koanf in DI
 	h = withRecordingHandler(h)
 
@@ -78,9 +76,8 @@ func TestSlogModule_InitWithoutKoanfSucceeds(t *testing.T) {
 	testza.AssertNil(t, m.Init(h.Ctx()))
 }
 
+//nolint:paralleltest // Module.Init mutates the global slog default; serial by design
 func TestSlogModule_DefaultLevelFiltersDebug(t *testing.T) {
-	t.Parallel()
-
 	upstream := &recordingHandler{}
 	h := testkit.NewHarness(t)
 	h = testkit.WithProvider(h, func(_ do.Injector) (slog.Handler, error) {
@@ -98,9 +95,8 @@ func TestSlogModule_DefaultLevelFiltersDebug(t *testing.T) {
 	testza.AssertEqual(t, 0, len(upstream.records))
 }
 
+//nolint:paralleltest // Module.Init mutates the global slog default; serial by design
 func TestSlogModule_ConfigLevelFromKoanf(t *testing.T) {
-	t.Parallel()
-
 	upstream := &recordingHandler{}
 	h := testkit.NewHarness(t).WithData(map[string]any{
 		"modules": map[string]any{
@@ -130,9 +126,8 @@ func TestSlogModule_ConfigLevelFromKoanf(t *testing.T) {
 	testza.AssertEqual(t, 1, len(upstream.records))
 }
 
+//nolint:paralleltest // Module.Init mutates the global slog default; serial by design
 func TestSlogModule_ReloadUpdatesLevel(t *testing.T) {
-	t.Parallel()
-
 	upstream := &recordingHandler{}
 	h := testkit.NewHarness(t).WithData(map[string]any{
 		"modules": map[string]any{
@@ -207,9 +202,8 @@ func TestSlogModule_ShutdownNoop(t *testing.T) {
 	testza.AssertNil(t, m.Shutdown(context.Background()))
 }
 
+//nolint:paralleltest // Module.Init mutates the global slog default; serial by design
 func TestSlogModule_ValidateLevelPrefixes_KnownPrefix(t *testing.T) {
-	t.Parallel()
-
 	// A known module prefix (this module itself) — must not warn or fail.
 	upstream := &recordingHandler{}
 	h := testkit.NewHarness(t).WithData(map[string]any{
@@ -237,9 +231,8 @@ func TestSlogModule_ValidateLevelPrefixes_KnownPrefix(t *testing.T) {
 	testza.AssertNil(t, m.Init(h.Ctx()))
 }
 
+//nolint:paralleltest // Module.Init mutates the global slog default; serial by design
 func TestSlogModule_ValidateLevelPrefixes_UnknownPrefix(t *testing.T) {
-	t.Parallel()
-
 	// An unknown prefix — Init still succeeds, only a warning is logged.
 	upstream := &recordingHandler{}
 	h := testkit.NewHarness(t).WithData(map[string]any{
