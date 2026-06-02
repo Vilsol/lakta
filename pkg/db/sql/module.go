@@ -3,6 +3,7 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"reflect"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/Vilsol/lakta/pkg/lakta"
@@ -22,6 +23,20 @@ func NewModule() *Module {
 func (m *Module) Init(ctx context.Context) error {
 	lakta.Provide(ctx, m.GetInstance)
 	return nil
+}
+
+// Provides returns the types this module registers in DI.
+func (m *Module) Provides() []reflect.Type {
+	return []reflect.Type{
+		reflect.TypeFor[*squirrel.StatementBuilderType](),
+	}
+}
+
+// Dependencies declares the required types this module needs from DI before Init.
+func (m *Module) Dependencies() ([]reflect.Type, []reflect.Type) {
+	return []reflect.Type{
+		reflect.TypeFor[*sql.DB](),
+	}, nil
 }
 
 // Shutdown is a no-op for this module.
