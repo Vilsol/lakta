@@ -16,17 +16,24 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
+const testEndpoint = "localhost:59999"
+
 type noopMetricExporter struct{}
 
 func (noopMetricExporter) Temporality(_ sdkmetric.InstrumentKind) metricdata.Temporality {
 	return metricdata.CumulativeTemporality
 }
+
+//nolint:ireturn // returns the SDK's Aggregation interface to satisfy sdkmetric.Exporter
 func (noopMetricExporter) Aggregation(_ sdkmetric.InstrumentKind) sdkmetric.Aggregation {
 	return sdkmetric.AggregationDrop{}
 }
+
 func (noopMetricExporter) Export(_ context.Context, _ *metricdata.ResourceMetrics) error { return nil }
-func (noopMetricExporter) ForceFlush(_ context.Context) error                            { return nil }
-func (noopMetricExporter) Shutdown(_ context.Context) error                              { return nil }
+
+func (noopMetricExporter) ForceFlush(_ context.Context) error { return nil }
+
+func (noopMetricExporter) Shutdown(_ context.Context) error { return nil }
 
 type noopLogExporter struct{}
 
@@ -159,7 +166,7 @@ func TestWithPropagators(t *testing.T) {
 func TestNewTraceExporter_gRPC(t *testing.T) {
 	t.Parallel()
 	cfg := NewDefaultConfig()
-	cfg.Endpoint = "localhost:59999"
+	cfg.Endpoint = testEndpoint
 	cfg.Insecure = true
 	exp, err := newTraceExporter(context.Background(), cfg)
 	testza.AssertNil(t, err)
@@ -171,7 +178,7 @@ func TestNewTraceExporter_HTTP(t *testing.T) {
 	t.Parallel()
 	cfg := NewDefaultConfig()
 	cfg.Protocol = protocolHTTPProtobuf
-	cfg.Endpoint = "localhost:59999"
+	cfg.Endpoint = testEndpoint
 	cfg.Insecure = true
 	exp, err := newTraceExporter(context.Background(), cfg)
 	testza.AssertNil(t, err)
@@ -182,7 +189,7 @@ func TestNewTraceExporter_HTTP(t *testing.T) {
 func TestNewMetricExporter_gRPC(t *testing.T) {
 	t.Parallel()
 	cfg := NewDefaultConfig()
-	cfg.Endpoint = "localhost:59999"
+	cfg.Endpoint = testEndpoint
 	cfg.Insecure = true
 	exp, err := newMetricExporter(context.Background(), cfg)
 	testza.AssertNil(t, err)
@@ -194,7 +201,7 @@ func TestNewMetricExporter_HTTP(t *testing.T) {
 	t.Parallel()
 	cfg := NewDefaultConfig()
 	cfg.Protocol = protocolHTTPProtobuf
-	cfg.Endpoint = "localhost:59999"
+	cfg.Endpoint = testEndpoint
 	cfg.Insecure = true
 	exp, err := newMetricExporter(context.Background(), cfg)
 	testza.AssertNil(t, err)
@@ -205,7 +212,7 @@ func TestNewMetricExporter_HTTP(t *testing.T) {
 func TestNewLogExporter_gRPC(t *testing.T) {
 	t.Parallel()
 	cfg := NewDefaultConfig()
-	cfg.Endpoint = "localhost:59999"
+	cfg.Endpoint = testEndpoint
 	cfg.Insecure = true
 	exp, err := newLogExporter(context.Background(), cfg)
 	testza.AssertNil(t, err)
@@ -217,7 +224,7 @@ func TestNewLogExporter_HTTP(t *testing.T) {
 	t.Parallel()
 	cfg := NewDefaultConfig()
 	cfg.Protocol = protocolHTTPProtobuf
-	cfg.Endpoint = "localhost:59999"
+	cfg.Endpoint = testEndpoint
 	cfg.Insecure = true
 	exp, err := newLogExporter(context.Background(), cfg)
 	testza.AssertNil(t, err)
@@ -225,6 +232,7 @@ func TestNewLogExporter_HTTP(t *testing.T) {
 	testza.AssertNil(t, exp.Shutdown(context.Background()))
 }
 
+//nolint:paralleltest // mutates global OTel state; setupOTelSDK tests run serially
 func TestSetupOTelSDK_MetricsOnly(t *testing.T) {
 	// No t.Parallel() — mutates global OTel state, calls runtime.Start().
 	cfg := NewDefaultConfig()
@@ -240,6 +248,7 @@ func TestSetupOTelSDK_MetricsOnly(t *testing.T) {
 
 // setupOTelSDK tests run sequentially — they mutate global OTel state.
 
+//nolint:paralleltest // mutates global OTel state; setupOTelSDK tests run serially
 func TestSetupOTelSDK_TraceOnly(t *testing.T) {
 	cfg := NewDefaultConfig()
 	cfg.Signals = []string{signalTraces}
@@ -252,6 +261,7 @@ func TestSetupOTelSDK_TraceOnly(t *testing.T) {
 	testza.AssertNil(t, providers.shutdown(context.Background()))
 }
 
+//nolint:paralleltest // mutates global OTel state; setupOTelSDK tests run serially
 func TestSetupOTelSDK_LogOnly(t *testing.T) {
 	cfg := NewDefaultConfig()
 	cfg.Signals = []string{signalLogs}
@@ -264,6 +274,7 @@ func TestSetupOTelSDK_LogOnly(t *testing.T) {
 	testza.AssertNil(t, providers.shutdown(context.Background()))
 }
 
+//nolint:paralleltest // mutates global OTel state; setupOTelSDK tests run serially
 func TestSetupOTelSDK_NoSignals(t *testing.T) {
 	cfg := NewDefaultConfig()
 	cfg.Signals = []string{}
