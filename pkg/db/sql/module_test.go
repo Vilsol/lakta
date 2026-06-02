@@ -3,6 +3,7 @@ package sql_test
 import (
 	"context"
 	"database/sql"
+	"os"
 	"testing"
 
 	"github.com/MarvinJWendt/testza"
@@ -16,9 +17,17 @@ import (
 func TestSQLModule_Init_RegistersProvider(t *testing.T) {
 	t.Parallel()
 
+	if os.Getenv("LAKTA_INTEGRATION") == "" {
+		t.Skip("integration test skipped: set LAKTA_INTEGRATION=1 to run")
+	}
+
 	db, err := sql.Open("pgx", "postgres://test:test@localhost:5432/test")
 	testza.AssertNil(t, err)
 	t.Cleanup(func() { _ = db.Close() })
+
+	if pingErr := db.PingContext(context.Background()); pingErr != nil {
+		t.Skipf("postgres unavailable: %v", pingErr)
+	}
 
 	h := testkit.NewHarness(t)
 	testkit.WithProvider(h, func(_ do.Injector) (*sql.DB, error) {

@@ -3,6 +3,7 @@ package pgx_test
 import (
 	"context"
 	"database/sql"
+	"os"
 	"testing"
 	"time"
 
@@ -17,8 +18,21 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+// requireIntegration gates container-backed integration tests behind the
+// LAKTA_INTEGRATION env var so that a skipped run is explicit and never silently
+// counted as "green". Set LAKTA_INTEGRATION=1 to run them.
+func requireIntegration(t *testing.T) {
+	t.Helper()
+
+	if os.Getenv("LAKTA_INTEGRATION") == "" {
+		t.Skip("integration test skipped: set LAKTA_INTEGRATION=1 to run")
+	}
+}
+
 func startPostgresContainer(t *testing.T) string {
 	t.Helper()
+
+	requireIntegration(t)
 
 	ctx := context.Background()
 
