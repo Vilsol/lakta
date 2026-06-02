@@ -16,7 +16,7 @@ require (
 	github.com/knadh/koanf/parsers/json v1.0.0
 	github.com/knadh/koanf/parsers/toml/v2 v2.2.1
 	github.com/knadh/koanf/parsers/yaml v1.1.0
-	github.com/knadh/koanf/providers/env v1.1.0
+	github.com/knadh/koanf/providers/env/v2 v2.0.0
 	github.com/knadh/koanf/providers/file v1.2.1
 	github.com/knadh/koanf/providers/posflag v1.0.1
 	github.com/knadh/koanf/v2 v2.3.5
@@ -45,7 +45,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require github.com/remychantenay/slog-otel v1.3.5
+require (
+	github.com/knadh/koanf/providers/env v1.1.0
+	github.com/remychantenay/slog-otel v1.3.5
+)
 
 require (
 	github.com/moby/moby/api v1.54.1 // indirect
