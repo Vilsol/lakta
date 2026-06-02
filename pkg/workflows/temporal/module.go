@@ -2,7 +2,8 @@ package temporal
 
 import (
 	"context"
-	"errors"
+	"reflect"
+	"sync"
 
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/Vilsol/lakta/pkg/lakta"
@@ -22,14 +23,22 @@ type Module struct {
 	config Config
 	client client.Client
 	worker worker.Worker
+
+	// interruptCh is closed to signal worker.Run to stop the worker.
+	interruptCh chan any
+	// stopOnce guards interruptCh closure so worker stop happens exactly once.
+	stopOnce sync.Once
+	// closeOnce guards client.Close so it happens exactly once.
+	closeOnce sync.Once
 }
 
 // NewModule creates a new Temporal module with the given options.
 func NewModule(options ...Option) *Module {
 	cfg := NewConfig(options...)
 	return &Module{
-		NamedBase: lakta.NewNamedBase(cfg.Name),
-		config:    cfg,
+		NamedBase:   lakta.NewNamedBase(cfg.Name),
+		config:      cfg,
+		interruptCh: make(chan any),
 	}
 }
 
@@ -43,17 +52,24 @@ func (m *Module) LoadConfig(k *koanf.Koanf) error {
 	return m.config.LoadFromKoanf(k, m.ConfigPath())
 }
 
-// Init loads configuration and validates required fields.
-func (m *Module) Init(ctx context.Context) error {
-	if m.config.TaskQueue == "" {
-		return errors.New("task queue is required in temporal configuration")
+// Provides returns the types this module registers in DI.
+func (m *Module) Provides() []reflect.Type {
+	return []reflect.Type{
+		reflect.TypeFor[client.Client](),
 	}
-
-	return nil
 }
 
-// Start connects to Temporal, registers workflows/activities, and runs the worker.
-func (m *Module) Start(ctx context.Context) error {
+// Dependencies declares the types this module needs from DI before Init.
+func (m *Module) Dependencies() ([]reflect.Type, []reflect.Type) {
+	return nil, nil
+}
+
+// Init connects to Temporal and registers the client in DI before Start runs.
+func (m *Module) Init(ctx context.Context) error {
+	if m.config.TaskQueue == "" {
+		return oops.Errorf("task queue is required in temporal configuration")
+	}
+
 	tracingInterceptor, err := opentelemetry.NewTracingInterceptor(opentelemetry.TracerOptions{})
 	if err != nil {
 		return oops.Wrapf(err, "failed to create tracing interceptor")
@@ -67,20 +83,34 @@ func (m *Module) Start(ctx context.Context) error {
 	if err != nil {
 		return oops.Wrapf(err, "failed to connect to Temporal")
 	}
-	defer m.client.Close()
 
-	workerOpts := m.config.WorkerOptions(ctx, []interceptor.WorkerInterceptor{tracingInterceptor})
-	m.worker = worker.New(m.client, m.config.TaskQueue, workerOpts)
+	m.worker = worker.New(m.client, m.config.TaskQueue, m.config.WorkerOptions(ctx, []interceptor.WorkerInterceptor{tracingInterceptor}))
 
 	for _, register := range m.config.Registrars {
 		if err := register(ctx, m.worker); err != nil {
-			return err
+			m.closeClient()
+			return oops.Wrapf(err, "failed to register workflows and activities")
 		}
 	}
 
 	lakta.ProvideValue[client.Client](ctx, m.client)
 
-	if err = m.worker.Run(worker.InterruptCh()); err != nil {
+	return nil
+}
+
+// Start runs the worker, blocking until the runtime context is cancelled.
+func (m *Module) Start(ctx context.Context) error {
+	// Watch the runtime context: cancellation closes interruptCh so worker.Run unblocks.
+	go func() {
+		select {
+		case <-ctx.Done():
+			m.signalStop()
+		case <-m.interruptCh:
+		}
+	}()
+
+	if err := m.worker.Run(m.interruptCh); err != nil {
+		m.closeClient()
 		return oops.Wrapf(err, "failed to start worker")
 	}
 
@@ -89,7 +119,23 @@ func (m *Module) Start(ctx context.Context) error {
 
 // Shutdown stops the worker and closes the Temporal client.
 func (m *Module) Shutdown(_ context.Context) error {
-	m.worker.Stop()
-	m.client.Close()
+	m.signalStop()
+	m.closeClient()
 	return nil
+}
+
+// signalStop closes interruptCh once, unblocking worker.Run which stops the worker.
+func (m *Module) signalStop() {
+	m.stopOnce.Do(func() {
+		close(m.interruptCh)
+	})
+}
+
+// closeClient closes the Temporal client at most once.
+func (m *Module) closeClient() {
+	m.closeOnce.Do(func() {
+		if m.client != nil {
+			m.client.Close()
+		}
+	})
 }
