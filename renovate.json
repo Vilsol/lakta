@@ -1,0 +1,24 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:best-practices"
+  ],
+  "postUpdateOptions": [
+    "gomodMassage",
+    "gomodTidy"
+  ],
+  "packageRules": [
+    {
+      "description": "Group non-major Go updates across the root and examples modules into a single PR",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "go module dependencies"
+    }
+  ]
+}
