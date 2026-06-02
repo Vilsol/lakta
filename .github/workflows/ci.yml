@@ -21,6 +21,9 @@ jobs:
       - name: Test
         run: mise run test
 
+      - name: Race
+        run: go test -race ./...
+
       - name: Lint
         run: mise run lint
 
