@@ -1,8 +1,10 @@
 package config_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"sync/atomic"
 	"testing"
 
@@ -178,6 +180,41 @@ func TestBind_ValidationFailureOnReloadPreservesOldValue(t *testing.T) {
 
 	// Old value should be preserved
 	testza.AssertEqual(t, 50, config.Get[validatedConfig](h.Ctx()).MaxRequests)
+}
+
+//nolint:paralleltest // mutates the global default slog logger; must not run in parallel.
+func TestBind_ValidationFailureOnReloadLogsError(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	h := testkit.NewHarness(t).WithData(map[string]any{
+		"limits": map[string]any{
+			"max_requests": 50,
+		},
+	})
+
+	mod := config.Bind[validatedConfig]("limits")
+	testza.AssertNil(t, mod.Init(h.Ctx()))
+	testza.AssertEqual(t, 50, config.Get[validatedConfig](h.Ctx()).MaxRequests)
+
+	newK := koanf.New(".")
+	testza.AssertNil(t, newK.Load(testkit.MapProvider(map[string]any{
+		"limits": map[string]any{
+			"max_requests": 0,
+		},
+	}), nil))
+
+	h.Notifier().FireReload(newK)
+
+	// Old value retained.
+	testza.AssertEqual(t, 50, config.Get[validatedConfig](h.Ctx()).MaxRequests)
+
+	// Failure is observable: error logged with the config path.
+	logged := buf.String()
+	testza.AssertContains(t, logged, "ERROR")
+	testza.AssertContains(t, logged, "limits")
 }
 
 func TestBind_Shutdown(t *testing.T) {

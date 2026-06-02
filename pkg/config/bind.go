@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -101,6 +102,13 @@ func (m *bindModule[T]) Init(ctx context.Context) error {
 		notifier.OnReload(func(k *koanf.Koanf) {
 			newCfg, err := unmarshalAndValidate[T](k, m.path)
 			if err != nil {
+				// The OnReload contract provides no context, so use the default logger.
+				// Retain the previously bound config and surface the failure loudly.
+				slog.Error("config reload failed; retaining previous config",
+					slog.String("path", m.path),
+					slog.Any("error", err),
+				)
+
 				return
 			}
 			m.binding.update(newCfg)
