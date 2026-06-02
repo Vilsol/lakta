@@ -11,6 +11,10 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// taskQueue must match modules.workflows.temporal.default.task_queue in lakta.yaml,
+// so workflows are dispatched to the queue the Temporal worker listens on.
+const taskQueue = "EXAMPLE_ORCHESTRATOR_QUEUE"
+
 type WorkflowServer struct {
 	v1.UnimplementedWorkflowServiceServer
 }
