@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/MarvinJWendt/testza"
+	"github.com/Vilsol/lakta/pkg/config"
 )
 
 func TestParseLevel_AllVariants(t *testing.T) {
@@ -14,15 +15,15 @@ func TestParseLevel_AllVariants(t *testing.T) {
 		input string
 		want  slog.Level
 	}{
-		{"debug", slog.LevelDebug},
+		{levelDebug, slog.LevelDebug},
 		{"DEBUG", slog.LevelDebug},
-		{"info", slog.LevelInfo},
+		{levelInfo, slog.LevelInfo},
 		{"INFO", slog.LevelInfo},
-		{"warn", slog.LevelWarn},
+		{levelWarn, slog.LevelWarn},
 		{"WARN", slog.LevelWarn},
 		{"warning", slog.LevelWarn},
 		{"WARNING", slog.LevelWarn},
-		{"error", slog.LevelError},
+		{levelError, slog.LevelError},
 		{"ERROR", slog.LevelError},
 		{"unknown", slog.LevelDebug},
 		{"", slog.LevelDebug},
@@ -41,9 +42,9 @@ func TestConfig_ParseLevels_NonEmpty(t *testing.T) {
 
 	c := NewDefaultConfig()
 	c.Levels = map[string]string{
-		"pkg/foo": "warn",
-		"pkg/bar": "error",
-		"pkg/baz": "debug",
+		"pkg/foo": levelWarn,
+		"pkg/bar": levelError,
+		"pkg/baz": levelDebug,
 	}
 	c.ParseLevels()
 
@@ -65,20 +66,20 @@ func TestConfig_WithOptions(t *testing.T) {
 
 	c := NewConfig(
 		WithName("mylogger"),
-		WithLevel("warn"),
-		WithLevels(map[string]string{"pkg/x": "debug"}),
+		WithLevel(levelWarn),
+		WithLevels(map[string]string{"pkg/x": levelDebug}),
 	)
 
 	testza.AssertEqual(t, "mylogger", c.Name)
-	testza.AssertEqual(t, "warn", c.Level)
-	testza.AssertEqual(t, "debug", c.Levels["pkg/x"])
+	testza.AssertEqual(t, levelWarn, c.Level)
+	testza.AssertEqual(t, levelDebug, c.Levels["pkg/x"])
 }
 
 func TestConfig_NewDefaultConfig(t *testing.T) {
 	t.Parallel()
 
 	c := NewDefaultConfig()
-	testza.AssertEqual(t, "default", c.Name)
-	testza.AssertEqual(t, "info", c.Level)
+	testza.AssertEqual(t, config.DefaultInstanceName, c.Name)
+	testza.AssertEqual(t, levelInfo, c.Level)
 	testza.AssertTrue(t, c.GlobalDefault)
 }

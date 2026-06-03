@@ -9,6 +9,14 @@ import (
 	"github.com/samber/oops"
 )
 
+// Log level string representations.
+const (
+	levelDebug = "debug"
+	levelInfo  = "info"
+	levelWarn  = "warn"
+	levelError = "error"
+)
+
 // Config represents configuration for slog [Module]
 type Config struct {
 	// Instance name
@@ -34,7 +42,7 @@ type Config struct {
 func NewDefaultConfig() Config {
 	return Config{
 		Name:          config.DefaultInstanceName,
-		Level:         "info",
+		Level:         levelInfo,
 		GlobalDefault: true,
 	}
 }
@@ -68,13 +76,13 @@ func (c *Config) ParseLevels() {
 
 func parseLevel(s string) slog.Level {
 	switch strings.ToLower(s) {
-	case "debug":
+	case levelDebug:
 		return slog.LevelDebug
-	case "info":
+	case levelInfo:
 		return slog.LevelInfo
-	case "warn", "warning":
+	case levelWarn, "warning":
 		return slog.LevelWarn
-	case "error":
+	case levelError:
 		return slog.LevelError
 	default:
 		return slog.LevelDebug

@@ -14,6 +14,15 @@ import (
 	"github.com/knadh/koanf/v2"
 )
 
+const (
+	keyApp         = "app"
+	keyLimits      = "limits"
+	keyMaxRequests = "max_requests"
+	keyDefault     = "default"
+	keySvc         = "svc"
+	keyName        = "name"
+)
+
 type testConfig struct {
 	MaxRequests int    `koanf:"max_requests"`
 	Name        string `koanf:"name"`
@@ -34,33 +43,33 @@ func TestBind_BasicGetReturnsConfig(t *testing.T) {
 	t.Parallel()
 
 	h := testkit.NewHarness(t).WithData(map[string]any{
-		"app": map[string]any{
-			"limits": map[string]any{
-				"max_requests": 100,
-				"name":         "default",
+		keyApp: map[string]any{
+			keyLimits: map[string]any{
+				keyMaxRequests: 100,
+				keyName:        keyDefault,
 			},
 		},
 	})
 
-	mod := config.Bind[testConfig]("app", "limits")
+	mod := config.Bind[testConfig](keyApp, keyLimits)
 	err := mod.Init(h.Ctx())
 	testza.AssertNil(t, err)
 
 	cfg := config.Get[testConfig](h.Ctx())
 	testza.AssertEqual(t, 100, cfg.MaxRequests)
-	testza.AssertEqual(t, "default", cfg.Name)
+	testza.AssertEqual(t, keyDefault, cfg.Name)
 }
 
 func TestBind_ValidationHappyPath(t *testing.T) {
 	t.Parallel()
 
 	h := testkit.NewHarness(t).WithData(map[string]any{
-		"limits": map[string]any{
-			"max_requests": 50,
+		keyLimits: map[string]any{
+			keyMaxRequests: 50,
 		},
 	})
 
-	mod := config.Bind[validatedConfig]("limits")
+	mod := config.Bind[validatedConfig](keyLimits)
 	err := mod.Init(h.Ctx())
 	testza.AssertNil(t, err)
 
@@ -72,12 +81,12 @@ func TestBind_ValidationRejection(t *testing.T) {
 	t.Parallel()
 
 	h := testkit.NewHarness(t).WithData(map[string]any{
-		"limits": map[string]any{
-			"max_requests": 0,
+		keyLimits: map[string]any{
+			keyMaxRequests: 0,
 		},
 	})
 
-	mod := config.Bind[validatedConfig]("limits")
+	mod := config.Bind[validatedConfig](keyLimits)
 	err := mod.Init(h.Ctx())
 	testza.AssertNotNil(t, err)
 	testza.AssertContains(t, err.Error(), "validation failed")
@@ -87,15 +96,15 @@ func TestBind_HotReloadTriggersOnChange(t *testing.T) {
 	t.Parallel()
 
 	h := testkit.NewHarness(t).WithData(map[string]any{
-		"app": map[string]any{
-			"limits": map[string]any{
-				"max_requests": 100,
-				"name":         "initial",
+		keyApp: map[string]any{
+			keyLimits: map[string]any{
+				keyMaxRequests: 100,
+				keyName:        "initial",
 			},
 		},
 	})
 
-	mod := config.Bind[testConfig]("app", "limits")
+	mod := config.Bind[testConfig](keyApp, keyLimits)
 	err := mod.Init(h.Ctx())
 	testza.AssertNil(t, err)
 
@@ -107,10 +116,10 @@ func TestBind_HotReloadTriggersOnChange(t *testing.T) {
 
 	newK := koanf.New(".")
 	testza.AssertNil(t, newK.Load(testkit.MapProvider(map[string]any{
-		"app": map[string]any{
-			"limits": map[string]any{
-				"max_requests": 200,
-				"name":         "updated",
+		keyApp: map[string]any{
+			keyLimits: map[string]any{
+				keyMaxRequests: 200,
+				keyName:        "updated",
 			},
 		},
 	}), nil))
@@ -127,13 +136,13 @@ func TestBind_GetReturnsUpdatedValueAfterReload(t *testing.T) {
 	t.Parallel()
 
 	h := testkit.NewHarness(t).WithData(map[string]any{
-		"svc": map[string]any{
-			"max_requests": 10,
-			"name":         "v1",
+		keySvc: map[string]any{
+			keyMaxRequests: 10,
+			keyName:        "v1",
 		},
 	})
 
-	mod := config.Bind[testConfig]("svc")
+	mod := config.Bind[testConfig](keySvc)
 	err := mod.Init(h.Ctx())
 	testza.AssertNil(t, err)
 
@@ -141,9 +150,9 @@ func TestBind_GetReturnsUpdatedValueAfterReload(t *testing.T) {
 
 	newK := koanf.New(".")
 	testza.AssertNil(t, newK.Load(testkit.MapProvider(map[string]any{
-		"svc": map[string]any{
-			"max_requests": 999,
-			"name":         "v2",
+		keySvc: map[string]any{
+			keyMaxRequests: 999,
+			keyName:        "v2",
 		},
 	}), nil))
 
@@ -157,12 +166,12 @@ func TestBind_ValidationFailureOnReloadPreservesOldValue(t *testing.T) {
 	t.Parallel()
 
 	h := testkit.NewHarness(t).WithData(map[string]any{
-		"limits": map[string]any{
-			"max_requests": 50,
+		keyLimits: map[string]any{
+			keyMaxRequests: 50,
 		},
 	})
 
-	mod := config.Bind[validatedConfig]("limits")
+	mod := config.Bind[validatedConfig](keyLimits)
 	err := mod.Init(h.Ctx())
 	testza.AssertNil(t, err)
 
@@ -171,8 +180,8 @@ func TestBind_ValidationFailureOnReloadPreservesOldValue(t *testing.T) {
 	// Reload with invalid config (max_requests = 0)
 	newK := koanf.New(".")
 	testza.AssertNil(t, newK.Load(testkit.MapProvider(map[string]any{
-		"limits": map[string]any{
-			"max_requests": 0,
+		keyLimits: map[string]any{
+			keyMaxRequests: 0,
 		},
 	}), nil))
 
@@ -190,19 +199,19 @@ func TestBind_ValidationFailureOnReloadLogsError(t *testing.T) {
 	t.Cleanup(func() { slog.SetDefault(prev) })
 
 	h := testkit.NewHarness(t).WithData(map[string]any{
-		"limits": map[string]any{
-			"max_requests": 50,
+		keyLimits: map[string]any{
+			keyMaxRequests: 50,
 		},
 	})
 
-	mod := config.Bind[validatedConfig]("limits")
+	mod := config.Bind[validatedConfig](keyLimits)
 	testza.AssertNil(t, mod.Init(h.Ctx()))
 	testza.AssertEqual(t, 50, config.Get[validatedConfig](h.Ctx()).MaxRequests)
 
 	newK := koanf.New(".")
 	testza.AssertNil(t, newK.Load(testkit.MapProvider(map[string]any{
-		"limits": map[string]any{
-			"max_requests": 0,
+		keyLimits: map[string]any{
+			keyMaxRequests: 0,
 		},
 	}), nil))
 
@@ -229,24 +238,24 @@ func TestBind_Shutdown(t *testing.T) {
 func TestBind_ConfigPath(t *testing.T) {
 	t.Parallel()
 
-	testza.AssertEqual(t, "app.limits", config.Bind[testConfig]("app", "limits").ConfigPath())
-	testza.AssertEqual(t, "svc", config.Bind[testConfig]("svc").ConfigPath())
+	testza.AssertEqual(t, "app.limits", config.Bind[testConfig](keyApp, keyLimits).ConfigPath())
+	testza.AssertEqual(t, "svc", config.Bind[testConfig](keySvc).ConfigPath())
 }
 
 func TestBind_LoadConfig(t *testing.T) {
 	t.Parallel()
 
 	h := testkit.NewHarness(t).WithData(map[string]any{
-		"svc": map[string]any{"max_requests": 10, "name": "v1"},
+		keySvc: map[string]any{keyMaxRequests: 10, keyName: "v1"},
 	})
 
-	m := config.Bind[testConfig]("svc")
+	m := config.Bind[testConfig](keySvc)
 	testza.AssertNil(t, m.Init(h.Ctx()))
 	testza.AssertEqual(t, 10, config.Get[testConfig](h.Ctx()).MaxRequests)
 
 	newK := koanf.New(".")
 	testza.AssertNil(t, newK.Load(testkit.MapProvider(map[string]any{
-		"svc": map[string]any{"max_requests": 99, "name": "v2"},
+		keySvc: map[string]any{keyMaxRequests: 99, keyName: "v2"},
 	}), nil))
 
 	testza.AssertNil(t, m.LoadConfig(newK))

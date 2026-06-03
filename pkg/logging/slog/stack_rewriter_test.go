@@ -10,6 +10,11 @@ import (
 	"github.com/MarvinJWendt/testza"
 )
 
+const (
+	exampleModule  = "github.com/example/app"
+	exampleVersion = "v1.0.0"
+)
+
 // zeroFrame returns an empty frame used when no specific caller is needed.
 func zeroFrame() runtime.Frame { return runtime.Frame{} }
 
@@ -66,9 +71,9 @@ func TestStackRewriter_WithAttrs_PreservesModuleFields(t *testing.T) {
 	r := stackRewriter{
 		upstream:          &recordingHandler{},
 		runtimeModule:     "github.com/example/app@v1.0.0",
-		allModules:        map[string]string{"github.com/example/app": "v1.0.0"},
-		mainModulePath:    "github.com/example/app",
-		mainModuleVersion: "v1.0.0",
+		allModules:        map[string]string{exampleModule: exampleVersion},
+		mainModulePath:    exampleModule,
+		mainModuleVersion: exampleVersion,
 	}
 
 	derived, ok := r.WithAttrs([]slog.Attr{slog.String("k", "v")}).(stackRewriter)
@@ -86,9 +91,9 @@ func TestStackRewriter_WithGroup_PreservesModuleFields(t *testing.T) {
 	r := stackRewriter{
 		upstream:          &recordingHandler{},
 		runtimeModule:     "github.com/example/app@v1.0.0",
-		allModules:        map[string]string{"github.com/example/app": "v1.0.0"},
-		mainModulePath:    "github.com/example/app",
-		mainModuleVersion: "v1.0.0",
+		allModules:        map[string]string{exampleModule: exampleVersion},
+		mainModulePath:    exampleModule,
+		mainModuleVersion: exampleVersion,
 	}
 
 	derived, ok := r.WithGroup("grp").(stackRewriter)
@@ -128,8 +133,8 @@ func TestDetermineModule_PkgMod(t *testing.T) {
 func TestDetermineModule_MainPackage(t *testing.T) {
 	t.Parallel()
 
-	modules := map[string]string{"github.com/example/app": "v1.0.0"}
-	result := determineModule("/app/main.go", "main.main", "github.com/example/app", "v1.0.0", modules)
+	modules := map[string]string{exampleModule: exampleVersion}
+	result := determineModule("/app/main.go", "main.main", exampleModule, exampleVersion, modules)
 	testza.AssertEqual(t, "github.com/example/app@v1.0.0", result)
 }
 
@@ -137,13 +142,13 @@ func TestDetermineModule_KnownModule(t *testing.T) {
 	t.Parallel()
 
 	modules := map[string]string{
-		"github.com/example/app":     "v1.0.0",
-		"github.com/example/app/pkg": "v1.0.0",
+		exampleModule:                exampleVersion,
+		"github.com/example/app/pkg": exampleVersion,
 	}
 	result := determineModule(
 		"/workspace/pkg/handler.go",
 		"github.com/example/app/pkg.(*Handler).Handle",
-		"github.com/example/app", "v1.0.0", modules,
+		exampleModule, exampleVersion, modules,
 	)
 	testza.AssertEqual(t, "github.com/example/app/pkg@v1.0.0", result)
 }

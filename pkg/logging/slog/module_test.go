@@ -22,6 +22,15 @@ var (
 	_ lakta.HotReloadable = (*Module)(nil)
 )
 
+const (
+	keyModules  = "modules"
+	keyLogging  = "logging"
+	keySlog     = "slog"
+	keyDefault  = "default"
+	keyLevel    = "level"
+	laktaModule = "github.com/Vilsol/lakta"
+)
+
 func withRecordingHandler(h *testkit.Harness) *testkit.Harness {
 	rh := &recordingHandler{}
 	return testkit.WithProvider(h, func(_ do.Injector) (slog.Handler, error) {
@@ -99,11 +108,11 @@ func TestSlogModule_DefaultLevelFiltersDebug(t *testing.T) {
 func TestSlogModule_ConfigLevelFromKoanf(t *testing.T) {
 	upstream := &recordingHandler{}
 	h := testkit.NewHarness(t).WithData(map[string]any{
-		"modules": map[string]any{
-			"logging": map[string]any{
-				"slog": map[string]any{
-					"default": map[string]any{
-						"level": "debug",
+		keyModules: map[string]any{
+			keyLogging: map[string]any{
+				keySlog: map[string]any{
+					keyDefault: map[string]any{
+						keyLevel: levelDebug,
 					},
 				},
 			},
@@ -130,10 +139,10 @@ func TestSlogModule_ConfigLevelFromKoanf(t *testing.T) {
 func TestSlogModule_ReloadUpdatesLevel(t *testing.T) {
 	upstream := &recordingHandler{}
 	h := testkit.NewHarness(t).WithData(map[string]any{
-		"modules": map[string]any{
-			"logging": map[string]any{
-				"slog": map[string]any{
-					"default": map[string]any{"level": "info"},
+		keyModules: map[string]any{
+			keyLogging: map[string]any{
+				keySlog: map[string]any{
+					keyDefault: map[string]any{keyLevel: levelInfo},
 				},
 			},
 		},
@@ -151,10 +160,10 @@ func TestSlogModule_ReloadUpdatesLevel(t *testing.T) {
 	// Reload with level=error; after this, info records should be dropped.
 	newK := koanf.New(".")
 	testza.AssertNil(t, newK.Load(testkit.MapProvider(map[string]any{
-		"modules": map[string]any{
-			"logging": map[string]any{
-				"slog": map[string]any{
-					"default": map[string]any{"level": "error"},
+		keyModules: map[string]any{
+			keyLogging: map[string]any{
+				keySlog: map[string]any{
+					keyDefault: map[string]any{keyLevel: levelError},
 				},
 			},
 		},
@@ -179,10 +188,10 @@ func TestSlogModule_LoadConfigFromHarness(t *testing.T) {
 	t.Parallel()
 
 	h := testkit.NewHarness(t).WithData(map[string]any{
-		"modules": map[string]any{
-			"logging": map[string]any{
-				"slog": map[string]any{
-					"default": map[string]any{"level": "warn"},
+		keyModules: map[string]any{
+			keyLogging: map[string]any{
+				keySlog: map[string]any{
+					keyDefault: map[string]any{keyLevel: levelWarn},
 				},
 			},
 		},
@@ -192,7 +201,7 @@ func TestSlogModule_LoadConfigFromHarness(t *testing.T) {
 	k, err := do.Invoke[*koanf.Koanf](h.Injector())
 	testza.AssertNil(t, err)
 	testza.AssertNil(t, m.LoadConfig(k))
-	testza.AssertEqual(t, "warn", m.config.Level)
+	testza.AssertEqual(t, levelWarn, m.config.Level)
 }
 
 func TestSlogModule_ShutdownNoop(t *testing.T) {
@@ -207,13 +216,13 @@ func TestSlogModule_ValidateLevelPrefixes_KnownPrefix(t *testing.T) {
 	// A known module prefix (this module itself) — must not warn or fail.
 	upstream := &recordingHandler{}
 	h := testkit.NewHarness(t).WithData(map[string]any{
-		"modules": map[string]any{
-			"logging": map[string]any{
-				"slog": map[string]any{
-					"default": map[string]any{
-						"level": "info",
+		keyModules: map[string]any{
+			keyLogging: map[string]any{
+				keySlog: map[string]any{
+					keyDefault: map[string]any{
+						keyLevel: levelInfo,
 						"levels": map[string]any{
-							"github.com/Vilsol/lakta": "debug",
+							laktaModule: levelDebug,
 						},
 					},
 				},
@@ -236,13 +245,13 @@ func TestSlogModule_ValidateLevelPrefixes_UnknownPrefix(t *testing.T) {
 	// An unknown prefix — Init still succeeds, only a warning is logged.
 	upstream := &recordingHandler{}
 	h := testkit.NewHarness(t).WithData(map[string]any{
-		"modules": map[string]any{
-			"logging": map[string]any{
-				"slog": map[string]any{
-					"default": map[string]any{
-						"level": "info",
+		keyModules: map[string]any{
+			keyLogging: map[string]any{
+				keySlog: map[string]any{
+					keyDefault: map[string]any{
+						keyLevel: levelInfo,
 						"levels": map[string]any{
-							"github.com/nonexistent/totally/unknown/pkg": "debug",
+							"github.com/nonexistent/totally/unknown/pkg": levelDebug,
 						},
 					},
 				},

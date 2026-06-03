@@ -18,6 +18,11 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
+const (
+	signalLogs   = "logs"
+	signalTraces = "traces"
+)
+
 func TestOtelModule_InitWithSetupFn(t *testing.T) {
 	t.Parallel()
 
@@ -141,7 +146,7 @@ func TestOtelModule_DefaultConfig(t *testing.T) {
 	testza.AssertEqual(t, 60*time.Second, cfg.MetricInterval)
 	testza.AssertEqual(t, time.Second, cfg.RuntimeInterval)
 	testza.AssertEqual(t, true, cfg.Enabled)
-	testza.AssertEqual(t, []string{"traces", "metrics", "logs"}, cfg.Signals)
+	testza.AssertEqual(t, []string{signalTraces, "metrics", signalLogs}, cfg.Signals)
 	testza.AssertEqual(t, 2, len(cfg.Propagators))
 }
 
@@ -161,7 +166,7 @@ func TestOtelModule_WithOptions(t *testing.T) {
 		otel.WithMetricInterval(30*time.Second),
 		otel.WithRuntimeInterval(2*time.Second),
 		otel.WithEnabled(false),
-		otel.WithSignals("traces"),
+		otel.WithSignals(signalTraces),
 	)
 
 	testza.AssertEqual(t, "svc", cfg.ServiceName)
@@ -176,7 +181,7 @@ func TestOtelModule_WithOptions(t *testing.T) {
 	testza.AssertEqual(t, 30*time.Second, cfg.MetricInterval)
 	testza.AssertEqual(t, 2*time.Second, cfg.RuntimeInterval)
 	testza.AssertEqual(t, false, cfg.Enabled)
-	testza.AssertEqual(t, []string{"traces"}, cfg.Signals)
+	testza.AssertEqual(t, []string{signalTraces}, cfg.Signals)
 }
 
 func TestOtelModule_KoanfLoad(t *testing.T) {
@@ -195,7 +200,7 @@ func TestOtelModule_KoanfLoad(t *testing.T) {
 						"sample_rate":      0.1,
 						"metric_interval":  "30s",
 						"runtime_interval": "5s",
-						"signals":          []any{"traces", "logs"},
+						"signals":          []any{signalTraces, signalLogs},
 					},
 				},
 			},
@@ -213,5 +218,5 @@ func TestOtelModule_KoanfLoad(t *testing.T) {
 	testza.AssertEqual(t, 0.1, m.Config().SampleRate)
 	testza.AssertEqual(t, 30*time.Second, m.Config().MetricInterval)
 	testza.AssertEqual(t, 5*time.Second, m.Config().RuntimeInterval)
-	testza.AssertEqual(t, []string{"traces", "logs"}, m.Config().Signals)
+	testza.AssertEqual(t, []string{signalTraces, signalLogs}, m.Config().Signals)
 }

@@ -25,10 +25,10 @@ func TestModulePath_AllCategories(t *testing.T) {
 	cases := []struct {
 		category, moduleType, instance, want string
 	}{
-		{config.CategoryGRPC, "server", "default", "modules.grpc.server.default"},
+		{config.CategoryGRPC, "server", keyDefault, "modules.grpc.server.default"},
 		{config.CategoryHTTP, "fiber", "api", "modules.http.fiber.api"},
-		{config.CategoryDB, "pgx", "default", "modules.db.pgx.default"},
-		{config.CategoryLogging, "tint", "default", "modules.logging.tint.default"},
+		{config.CategoryDB, "pgx", keyDefault, "modules.db.pgx.default"},
+		{config.CategoryLogging, "tint", keyDefault, "modules.logging.tint.default"},
 	}
 
 	for _, tc := range cases {

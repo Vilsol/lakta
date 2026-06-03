@@ -13,6 +13,8 @@ import (
 	"github.com/knadh/koanf/v2"
 )
 
+const testConfigFile = "lakta.yaml"
+
 // mockFileWatcher is a controllable fileWatcher for tests.
 type mockFileWatcher struct {
 	events chan fsnotify.Event
@@ -81,7 +83,7 @@ func TestWatchLoop_WriteEventTriggersReload(t *testing.T) {
 
 	go m.watchLoop(ctx, mock)
 
-	mock.events <- fsnotify.Event{Op: fsnotify.Write, Name: "lakta.yaml"}
+	mock.events <- fsnotify.Event{Op: fsnotify.Write, Name: testConfigFile}
 	waitChan(t, reloaded, "reload to be triggered by Write event")
 }
 
@@ -103,7 +105,7 @@ func TestWatchLoop_CreateEventTriggersReload(t *testing.T) {
 
 	go m.watchLoop(ctx, mock)
 
-	mock.events <- fsnotify.Event{Op: fsnotify.Create, Name: "lakta.yaml"}
+	mock.events <- fsnotify.Event{Op: fsnotify.Create, Name: testConfigFile}
 	waitChan(t, reloaded, "reload to be triggered by Create event")
 }
 
@@ -125,7 +127,7 @@ func TestWatchLoop_IgnoredEventDoesNotReload(t *testing.T) {
 
 	go m.watchLoop(ctx, mock)
 
-	mock.events <- fsnotify.Event{Op: fsnotify.Remove, Name: "lakta.yaml"}
+	mock.events <- fsnotify.Event{Op: fsnotify.Remove, Name: testConfigFile}
 
 	select {
 	case <-reloaded:
@@ -217,9 +219,9 @@ func TestWatchLoop_DebounceDeduplication(t *testing.T) {
 	go m.watchLoop(ctx, mock)
 
 	// Rapid-fire three events — debounce should collapse them into one reload.
-	mock.events <- fsnotify.Event{Op: fsnotify.Write, Name: "lakta.yaml"}
-	mock.events <- fsnotify.Event{Op: fsnotify.Write, Name: "lakta.yaml"}
-	mock.events <- fsnotify.Event{Op: fsnotify.Write, Name: "lakta.yaml"}
+	mock.events <- fsnotify.Event{Op: fsnotify.Write, Name: testConfigFile}
+	mock.events <- fsnotify.Event{Op: fsnotify.Write, Name: testConfigFile}
+	mock.events <- fsnotify.Event{Op: fsnotify.Write, Name: testConfigFile}
 
 	waitChan(t, reloaded, "at least one reload")
 
@@ -250,7 +252,7 @@ func TestStartWatcher_WithConfigFileCallsFactory(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	testza.AssertNil(t, os.WriteFile(filepath.Join(dir, "lakta.yaml"), []byte("x: 1\n"), 0o600))
+	testza.AssertNil(t, os.WriteFile(filepath.Join(dir, testConfigFile), []byte("x: 1\n"), 0o600))
 
 	ctx, cancel := context.WithCancel(setupModuleCtx(t))
 	defer cancel()
@@ -269,7 +271,7 @@ func TestStartWatcher_FactoryErrorDoesNotFailInit(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	testza.AssertNil(t, os.WriteFile(filepath.Join(dir, "lakta.yaml"), []byte("x: 1\n"), 0o600))
+	testza.AssertNil(t, os.WriteFile(filepath.Join(dir, testConfigFile), []byte("x: 1\n"), 0o600))
 
 	ctx := setupModuleCtx(t)
 	m := NewModule(WithConfigDirs(dir))
@@ -285,7 +287,7 @@ func TestStartWatcher_AddErrorDoesNotFailInit(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	testza.AssertNil(t, os.WriteFile(filepath.Join(dir, "lakta.yaml"), []byte("x: 1\n"), 0o600))
+	testza.AssertNil(t, os.WriteFile(filepath.Join(dir, testConfigFile), []byte("x: 1\n"), 0o600))
 
 	ctx := setupModuleCtx(t)
 	mock := newMockWatcher()

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"slices"
 	"syscall"
 	"time"
 
@@ -217,8 +218,7 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 // teardown shuts down modules in reverse order, logging but not returning errors.
 // Used when cleaning up after an Init failure.
 func (r *Runtime) teardown(ctx context.Context, initialized []Module) {
-	for i := len(initialized) - 1; i >= 0; i-- {
-		module := initialized[i]
+	for _, module := range slices.Backward(initialized) {
 		name := fmt.Sprintf("%T", module)
 
 		if err := module.Shutdown(ctx); err != nil {
@@ -236,8 +236,7 @@ func (r *Runtime) teardown(ctx context.Context, initialized []Module) {
 func (r *Runtime) shutdown(ctx context.Context, initialized []Module) error {
 	var firstErr error
 
-	for i := len(initialized) - 1; i >= 0; i-- {
-		module := initialized[i]
+	for _, module := range slices.Backward(initialized) {
 		name := fmt.Sprintf("%T", module)
 
 		if err := module.Shutdown(ctx); err != nil {

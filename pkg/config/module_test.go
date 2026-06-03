@@ -206,7 +206,7 @@ func TestConfigModule_LoadsYAMLFile(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	testza.AssertNil(t, os.WriteFile(filepath.Join(dir, "lakta.yaml"), []byte("port: 9090\n"), 0o600))
+	testza.AssertNil(t, os.WriteFile(filepath.Join(dir, testConfigFile), []byte("port: 9090\n"), 0o600))
 
 	ctx := setupModuleCtx(t)
 	m := NewModule(WithConfigDirs(dir))
@@ -251,7 +251,7 @@ func TestConfigModule_InvalidConfigFileReturnsError(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	testza.AssertNil(t, os.WriteFile(filepath.Join(dir, "lakta.yaml"), []byte(":\tinvalid: yaml: [\n"), 0o600))
+	testza.AssertNil(t, os.WriteFile(filepath.Join(dir, testConfigFile), []byte(":\tinvalid: yaml: [\n"), 0o600))
 
 	ctx := setupModuleCtx(t)
 	m := NewModule(WithConfigDirs(dir))
@@ -262,7 +262,7 @@ func TestConfigModule_Reload_FileGoneReturnsError(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	cfgPath := filepath.Join(dir, "lakta.yaml")
+	cfgPath := filepath.Join(dir, testConfigFile)
 	testza.AssertNil(t, os.WriteFile(cfgPath, []byte("x: 1\n"), 0o600))
 
 	ctx := setupModuleCtx(t)
@@ -311,7 +311,7 @@ func TestConfigModule_CLIFlags_IntType(t *testing.T) {
 
 	dir := t.TempDir()
 	// YAML parser gives int64 for integer literals, exercising the int64 branch.
-	testza.AssertNil(t, os.WriteFile(filepath.Join(dir, "lakta.yaml"), []byte("workers: 4\n"), 0o600))
+	testza.AssertNil(t, os.WriteFile(filepath.Join(dir, testConfigFile), []byte("workers: 4\n"), 0o600))
 
 	ctx := setupModuleCtx(t)
 	m := NewModule(WithConfigDirs(dir), WithArgs([]string{"--workers=8"}))
@@ -326,7 +326,7 @@ func TestConfigModule_CLIFlags_BoolType(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	testza.AssertNil(t, os.WriteFile(filepath.Join(dir, "lakta.yaml"), []byte("debug: false\n"), 0o600))
+	testza.AssertNil(t, os.WriteFile(filepath.Join(dir, testConfigFile), []byte("debug: false\n"), 0o600))
 
 	ctx := setupModuleCtx(t)
 	m := NewModule(WithConfigDirs(dir), WithArgs([]string{"--debug=true"}))

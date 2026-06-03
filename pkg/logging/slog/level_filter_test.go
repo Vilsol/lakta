@@ -9,6 +9,8 @@ import (
 	"github.com/MarvinJWendt/testza"
 )
 
+const testRepoPkg = "github.com/org/repo/pkg"
+
 func TestExtractPackagePath(t *testing.T) {
 	t.Parallel()
 
@@ -17,13 +19,13 @@ func TestExtractPackagePath(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"method on pointer receiver", "github.com/org/repo/pkg.(*Type).Method", "github.com/org/repo/pkg"},
-		{"plain function", "github.com/org/repo/pkg.Function", "github.com/org/repo/pkg"},
+		{"method on pointer receiver", "github.com/org/repo/pkg.(*Type).Method", testRepoPkg},
+		{"plain function", "github.com/org/repo/pkg.Function", testRepoPkg},
 		{"nested package", "github.com/org/repo/pkg/sub/deep.Function", "github.com/org/repo/pkg/sub/deep"},
 		{"main package", "main.main", "main"},
 		{"empty string", "", ""},
-		{"no dots", "github.com/org/repo/pkg", "github.com/org/repo/pkg"},
-		{"closure", "github.com/org/repo/pkg.Function.func1", "github.com/org/repo/pkg"},
+		{"no dots", testRepoPkg, testRepoPkg},
+		{"closure", "github.com/org/repo/pkg.Function.func1", testRepoPkg},
 	}
 
 	for _, tt := range tests {
@@ -299,7 +301,7 @@ func TestPrefixMatchesAnyModule(t *testing.T) {
 	t.Parallel()
 
 	modules := []string{
-		"github.com/Vilsol/lakta",
+		laktaModule,
 		"github.com/gofiber/fiber/v2",
 	}
 
@@ -308,7 +310,7 @@ func TestPrefixMatchesAnyModule(t *testing.T) {
 		prefix   string
 		expected bool
 	}{
-		{"exact module match", "github.com/Vilsol/lakta", true},
+		{"exact module match", laktaModule, true},
 		{"sub-package of module", "github.com/Vilsol/lakta/pkg/grpc", true},
 		{"module is prefix of configured prefix", "github.com/gofiber/fiber/v2/middleware", true},
 		{"no match", "github.com/unknown/pkg", false},

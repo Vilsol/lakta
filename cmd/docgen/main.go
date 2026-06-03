@@ -296,7 +296,7 @@ func extractComments(pkgPath string) sourceComments {
 	dir := filepath.Join(".", rel)
 
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, dir, nil, parser.ParseComments)
+	pkgs, err := parser.ParseDir(fset, dir, nil, parser.ParseComments) //nolint:staticcheck
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: could not parse %s: %v\n", dir, err)
 		return sc
