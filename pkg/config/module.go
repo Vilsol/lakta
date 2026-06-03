@@ -68,11 +68,20 @@ func (m *Module) Init(ctx context.Context) error {
 	return nil
 }
 
+// envKeyTransform maps an environment variable name to a koanf path. A double
+// underscore separates path segments; a single underscore is literal, so
+// snake_case config keys survive intact:
+//
+//	LAKTA_MODULES__GRPC__SERVER__DEFAULT__PORT      -> modules.grpc.server.default.port
+//	LAKTA_MODULES__DB__PGX__DEFAULT__MAX_OPEN_CONNS -> modules.db.pgx.default.max_open_conns
+func envKeyTransform(prefix, s string) string {
+	return strings.ToLower(strings.ReplaceAll(strings.TrimPrefix(s, prefix), "__", "."))
+}
+
 func (m *Module) loadEnvVars() error {
 	prefix := m.config.EnvPrefix
 	err := m.koanf.Load(env.Provider(prefix, ".", func(s string) string {
-		// LAKTA_MODULES_GRPC_SERVER_DEFAULT_PORT -> modules.grpc.server.default.port
-		return strings.ToLower(strings.ReplaceAll(strings.TrimPrefix(s, prefix), "_", "."))
+		return envKeyTransform(prefix, s)
 	}), nil)
 	if err != nil {
 		return oops.Wrapf(err, "failed to load env vars")
@@ -171,7 +180,7 @@ func (m *Module) reload() error {
 	}
 
 	if err := newKoanf.Load(env.Provider(m.config.EnvPrefix, ".", func(s string) string {
-		return strings.ToLower(strings.ReplaceAll(strings.TrimPrefix(s, m.config.EnvPrefix), "_", "."))
+		return envKeyTransform(m.config.EnvPrefix, s)
 	}), nil); err != nil {
 		return oops.Wrapf(err, "failed to reload env vars")
 	}

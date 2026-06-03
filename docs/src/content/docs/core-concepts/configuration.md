@@ -57,12 +57,17 @@ modules:
 
 ### Environment variables
 
-Variables prefixed with `LAKTA_` map to dot-notation config keys. The prefix is stripped, underscores become dots, everything is lowercased:
+Variables prefixed with `LAKTA_` map to dot-notation config keys. The prefix is stripped, everything is lowercased, and **a double underscore (`__`) separates path segments while a single underscore (`_`) is literal**. The double-underscore rule keeps `snake_case` config keys intact:
 
 ```
-LAKTA_MODULES_GRPC_SERVER_DEFAULT_PORT=9090
+LAKTA_MODULES__GRPC__SERVER__DEFAULT__PORT=9090
   → modules.grpc.server.default.port
+
+LAKTA_MODULES__DB__PGX__DEFAULT__MAX_OPEN_CONNS=50
+  → modules.db.pgx.default.max_open_conns
 ```
+
+A single underscore between every segment (e.g. `LAKTA_MODULES_GRPC_...`) would be ambiguous — it could not distinguish a path boundary from the underscore inside `max_open_conns`. The double-underscore convention removes that ambiguity.
 
 Override the prefix:
 

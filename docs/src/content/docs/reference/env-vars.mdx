@@ -13,16 +13,19 @@ Transform the dot-notation config key:
 
 1. Prefix with `LAKTA_`
 2. Convert to uppercase
-3. Replace `.` with `_`
+3. Replace each path-separating `.` with a **double** underscore (`__`)
+4. Leave underscores inside a key (e.g. `max_open_conns`) as **single** underscores
+
+The double-underscore separator is what lets a `snake_case` key survive: a single underscore everywhere would be ambiguous between a path boundary and the underscore inside the key.
 
 **Examples:**
 
 | Config key | Environment variable |
 |------------|---------------------|
-| `modules.grpc.server.default.port` | `LAKTA_MODULES_GRPC_SERVER_DEFAULT_PORT` |
-| `modules.db.pgx.primary.dsn` | `LAKTA_MODULES_DB_PGX_PRIMARY_DSN` |
-| `modules.otel.otel.default.enabled` | `LAKTA_MODULES_OTEL_OTEL_DEFAULT_ENABLED` |
-| `modules.http.fiber.default.port` | `LAKTA_MODULES_HTTP_FIBER_DEFAULT_PORT` |
+| `modules.grpc.server.default.port` | `LAKTA_MODULES__GRPC__SERVER__DEFAULT__PORT` |
+| `modules.db.pgx.primary.dsn` | `LAKTA_MODULES__DB__PGX__PRIMARY__DSN` |
+| `modules.db.pgx.default.max_open_conns` | `LAKTA_MODULES__DB__PGX__DEFAULT__MAX_OPEN_CONNS` |
+| `modules.http.fiber.default.health_path` | `LAKTA_MODULES__HTTP__FIBER__DEFAULT__HEALTH_PATH` |
 
 ## Priority
 
@@ -37,12 +40,12 @@ config file < environment variable < CLI flag
 ```yaml
 # kubernetes deployment
 env:
-  - name: LAKTA_MODULES_DB_PGX_DEFAULT_DSN
+  - name: LAKTA_MODULES__DB__PGX__DEFAULT__DSN
     valueFrom:
       secretKeyRef:
         name: db-secret
         key: dsn
-  - name: LAKTA_MODULES_OTEL_OTEL_DEFAULT_ENDPOINT
+  - name: LAKTA_MODULES__OTEL__OTEL__DEFAULT__ENDPOINT
     value: "http://otel-collector:4317"
 ```
 

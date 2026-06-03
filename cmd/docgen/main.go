@@ -157,9 +157,12 @@ func defaultValue(v reflect.Value) string {
 
 // envVarName builds the environment variable name for a config field.
 // configPath is e.g. "modules.grpc.server.<name>", key is e.g. "port".
-// Result: LAKTA_MODULES_GRPC_SERVER_<NAME>_PORT
+// Result: LAKTA_MODULES__GRPC__SERVER__<NAME>__PORT
+//
+// Path segments are joined with a double underscore; the snake_case key keeps
+// its single underscores, matching the loader's envKeyTransform convention.
 func envVarName(configPath, key string) string {
-	return "LAKTA_" + strings.ToUpper(strings.ReplaceAll(configPath+"."+key, ".", "_"))
+	return "LAKTA_" + strings.ToUpper(strings.ReplaceAll(configPath, ".", "__")+"__"+key)
 }
 
 // inferCategoryAndType extracts category and type from a package path like

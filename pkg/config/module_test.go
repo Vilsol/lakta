@@ -64,10 +64,28 @@ func TestConfigModule_EnvVarOverride(t *testing.T) {
 	testza.AssertEqual(t, "bar", k.String("foo"))
 }
 
+func TestConfigModule_EnvVarSnakeCaseField(t *testing.T) {
+	// Not parallel — t.Setenv requires sequential execution.
+	// Double underscore separates path segments; single underscore is literal,
+	// so the snake_case leaf "max_open_conns" survives intact.
+	t.Setenv("LAKTATESTSNAKE_MODULES__APP__MAX_OPEN_CONNS", "50")
+
+	ctx := setupModuleCtx(t)
+	m := NewModule(WithConfigDirs("/nonexistent"), WithEnvPrefix("LAKTATESTSNAKE_"))
+
+	testza.AssertNil(t, m.Init(ctx))
+
+	k, err := do.Invoke[*koanf.Koanf](lakta.GetInjector(ctx))
+	testza.AssertNil(t, err)
+	testza.AssertEqual(t, "50", k.String("modules.app.max_open_conns"))
+	testza.AssertFalse(t, k.Exists("modules.app.max.open.conns"))
+}
+
 func TestConfigModule_CLIFlagOverride(t *testing.T) {
 	// Not parallel — uses t.Setenv to pre-seed a koanf key so CLI can override it.
 	// (pflag only overrides keys it has registered; env var pre-population registers the key.)
-	t.Setenv("LAKTATESTCLI_SOME_KEY", "initial")
+	// Double underscore -> path separator, so SOME__KEY registers koanf key "some.key".
+	t.Setenv("LAKTATESTCLI_SOME__KEY", "initial")
 
 	ctx := setupModuleCtx(t)
 	m := NewModule(

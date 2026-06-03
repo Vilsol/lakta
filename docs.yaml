@@ -8,22 +8,22 @@ modules:
       - key: dsn
         type: string
         required: true
-        envVar: LAKTA_MODULES_DB_PGX_<NAME>_DSN
+        envVar: LAKTA_MODULES__DB__PGX__<NAME>__DSN
         description: dSN is the database connection string used to configure the database connection
       - key: max_open_conns
         type: int32
         default: "10"
-        envVar: LAKTA_MODULES_DB_PGX_<NAME>_MAX_OPEN_CONNS
+        envVar: LAKTA_MODULES__DB__PGX__<NAME>__MAX_OPEN_CONNS
         description: maxOpenConns specifies the maximum number of open connections to the database. It maps to the "max_open_conns" configuration
       - key: log_level
         type: string
         default: info
         enum: trace,debug,info,warn,error,none
-        envVar: LAKTA_MODULES_DB_PGX_<NAME>_LOG_LEVEL
+        envVar: LAKTA_MODULES__DB__PGX__<NAME>__LOG_LEVEL
         description: logLevel specifies the logging level for database operations, supporting values like trace, debug, info, warn, error, none
       - key: health_check
         type: bool
-        envVar: LAKTA_MODULES_DB_PGX_<NAME>_HEALTH_CHECK
+        envVar: LAKTA_MODULES__DB__PGX__<NAME>__HEALTH_CHECK
         description: healthCheck enables or disables the database health check mechanism
   - category: grpc
     type: client
@@ -34,11 +34,11 @@ modules:
       - key: target
         type: string
         default: localhost:50051
-        envVar: LAKTA_MODULES_GRPC_CLIENT_<NAME>_TARGET
+        envVar: LAKTA_MODULES__GRPC__CLIENT__<NAME>__TARGET
         description: target specifies the target address for the gRPC client connection
       - key: insecure
         type: bool
-        envVar: LAKTA_MODULES_GRPC_CLIENT_<NAME>_INSECURE
+        envVar: LAKTA_MODULES__GRPC__CLIENT__<NAME>__INSECURE
         description: insecure determines whether transport credentials should use an insecure configuration
     codeOnly:
       - option: Credentials
@@ -55,16 +55,16 @@ modules:
       - key: host
         type: string
         default: 0.0.0.0
-        envVar: LAKTA_MODULES_GRPC_SERVER_<NAME>_HOST
+        envVar: LAKTA_MODULES__GRPC__SERVER__<NAME>__HOST
         description: host specifies the address for the GRPC server to bind to
       - key: port
         type: uint16
         default: "50051"
-        envVar: LAKTA_MODULES_GRPC_SERVER_<NAME>_PORT
+        envVar: LAKTA_MODULES__GRPC__SERVER__<NAME>__PORT
         description: port represents the port number on which the GRPC server listens
       - key: health_check
         type: bool
-        envVar: LAKTA_MODULES_GRPC_SERVER_<NAME>_HEALTH_CHECK
+        envVar: LAKTA_MODULES__GRPC__SERVER__<NAME>__HEALTH_CHECK
         description: healthCheck determines whether gRPC health checking is enabled or disabled
     codeOnly:
       - option: WithService
@@ -78,11 +78,11 @@ modules:
     fields:
       - key: component_name
         type: string
-        envVar: LAKTA_MODULES_HEALTH_HEALTH_<NAME>_COMPONENT_NAME
+        envVar: LAKTA_MODULES__HEALTH__HEALTH__<NAME>__COMPONENT_NAME
         description: componentName defines the name of the component
       - key: component_version
         type: string
-        envVar: LAKTA_MODULES_HEALTH_HEALTH_<NAME>_COMPONENT_VERSION
+        envVar: LAKTA_MODULES__HEALTH__HEALTH__<NAME>__COMPONENT_VERSION
         description: componentVersion represents the version of the component
     codeOnly:
       - option: WithCheck
@@ -97,16 +97,16 @@ modules:
       - key: host
         type: string
         default: 0.0.0.0
-        envVar: LAKTA_MODULES_HTTP_FIBER_<NAME>_HOST
+        envVar: LAKTA_MODULES__HTTP__FIBER__<NAME>__HOST
         description: host specifies the server's hostname or IP address to bind
       - key: port
         type: uint16
         default: "8080"
-        envVar: LAKTA_MODULES_HTTP_FIBER_<NAME>_PORT
+        envVar: LAKTA_MODULES__HTTP__FIBER__<NAME>__PORT
         description: port specifies the port number the server listens on
       - key: health_path
         type: string
-        envVar: LAKTA_MODULES_HTTP_FIBER_<NAME>_HEALTH_PATH
+        envVar: LAKTA_MODULES__HTTP__FIBER__<NAME>__HEALTH_PATH
         description: healthPath defines the endpoint path for the health check
     passthrough:
       targetType: Config
@@ -129,16 +129,16 @@ modules:
       - key: level
         type: string
         default: info
-        envVar: LAKTA_MODULES_LOGGING_SLOG_<NAME>_LEVEL
+        envVar: LAKTA_MODULES__LOGGING__SLOG__<NAME>__LEVEL
         description: level represents the default log level to be used in the configuration
       - key: levels
         type: map[string]string
-        envVar: LAKTA_MODULES_LOGGING_SLOG_<NAME>_LEVELS
+        envVar: LAKTA_MODULES__LOGGING__SLOG__<NAME>__LEVELS
         description: levels defines a map of per-package log level overrides
       - key: global_default
         type: bool
         default: "true"
-        envVar: LAKTA_MODULES_LOGGING_SLOG_<NAME>_GLOBAL_DEFAULT
+        envVar: LAKTA_MODULES__LOGGING__SLOG__<NAME>__GLOBAL_DEFAULT
         description: globalDefault indicates whether the logger should be set as the default globally
   - category: logging
     type: tint
@@ -149,7 +149,7 @@ modules:
       - key: time_format
         type: string
         default: 2006-01-02T15:04:05Z07:00
-        envVar: LAKTA_MODULES_LOGGING_TINT_<NAME>_TIME_FORMAT
+        envVar: LAKTA_MODULES__LOGGING__TINT__<NAME>__TIME_FORMAT
         description: timeFormat specifies the format for timestamping log entries
     codeOnly:
       - option: WithWriter
@@ -164,61 +164,61 @@ modules:
       - key: service_name
         type: string
         default: lakta
-        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_SERVICE_NAME
+        envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__SERVICE_NAME
         description: serviceName specifies the OpenTelemetry service name
       - key: service_version
         type: string
-        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_SERVICE_VERSION
+        envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__SERVICE_VERSION
         description: serviceVersion is included as semconv.ServiceVersionKey in the resource
       - key: service_namespace
         type: string
-        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_SERVICE_NAMESPACE
+        envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__SERVICE_NAMESPACE
         description: serviceNamespace is included as semconv.ServiceNamespaceKey in the resource
       - key: environment
         type: string
-        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_ENVIRONMENT
+        envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__ENVIRONMENT
         description: environment is the deployment environment (e.g. "production", "staging")
       - key: endpoint
         type: string
-        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_ENDPOINT
+        envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__ENDPOINT
         description: endpoint overrides the OTLP exporter endpoint. Empty uses the SDK default (env vars)
       - key: protocol
         type: string
         default: grpc
-        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_PROTOCOL
+        envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__PROTOCOL
         description: 'protocol sets the OTLP transport: "grpc" (default), "http/protobuf", or "http/json"'
       - key: insecure
         type: bool
-        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_INSECURE
+        envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__INSECURE
         description: insecure disables TLS on the OTLP connection — useful for local collectors
       - key: headers
         type: map[string]string
-        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_HEADERS
+        envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__HEADERS
         description: headers are additional headers sent with every OTLP export (e.g. auth tokens)
       - key: sample_rate
         type: float64
         default: "1"
-        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_SAMPLE_RATE
+        envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__SAMPLE_RATE
         description: sampleRate sets the trace sampling ratio. 1.0 = always sample, 0.0 = never sample
       - key: metric_interval
         type: time.Duration
         default: 1m0s
-        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_METRIC_INTERVAL
+        envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__METRIC_INTERVAL
         description: metricInterval sets the periodic metric export interval
       - key: runtime_interval
         type: time.Duration
         default: 1s
-        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_RUNTIME_INTERVAL
+        envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__RUNTIME_INTERVAL
         description: runtimeInterval sets the minimum Go runtime stats collection interval
       - key: enabled
         type: bool
         default: "true"
-        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_ENABLED
+        envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__ENABLED
         description: enabled controls whether OTEL is set up. When false, noop providers are registered
       - key: signals
         type: '[]string'
         default: '[traces metrics logs]'
-        envVar: LAKTA_MODULES_OTEL_OTEL_<NAME>_SIGNALS
+        envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__SIGNALS
         description: 'signals lists which telemetry signals to enable: "traces", "metrics", "logs"'
   - category: workflows
     type: temporal
@@ -229,21 +229,21 @@ modules:
       - key: target
         type: string
         default: localhost:7233
-        envVar: LAKTA_MODULES_WORKFLOWS_TEMPORAL_<NAME>_TARGET
+        envVar: LAKTA_MODULES__WORKFLOWS__TEMPORAL__<NAME>__TARGET
         description: target specifies the Temporal server's target address for client connections
       - key: task_queue
         type: string
         required: true
-        envVar: LAKTA_MODULES_WORKFLOWS_TEMPORAL_<NAME>_TASK_QUEUE
+        envVar: LAKTA_MODULES__WORKFLOWS__TEMPORAL__<NAME>__TASK_QUEUE
         description: taskQueue specifies the Temporal task queue name for workflow and activity execution
       - key: namespace
         type: string
         default: default
-        envVar: LAKTA_MODULES_WORKFLOWS_TEMPORAL_<NAME>_NAMESPACE
+        envVar: LAKTA_MODULES__WORKFLOWS__TEMPORAL__<NAME>__NAMESPACE
         description: namespace defines the Temporal namespace to be used for client and worker operations
       - key: insecure
         type: bool
-        envVar: LAKTA_MODULES_WORKFLOWS_TEMPORAL_<NAME>_INSECURE
+        envVar: LAKTA_MODULES__WORKFLOWS__TEMPORAL__<NAME>__INSECURE
         description: insecure indicates whether transport credentials should be bypassed, enabling an insecure connection
     codeOnly:
       - option: Credentials
