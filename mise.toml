@@ -36,7 +36,7 @@ dir = "{{ config_root }}"
 description = "Core deps match the golden allowlist; integrations carry no sibling heavy deps"
 run = """
 set -e
-GOWORK=off go list -m all | awk '{print $1}' | sort > "${TMPDIR:-/tmp}/lakta-core-deps.now"
+GOWORK=off go list -m all | awk '{print $1}' | LC_ALL=C sort > "${TMPDIR:-/tmp}/lakta-core-deps.now"
 if ! diff -u core-deps.golden "${TMPDIR:-/tmp}/lakta-core-deps.now"; then
   echo "CORE DEPS DRIFT: a dependency entered/left core. If intentional, regenerate core-deps.golden and review the diff."; exit 1
 fi
