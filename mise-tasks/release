@@ -26,21 +26,34 @@ for d in "${MODS[@]}"; do
     for q in $(lakta_paths Require); do go mod edit -require="${q}@${VERSION}"; done
   )
 done
-git commit -am "chore(release): pin lakta requires to ${VERSION}, drop bootstrap replaces"
+if ! git diff --quiet HEAD; then
+  git commit -am "chore(release): pin lakta requires to ${VERSION}, drop bootstrap replaces"
+else
+  echo "no go.mod changes to commit (already pinned)"
+fi
 
+# tag list (same as before)
 TAGS=("${VERSION}")
-for d in "${MODS[@]}"; do
-  [ "$d" = "." ] && continue
-  TAGS+=("${d}/${VERSION}")
+for d in "${MODS[@]}"; do [ "$d" = "." ] && continue; TAGS+=("${d}/${VERSION}"); done
+
+CREATED=()
+for t in "${TAGS[@]}"; do
+  if git rev-parse -q --verify "refs/tags/${t}" >/dev/null; then
+    echo "tag ${t} already exists — skipping"; continue
+  fi
+  git tag "${t}"; CREATED+=("${t}")
 done
 
-for t in "${TAGS[@]}"; do git tag "$t"; done
 if ! git push origin "${TAGS[@]}"; then
-  echo "push failed — deleting locally created tags for clean retry" >&2
-  for t in "${TAGS[@]}"; do git tag -d "$t" || true; done
+  echo "push failed — deleting tags created this run for clean retry" >&2
+  for t in "${CREATED[@]}"; do git tag -d "${t}" || true; done
   exit 1
 fi
 
-tmp="$(mktemp -d)"; ( cd "$tmp" && GOWORK=off GOFLAGS=-mod=mod \
-  go list -m "github.com/Vilsol/lakta@${VERSION}" "github.com/Vilsol/lakta/pkg/http/fiber@${VERSION}" )
+tmp="$(mktemp -d)"
+PATHS=(github.com/Vilsol/lakta)
+for d in "${MODS[@]}"; do [ "$d" = "." ] && continue; PATHS+=("github.com/Vilsol/lakta/${d}"); done
+for p in "${PATHS[@]}"; do
+  ( cd "$tmp" && GOWORK=off GOFLAGS=-mod=mod go list -m "${p}@${VERSION}" )
+done
 echo "release ${VERSION} complete and resolvable"

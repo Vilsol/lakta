@@ -50,9 +50,15 @@ check() { # dir, forbidden-import-path-regex
     echo "ISOLATION FAIL: $1 compiles $2"; exit 1
   fi
 }
-check pkg/http/fiber     'go.temporal.io/sdk|github.com/jackc/pgx|github.com/Masterminds/squirrel'
-check pkg/logging/tint   'github.com/gofiber/fiber|go.temporal.io/sdk|github.com/jackc/pgx|github.com/Masterminds/squirrel|google.golang.org/grpc'
-check pkg/db/drivers/pgx 'github.com/gofiber/fiber|go.temporal.io/sdk|github.com/Masterminds/squirrel'
+check pkg/http/fiber          'go.temporal.io/sdk|github.com/jackc/pgx|github.com/Masterminds/squirrel'
+check pkg/grpc                'github.com/gofiber/fiber|go.temporal.io/sdk|github.com/jackc/pgx|github.com/Masterminds/squirrel'
+check pkg/db/sql              'github.com/gofiber/fiber|go.temporal.io/sdk|github.com/jackc/pgx'
+check pkg/db/drivers/pgx      'github.com/gofiber/fiber|go.temporal.io/sdk|github.com/Masterminds/squirrel'
+check pkg/workflows/temporal  'github.com/gofiber/fiber|github.com/jackc/pgx|github.com/Masterminds/squirrel'
+check pkg/otel                'github.com/gofiber/fiber|go.temporal.io/sdk|github.com/jackc/pgx|github.com/Masterminds/squirrel'
+check pkg/health              'github.com/gofiber/fiber|go.temporal.io/sdk|github.com/jackc/pgx|github.com/Masterminds/squirrel'
+check pkg/logging/slog        'github.com/gofiber/fiber|go.temporal.io/sdk|github.com/jackc/pgx|github.com/Masterminds/squirrel'
+check pkg/logging/tint        'github.com/gofiber/fiber|go.temporal.io/sdk|github.com/jackc/pgx|github.com/Masterminds/squirrel|google.golang.org/grpc'
 echo "isolation OK"
 """
 
