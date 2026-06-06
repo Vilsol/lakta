@@ -712,3 +712,18 @@ On merge, run `mise run release v0.0.7` and confirm the post-push resolution che
 - **Pseudo-versions during dev are expected.** Until Task 6's release runs, integration `go.mod`s may show `require github.com/Vilsol/lakta v0.0.0-…`. The workspace overrides this locally; do not hand-edit.
 - **`go.work` and `go.work.sum` are committed** — they are ignored when modules are consumed externally, so this is safe and gives every contributor consistent local resolution.
 - **If a module fails to build in Task 3**, the likely cause is an undeclared cross-module import (the design assumes a pure star — integrations import only core). Run `go list -f '{{.ImportPath}}: {{join .Imports " "}}' ./...` in the failing module to find the stray import and confirm against the spec before adding a require.
+
+## Execution deltas (what differed from the written steps)
+
+Recorded after running the plan; the steps above were updated inline where noted, but these are the substantive discoveries:
+
+1. **Bootstrap replaces (Task 3).** `go mod tidy` resolves against the published `v0.0.6` (which still contains the `pkg/*` packages), so each module needed `replace github.com/Vilsol/lakta… => <local>` + zero-pseudo-version requires during the unreleased window. The `release` task drops them and pins real versions.
+2. **`findRepoRoot` (Task 5).** Adding `cmd/go.mod` broke `genmodules`/`apicheck` under `go generate` (cwd `cmd/docgen/` → first `go.mod` is `cmd/`). Fixed by resolving the root via `go.work`.
+3. **`parseGoMod` (Task 5).** `cmd/docgen` read only the root `go.mod`; post-split, passthrough versions (e.g. fiber) live in integration modules. Made it merge `require` versions across workspace members via **max-semver** (`semver.Compare`), matching MVS.
+4. **Isolation = package graph (Task 6).** `go list -m all` (module graph) gives false positives because `hellofresh/health-go` bundles unimported checker modules (pgx, grpc). `verify-isolation` asserts on the **package graph** (`go list -deps`, `GOWORK=off`) using single-owner signature libs; core keeps a module-graph golden allowlist.
+5. **`ci-all` skips demo lint (Task 8).** `examples/microservices` carries 29 pre-existing lint findings (never linted before — separate module). `ci-all` builds/tests it but skips lint/govulncheck.
+
+### Known follow-ups (out of scope, not blocking)
+- Clean up `examples/microservices` lint and re-enable its lint in `ci-all`.
+- Core has a test-only `require` on `pkg/testkit` (which requires core back); resolvable but pulls test libs into consumers' module graph (never compiled). Consider inverting.
+- `ci-all` runs both `go test` and `go test -race` per module (the plain run is a gcc-free fast signal; the race run needs gcc/CI).
