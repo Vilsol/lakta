@@ -65,7 +65,9 @@ mods=$(go work edit -json | python3 -c 'import json,sys;[print(u["DiskPath"]) fo
 for d in $mods; do
   echo "== $d =="
   ( cd "$d" && go build ./... && go test ./... && go test -race ./... )
-  ( cd "$d" && golangci-lint run )
-  ( cd "$d" && govulncheck ./... )
+  case "$d" in
+    ./examples/*) echo "   (demo module: skipping lint/govulncheck)" ;;
+    *) ( cd "$d" && golangci-lint run ) && ( cd "$d" && govulncheck ./... ) ;;
+  esac
 done
 """
