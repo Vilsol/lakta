@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+VERSION="${1:?usage: release vX.Y.Z}"
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+MODS=(. pkg/logging/tint pkg/logging/slog pkg/otel pkg/health \
+      pkg/http/fiber pkg/grpc pkg/db/sql pkg/db/drivers/pgx \
+      pkg/workflows/temporal pkg/testkit)
+
+lakta_paths() { # field: Replace|Require -> lakta module paths in this module's go.mod
+  go mod edit -json | python3 -c "
+import json,sys
+d=json.load(sys.stdin); f='$1'
+items = (d.get('Replace') or []) if f=='Replace' else (d.get('Require') or [])
+for it in items:
+    p = it['Old']['Path'] if f=='Replace' else it['Path']
+    if p.startswith('github.com/Vilsol/lakta'): print(p)
+"
+}
+
+for d in "${MODS[@]}"; do
+  (
+    cd "$d"
+    for r in $(lakta_paths Replace); do go mod edit -dropreplace="$r"; done
+    for q in $(lakta_paths Require); do go mod edit -require="${q}@${VERSION}"; done
+  )
+done
+git commit -am "chore(release): pin lakta requires to ${VERSION}, drop bootstrap replaces"
+
+TAGS=("${VERSION}")
+for d in "${MODS[@]}"; do
+  [ "$d" = "." ] && continue
+  TAGS+=("${d}/${VERSION}")
+done
+
+for t in "${TAGS[@]}"; do git tag "$t"; done
+if ! git push origin "${TAGS[@]}"; then
+  echo "push failed — deleting locally created tags for clean retry" >&2
+  for t in "${TAGS[@]}"; do git tag -d "$t" || true; done
+  exit 1
+fi
+
+tmp="$(mktemp -d)"; ( cd "$tmp" && GOWORK=off GOFLAGS=-mod=mod \
+  go list -m "github.com/Vilsol/lakta@${VERSION}" "github.com/Vilsol/lakta/pkg/http/fiber@${VERSION}" )
+echo "release ${VERSION} complete and resolvable"

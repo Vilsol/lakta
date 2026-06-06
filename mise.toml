@@ -30,3 +30,42 @@ run = "git diff --exit-code -- docs.yaml cmd/docgen/configs_gen.go"
 [tasks.apicheck]
 dir = "{{ config_root }}"
 run = "go run ./cmd/apicheck"
+
+[tasks.verify-isolation]
+dir = "{{ config_root }}"
+description = "Core deps match the golden allowlist; integrations carry no sibling heavy deps"
+run = """
+set -e
+GOWORK=off go list -m all | awk '{print $1}' | sort > "${TMPDIR:-/tmp}/lakta-core-deps.now"
+if ! diff -u core-deps.golden "${TMPDIR:-/tmp}/lakta-core-deps.now"; then
+  echo "CORE DEPS DRIFT: a dependency entered/left core. If intentional, regenerate core-deps.golden and review the diff."; exit 1
+fi
+# Integrations: PACKAGE-graph denylist (go list -deps) = what is actually COMPILED.
+# Module-graph (go list -m all) is intentionally NOT used here: third-party libs like
+# hellofresh/health-go bundle optional checker modules (pgx, grpc, ...) in their go.mod,
+# so they show up in the module graph without ever being imported. We assert that a
+# module never COMPILES another integration's unambiguous signature library.
+check() { # dir, forbidden-import-path-regex
+  if ( cd "$1" && GOWORK=off go list -deps ./... ) | grep -Eq "$2"; then
+    echo "ISOLATION FAIL: $1 compiles $2"; exit 1
+  fi
+}
+check pkg/http/fiber     'go.temporal.io/sdk|github.com/jackc/pgx|github.com/Masterminds/squirrel'
+check pkg/logging/tint   'github.com/gofiber/fiber|go.temporal.io/sdk|github.com/jackc/pgx|github.com/Masterminds/squirrel|google.golang.org/grpc'
+check pkg/db/drivers/pgx 'github.com/gofiber/fiber|go.temporal.io/sdk|github.com/Masterminds/squirrel'
+echo "isolation OK"
+"""
+
+[tasks.ci-all]
+dir = "{{ config_root }}"
+description = "Build, test, race, lint, vuln-check every workspace module"
+run = """
+set -e
+mods=$(go work edit -json | python3 -c 'import json,sys;[print(u["DiskPath"]) for u in json.load(sys.stdin)["Use"]]')
+for d in $mods; do
+  echo "== $d =="
+  ( cd "$d" && go build ./... && go test ./... && go test -race ./... )
+  ( cd "$d" && golangci-lint run )
+  ( cd "$d" && govulncheck ./... )
+done
+"""
