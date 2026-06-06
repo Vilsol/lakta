@@ -450,15 +450,20 @@ GOWORK=off go list -m all | awk '{print $1}' | sort > "${TMPDIR:-/tmp}/lakta-cor
 if ! diff -u core-deps.golden "${TMPDIR:-/tmp}/lakta-core-deps.now"; then
   echo "CORE DEPS DRIFT: a dependency entered/left core. If intentional, regenerate core-deps.golden and review the diff."; exit 1
 fi
-# Integrations: denylist of sibling heavy deps (each module's OWN graph).
-check() { # dir, regex-of-forbidden
-  if ( cd "$1" && GOWORK=off go list -m all ) | grep -Eq "$2"; then
-    echo "ISOLATION FAIL: $1 pulls $2"; exit 1
+# Integrations: PACKAGE-graph denylist (go list -deps) = what is actually COMPILED.
+# Module-graph (go list -m all) is intentionally NOT used here: third-party libs like
+# hellofresh/health-go bundle optional checker modules (pgx, grpc, ...) in their go.mod,
+# so they appear in the module graph without ever being imported. Assert instead that a
+# module never COMPILES another integration's unambiguous single-owner signature library
+# (fiber/temporal/pgx/squirrel — not grpc/otel, which are legitimately shared).
+check() { # dir, forbidden-import-path-regex
+  if ( cd "$1" && GOWORK=off go list -deps ./... ) | grep -Eq "$2"; then
+    echo "ISOLATION FAIL: $1 compiles $2"; exit 1
   fi
 }
-check pkg/http/fiber        'go.temporal|jackc/pgx|google.golang.org/grpc'
-check pkg/logging/tint      'opentelemetry|gofiber'
-check pkg/db/drivers/pgx    'gofiber|go.temporal|google.golang.org/grpc'
+check pkg/http/fiber     'go.temporal.io/sdk|github.com/jackc/pgx|github.com/Masterminds/squirrel'
+check pkg/logging/tint   'github.com/gofiber/fiber|go.temporal.io/sdk|github.com/jackc/pgx|github.com/Masterminds/squirrel|google.golang.org/grpc'
+check pkg/db/drivers/pgx 'github.com/gofiber/fiber|go.temporal.io/sdk|github.com/Masterminds/squirrel'
 echo "isolation OK"
 """
 ```
@@ -630,6 +635,13 @@ All modules are versioned in lockstep; one entry per repo version.
 - Split the framework into per-package modules. Import paths are unchanged
   (`pkg/` retained); integrations are now installed as separate modules so
   consumers pull only the dependencies they use.
+
+### Known limitations
+- Modules using `pkg/health` (which wraps `hellofresh/health-go`) inherit
+  health-go's bundled optional checker modules (pgx, grpc, …) in their *module*
+  graph / `go.sum`, even though those packages are never compiled into your
+  binary. This is a property of health-go, not the split; the package graph
+  stays isolated (verified by `mise run verify-isolation`).
 ```
 
 - [ ] **Step 5: Commit**
