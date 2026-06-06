@@ -327,12 +327,59 @@ git commit -m "fix(doccheck): build doc snippets against all pkg modules via per
 
 ---
 
-## Task 5: Ensure genmodules and apicheck run from the repo root
+## Task 5: Fix repo-root discovery for genmodules/apicheck (multi-module)
 
-`genmodules` and `apicheck` parse `.go` source via `go/parser` (they do **not** build), so they are unaffected by module boundaries — provided `findRepoRoot` resolves to the repo root, which it does only when invoked from the root (it walks *up* to the first `go.mod`). Pin the mise tasks' working directory to the repo root so a nested `go.mod` is never mistaken for the root.
+`genmodules` and `apicheck` parse `.go` source via `go/parser` (they do **not** build), so they are unaffected by module boundaries — *provided* `findRepoRoot` resolves to the true repo root. Their `findRepoRoot` walks **up to the first `go.mod`**, which broke once Task 2 added `cmd/go.mod`: `docgen-check` runs `go generate ./cmd/docgen`, which sets cwd to `cmd/docgen/`, so `findRepoRoot` now stops at `cmd/go.mod` and mistakes `cmd/` for the root. Pinning the mise task `dir` does **not** fix this — `go generate` re-roots to the package dir regardless. The fix is to make `findRepoRoot` prefer the **workspace root** (`go.work` exists only at the true root), falling back to the first `go.mod` when no workspace is present. Pinning the mise `dir` is kept as belt-and-suspenders.
+
+**Second regression (found during execution):** `cmd/docgen`'s `parseGoMod` read only the root `go.mod`. Post-split, third-party versions used for passthrough docs (e.g. `gofiber/fiber/v3` now in `pkg/http/fiber/go.mod`) vanished from `docs.yaml`, so `docgen-check` failed even after the `findRepoRoot` fix. `parseGoMod` must be made workspace-aware: walk up for `go.work`, merge `require` versions across every `use` module (falling back to the single root `go.mod` when no workspace).
 
 **Files:**
+- Modify: `cmd/genmodules/main.go` (`findRepoRoot`) and `cmd/apicheck/main.go` (identical copy)
+- Modify: `cmd/docgen/main.go` (`parseGoMod` → workspace-aware version merge)
 - Modify: `mise.toml` (the `docgen`, `docgen-check`, `apicheck`, `doccheck` task definitions)
+
+- [ ] **Step 0: Make `findRepoRoot` prefer the workspace root**
+
+In BOTH `cmd/genmodules/main.go` and `cmd/apicheck/main.go`, replace `findRepoRoot` with a version that first walks up looking for `go.work`, then falls back to the first `go.mod`:
+
+```go
+func findRepoRoot() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("getwd: %w", err)
+	}
+
+	// Prefer the workspace root: go.work exists only at the true repo root, so a
+	// nested module go.mod (e.g. cmd/go.mod) is not mistaken for the root when this
+	// tool is invoked via `go generate` from a package subdirectory.
+	for d := dir; ; {
+		if _, statErr := os.Stat(filepath.Join(d, "go.work")); statErr == nil {
+			return d, nil
+		}
+
+		parent := filepath.Dir(d)
+		if parent == d {
+			break
+		}
+
+		d = parent
+	}
+
+	// Fall back to the first go.mod walking up (no workspace present).
+	for {
+		if _, statErr := os.Stat(filepath.Join(dir, "go.mod")); statErr == nil {
+			return dir, nil
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", errors.New("go.mod not found from working directory")
+		}
+
+		dir = parent
+	}
+}
+```
 
 - [ ] **Step 1: Inspect the current doc/api task definitions**
 
