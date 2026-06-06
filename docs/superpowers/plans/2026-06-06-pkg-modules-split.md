@@ -483,11 +483,19 @@ mods=$(go work edit -json | python3 -c 'import json,sys;[print(u["DiskPath"]) fo
 for d in $mods; do
   echo "== $d =="
   ( cd "$d" && go build ./... && go test ./... && go test -race ./... )
-  ( cd "$d" && golangci-lint run )
-  ( cd "$d" && govulncheck ./... )
+  case "$d" in
+    ./examples/*) echo "   (demo module: skipping lint/govulncheck)" ;;
+    *) ( cd "$d" && golangci-lint run ) && ( cd "$d" && govulncheck ./... ) ;;
+  esac
 done
 """
 ```
+
+`examples/*` (dev-only demo code) gets build+test+race but **not** lint/govulncheck: it
+was never linted before the split (the old root-only `mise run lint` doesn't reach a
+separate module), and it carries pre-existing lint debt out of scope for this change.
+**Follow-up (not in this plan):** clean up `examples/microservices` lint and re-enable
+its lint in `ci-all`.
 
 - [ ] **Step 4: Add a `release` task (synchronized, all tags on one commit)**
 
