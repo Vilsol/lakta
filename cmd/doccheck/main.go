@@ -134,7 +134,7 @@ func discoverModuleDirs(repoRoot string) ([]moduleDir, error) {
 		return nil
 	})
 	if walkErr != nil {
-		return nil, walkErr
+		return nil, fmt.Errorf("walking pkg modules: %w", walkErr)
 	}
 
 	return mods, nil

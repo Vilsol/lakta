@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/semver"
 	"gopkg.in/yaml.v3"
 )
 
@@ -414,7 +415,11 @@ func parseGoMod() (map[string]string, error) {
 		}
 
 		for _, req := range f.Require {
-			versions[req.Mod.Path] = req.Mod.Version
+			// Select the maximum semver to match what the build resolves via MVS;
+			// this is deterministic regardless of go.work ordering.
+			if existing, ok := versions[req.Mod.Path]; !ok || semver.Compare(req.Mod.Version, existing) > 0 {
+				versions[req.Mod.Path] = req.Mod.Version
+			}
 		}
 	}
 
