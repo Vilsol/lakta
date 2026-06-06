@@ -224,6 +224,23 @@ func findRepoRoot() (string, error) {
 		return "", fmt.Errorf("getwd: %w", err)
 	}
 
+	// Prefer the workspace root: go.work exists only at the true repo root, so a
+	// nested module go.mod (e.g. cmd/go.mod) is not mistaken for the root when this
+	// tool is invoked via `go generate` from a package subdirectory.
+	for d := dir; ; {
+		if _, statErr := os.Stat(filepath.Join(d, "go.work")); statErr == nil {
+			return d, nil
+		}
+
+		parent := filepath.Dir(d)
+		if parent == d {
+			break
+		}
+
+		d = parent
+	}
+
+	// Fall back to the first go.mod walking up (no workspace present).
 	for {
 		if _, statErr := os.Stat(filepath.Join(dir, "go.mod")); statErr == nil {
 			return dir, nil

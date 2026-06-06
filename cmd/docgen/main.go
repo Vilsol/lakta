@@ -388,21 +388,73 @@ func cleanComment(s string) string {
 	return s
 }
 
+// parseGoMod collects dependency versions for passthrough doc links. Post-split
+// each pkg lives in its own module, so a dependency like gofiber/fiber/v3 is only
+// required by pkg/http/fiber/go.mod, not the root go.mod. We enumerate every module
+// in the workspace (go.work) and merge their requires; without a workspace we fall
+// back to the single go.mod in the working directory.
 func parseGoMod() (map[string]string, error) {
-	data, err := os.ReadFile("go.mod")
+	modDirs, err := workspaceModuleDirs()
 	if err != nil {
-		return nil, fmt.Errorf("reading go.mod: %w", err)
+		return nil, err
 	}
 
-	f, err := modfile.Parse("go.mod", data, nil)
-	if err != nil {
-		return nil, fmt.Errorf("parsing go.mod: %w", err)
-	}
+	versions := make(map[string]string)
+	for _, dir := range modDirs {
+		path := filepath.Join(dir, "go.mod")
 
-	versions := make(map[string]string, len(f.Require))
-	for _, req := range f.Require {
-		versions[req.Mod.Path] = req.Mod.Version
+		data, readErr := os.ReadFile(path) //nolint:gosec
+		if readErr != nil {
+			return nil, fmt.Errorf("reading %s: %w", path, readErr)
+		}
+
+		f, parseErr := modfile.Parse(path, data, nil)
+		if parseErr != nil {
+			return nil, fmt.Errorf("parsing %s: %w", path, parseErr)
+		}
+
+		for _, req := range f.Require {
+			versions[req.Mod.Path] = req.Mod.Version
+		}
 	}
 
 	return versions, nil
+}
+
+// workspaceModuleDirs returns the directories of every module to scan. It walks up
+// from the working directory to find go.work and returns each `use` directory; if no
+// workspace is found it returns the working directory alone (single-module fallback).
+func workspaceModuleDirs() ([]string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("getwd: %w", err)
+	}
+
+	for d := dir; ; {
+		workPath := filepath.Join(d, "go.work")
+
+		data, readErr := os.ReadFile(workPath) //nolint:gosec
+		if readErr == nil {
+			wf, parseErr := modfile.ParseWork(workPath, data, nil)
+			if parseErr != nil {
+				return nil, fmt.Errorf("parsing %s: %w", workPath, parseErr)
+			}
+
+			dirs := make([]string, 0, len(wf.Use))
+			for _, use := range wf.Use {
+				dirs = append(dirs, filepath.Join(d, filepath.FromSlash(use.Path)))
+			}
+
+			return dirs, nil
+		}
+
+		parent := filepath.Dir(d)
+		if parent == d {
+			break
+		}
+
+		d = parent
+	}
+
+	return []string{dir}, nil
 }
