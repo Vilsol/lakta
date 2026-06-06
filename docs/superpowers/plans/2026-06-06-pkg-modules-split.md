@@ -427,12 +427,12 @@ git commit -m "chore(docs): pin doc/api tooling tasks to repo root for multi-mod
 
 The spec mandates core isolation be guarded by an **allowlist (golden file)**, not a denylist, so a *new* heavy dependency leaking into core is caught — not only today's known ones.
 
-Run (from repo root, after core was trimmed in Task 3):
+**CRITICAL — use `GOWORK=off`:** with the workspace active, `go list -m all` reports the whole-workspace union (all 13 modules' deps), which would make every isolation check meaningless. To see a *single* module's real graph, disable the workspace. Run from repo root (= core module), after core was trimmed in Task 3:
 ```bash
-go list -m all | awk '{print $1}' | sort > core-deps.golden
+GOWORK=off go list -m all | awk '{print $1}' | sort > core-deps.golden
 wc -l core-deps.golden   # sanity: only the light core set + transitive
 ```
-Expected: `core-deps.golden` lists core's module + light deps (conc, do, koanf*, oops, slox, fsnotify, pflag) and their transitive deps — no gofiber/temporal/pgx/grpc/opentelemetry lines.
+Expected: `core-deps.golden` lists core's module + light deps (conc, do, koanf*, oops, slox, fsnotify, pflag) and their transitive deps — no gofiber/temporal/pgx/grpc lines. (`go.opentelemetry.io/otel/trace` may appear transitively via `samber/oops` — that is core's pre-existing dep, not the OTel SDK; it belongs in the golden.)
 
 - [ ] **Step 2: Add a `verify-isolation` task**
 
@@ -444,14 +444,15 @@ dir = "{{ config_root }}"
 description = "Core deps match the golden allowlist; integrations carry no sibling heavy deps"
 run = """
 set -e
+# GOWORK=off everywhere: the workspace union would mask per-module isolation.
 # Core: allowlist via golden file — catches ANY new dep entering core.
-go list -m all | awk '{print $1}' | sort > "${TMPDIR:-/tmp}/lakta-core-deps.now"
+GOWORK=off go list -m all | awk '{print $1}' | sort > "${TMPDIR:-/tmp}/lakta-core-deps.now"
 if ! diff -u core-deps.golden "${TMPDIR:-/tmp}/lakta-core-deps.now"; then
   echo "CORE DEPS DRIFT: a dependency entered/left core. If intentional, regenerate core-deps.golden and review the diff."; exit 1
 fi
-# Integrations: denylist of sibling heavy deps.
+# Integrations: denylist of sibling heavy deps (each module's OWN graph).
 check() { # dir, regex-of-forbidden
-  if ( cd "$1" && go list -m all ) | grep -Eq "$2"; then
+  if ( cd "$1" && GOWORK=off go list -m all ) | grep -Eq "$2"; then
     echo "ISOLATION FAIL: $1 pulls $2"; exit 1
   fi
 }
