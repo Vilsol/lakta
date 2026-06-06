@@ -438,7 +438,9 @@ done
 
 - [ ] **Step 4: Add a `release` task (synchronized, all tags on one commit)**
 
-Create `mise-tasks/release` (executable) — usage `mise run release v0.0.7`:
+Create `mise-tasks/release` (executable) — usage `mise run release v0.0.7`.
+
+**Why this is more than "pin core":** Task 3 left every published module with bootstrap `replace github.com/Vilsol/lakta… => <local dir>` directives plus a zero pseudo-version require (`v0.0.0-0001…`) on core and, for `pkg/grpc`/`pkg/http/fiber`, on `pkg/health`; `pkg/testkit` is required by several. Replace directives in a *dependency* are ignored by consumers — but the unresolvable zero-pseudo-version requires they mask are NOT. So the release must, for every published module: **drop the in-repo replaces** and **pin every intra-repo require to the release version** (core, health, testkit — not just core). Do this with `go mod edit` only; do **not** `go mod tidy` before the tags exist (resolution would fail). `cmd/` and `examples/` keep their replaces — they are never published and always build from the workspace.
 
 ```bash
 #!/usr/bin/env bash
@@ -447,17 +449,31 @@ VERSION="${1:?usage: release vX.Y.Z}"
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-# Published module dirs (NOT cmd/examples).
+# Published modules only (NOT cmd/examples).
 MODS=(. pkg/logging/tint pkg/logging/slog pkg/otel pkg/health \
       pkg/http/fiber pkg/grpc pkg/db/sql pkg/db/drivers/pgx \
       pkg/workflows/temporal pkg/testkit)
 
-# 1. Pin core version in every integration's go.mod.
+lakta_paths() { # field: Replace|Require -> list lakta module paths in this module's go.mod
+  go mod edit -json | python3 -c "
+import json,sys
+d=json.load(sys.stdin); f='$1'
+items = (d.get('Replace') or []) if f=='Replace' else (d.get('Require') or [])
+for it in items:
+    p = it['Old']['Path'] if f=='Replace' else it['Path']
+    if p.startswith('github.com/Vilsol/lakta'): print(p)
+"
+}
+
+# 1. Drop in-repo replaces and pin every intra-repo require to VERSION (go mod edit only).
 for d in "${MODS[@]}"; do
-  [ "$d" = "." ] && continue
-  ( cd "$d" && go mod edit -require="github.com/Vilsol/lakta@${VERSION}" && go mod tidy )
+  (
+    cd "$d"
+    for r in $(lakta_paths Replace); do go mod edit -dropreplace="$r"; done
+    for q in $(lakta_paths Require); do go mod edit -require="${q}@${VERSION}"; done
+  )
 done
-git commit -am "chore(release): pin core to ${VERSION}"
+git commit -am "chore(release): pin lakta requires to ${VERSION}, drop bootstrap replaces"
 
 # 2. Build the tag list (subdir-prefixed for nested modules).
 TAGS=("${VERSION}")
@@ -466,7 +482,7 @@ for d in "${MODS[@]}"; do
   TAGS+=("${d}/${VERSION}")
 done
 
-# 3. Tag all on the same commit, push together (atomic-ish).
+# 3. Tag all on the same commit, push together; roll back local tags on push failure.
 for t in "${TAGS[@]}"; do git tag "$t"; done
 if ! git push origin "${TAGS[@]}"; then
   echo "push failed — deleting locally created tags for clean retry" >&2
@@ -474,9 +490,9 @@ if ! git push origin "${TAGS[@]}"; then
   exit 1
 fi
 
-# 4. Post-push resolution verification (no workspace).
+# 4. Post-push resolution verification, outside the workspace.
 tmp="$(mktemp -d)"; ( cd "$tmp" && GOWORK=off GOFLAGS=-mod=mod \
-  go list -m "github.com/Vilsol/lakta@${VERSION}" )
+  go list -m "github.com/Vilsol/lakta@${VERSION}" "github.com/Vilsol/lakta/pkg/http/fiber@${VERSION}" )
 echo "release ${VERSION} complete and resolvable"
 ```
 
