@@ -73,7 +73,7 @@ for d in $mods; do
   ( cd "$d" && go build ./... && go test ./... && go test -race ./... )
   case "$d" in
     ./examples/*) echo "   (demo module: skipping lint/govulncheck)" ;;
-    *) ( cd "$d" && golangci-lint run ) && ( cd "$d" && govulncheck ./... ) ;;
+    *) ( cd "$d" && golangci-lint run ) && ( cd "$d" && go run golang.org/x/vuln/cmd/govulncheck@latest ./... ) ;;
   esac
 done
 """
