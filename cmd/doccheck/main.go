@@ -5,11 +5,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/mod/modfile"
 )
 
 // Annotation format in fenced code block info string:
@@ -71,42 +72,86 @@ func main() {
 }
 
 func setupTempModule(tmpDir, repoRoot string) error {
-	goMod := fmt.Sprintf(`module doccheck_snippet
+	mods, err := discoverModuleDirs(repoRoot)
+	if err != nil {
+		return fmt.Errorf("discover modules: %w", err)
+	}
 
-go 1.26
+	var b strings.Builder
 
-require github.com/Vilsol/lakta v0.0.0
+	b.WriteString("module doccheck_snippet\n\ngo 1.26\n\n")
 
-replace github.com/Vilsol/lakta => %s
-`, repoRoot)
+	for _, m := range mods {
+		fmt.Fprintf(&b, "require %s v0.0.0\n", m.path)
+	}
 
-	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goMod), filePerm); err != nil {
+	b.WriteString("\n")
+
+	for _, m := range mods {
+		fmt.Fprintf(&b, "replace %s => %s\n", m.path, m.dir)
+	}
+
+	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(b.String()), filePerm); err != nil {
 		return fmt.Errorf("write go.mod: %w", err)
 	}
 
-	return copyFile(filepath.Join(repoRoot, "go.sum"), filepath.Join(tmpDir, "go.sum"))
+	return nil
 }
 
-func copyFile(src, dst string) error {
-	in, err := os.Open(src) //nolint:gosec
+type moduleDir struct {
+	path string
+	dir  string
+}
+
+// discoverModuleDirs returns the core module and every nested module under pkg/,
+// so doc snippets can import any integration module, not just core.
+func discoverModuleDirs(repoRoot string) ([]moduleDir, error) {
+	corePath, err := readModulePath(repoRoot)
 	if err != nil {
-		return fmt.Errorf("open %s: %w", src, err)
+		return nil, err
 	}
 
-	defer func() { _ = in.Close() }()
+	mods := []moduleDir{{path: corePath, dir: repoRoot}}
 
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY, filePerm) //nolint:gosec
+	walkErr := filepath.WalkDir(filepath.Join(repoRoot, "pkg"), func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() || d.Name() != "go.mod" {
+			return nil
+		}
+
+		dir := filepath.Dir(p)
+
+		mp, readErr := readModulePath(dir)
+		if readErr != nil {
+			return readErr
+		}
+
+		mods = append(mods, moduleDir{path: mp, dir: dir})
+
+		return nil
+	})
+	if walkErr != nil {
+		return nil, walkErr
+	}
+
+	return mods, nil
+}
+
+func readModulePath(dir string) (string, error) {
+	data, err := os.ReadFile(filepath.Join(dir, "go.mod")) //nolint:gosec
 	if err != nil {
-		return fmt.Errorf("create %s: %w", dst, err)
+		return "", fmt.Errorf("read go.mod in %s: %w", dir, err)
 	}
 
-	defer func() { _ = out.Close() }()
-
-	if _, err := io.Copy(out, in); err != nil {
-		return fmt.Errorf("copy %s: %w", src, err)
+	path := modfile.ModulePath(data)
+	if path == "" {
+		return "", fmt.Errorf("no module path in %s/go.mod", dir)
 	}
 
-	return nil
+	return path, nil
 }
 
 type snippet struct {
