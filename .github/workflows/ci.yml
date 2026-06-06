@@ -15,20 +15,11 @@ jobs:
 
       - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
 
-      - name: Build
-        run: go build ./...
+      - name: Build, test, lint, vuln (all modules)
+        run: mise run ci-all
 
-      - name: Test
-        run: mise run test
-
-      - name: Race
-        run: go test -race ./...
-
-      - name: Lint
-        run: mise run lint
-
-      - name: Vulnerability check
-        run: mise run govulncheck
+      - name: Dependency isolation
+        run: mise run verify-isolation
 
       - name: Doc check
         run: mise run doccheck

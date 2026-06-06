@@ -2,6 +2,21 @@
 
 An opinionated golang microservice framework.
 
+## Installation
+
+Lakta is split into per-integration modules — install only what you use:
+
+```bash
+go get github.com/Vilsol/lakta@latest                    # core runtime + config
+go get github.com/Vilsol/lakta/pkg/http/fiber@latest     # HTTP (Fiber)
+go get github.com/Vilsol/lakta/pkg/workflows/temporal@latest
+```
+
+### Contributing
+
+This is a multi-module workspace. After pulling changes that touch
+dependencies, run `go work sync`. CI runs every module via `mise run ci-all`.
+
 ## Libraries
 
 | Purpose              | Name          | Library                              |
