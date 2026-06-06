@@ -1,6 +1,6 @@
 module github.com/Vilsol/lakta
 
-go 1.26.0
+go 1.26.4
 
 require (
 	github.com/MarvinJWendt/testza v0.5.2
@@ -60,3 +60,7 @@ require (
 	golang.org/x/term v0.43.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 )
+
+require github.com/Vilsol/lakta/pkg/testkit v0.0.0-00010101000000-000000000000
+
+replace github.com/Vilsol/lakta/pkg/testkit => ./pkg/testkit
