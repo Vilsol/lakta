@@ -1,3 +1,17 @@
 go 1.26.4
 
-use .
+use (
+	.
+	./cmd
+	./examples/microservices
+	./pkg/db/drivers/pgx
+	./pkg/db/sql
+	./pkg/grpc
+	./pkg/health
+	./pkg/http/fiber
+	./pkg/logging/slog
+	./pkg/logging/tint
+	./pkg/otel
+	./pkg/testkit
+	./pkg/workflows/temporal
+)

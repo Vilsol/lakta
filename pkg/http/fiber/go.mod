@@ -1,0 +1,63 @@
+module github.com/Vilsol/lakta/pkg/http/fiber
+
+go 1.26.4
+
+require (
+	github.com/MarvinJWendt/testza v0.5.2
+	github.com/Vilsol/slox v0.1.0
+	github.com/go-viper/mapstructure/v2 v2.5.0
+	github.com/gofiber/contrib/v3/otel v1.2.0
+	github.com/gofiber/fiber/v3 v3.3.0
+	github.com/hellofresh/health-go/v5 v5.5.5
+	github.com/knadh/koanf/v2 v2.3.5
+	github.com/samber/oops v1.22.0
+	go.opentelemetry.io/otel/trace v1.44.0
+	golang.org/x/sync v0.20.0
+)
+
+require (
+	atomicgo.dev/assert v0.0.2 // indirect
+	atomicgo.dev/cursor v0.2.0 // indirect
+	atomicgo.dev/keyboard v0.2.10 // indirect
+	atomicgo.dev/schedule v0.1.0 // indirect
+	github.com/andybalholm/brotli v1.2.1 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
+	github.com/containerd/console v1.0.5 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/go-logr/logr v1.4.3 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/gofiber/schema v1.7.1 // indirect
+	github.com/gofiber/utils/v2 v2.0.6 // indirect
+	github.com/google/uuid v1.6.0 // indirect
+	github.com/gookit/color v1.6.1 // indirect
+	github.com/klauspost/compress v1.18.6 // indirect
+	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
+	github.com/knadh/koanf/maps v0.1.2 // indirect
+	github.com/lithammer/fuzzysearch v1.1.8 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
+	github.com/mattn/go-isatty v0.0.22 // indirect
+	github.com/mattn/go-runewidth v0.0.23 // indirect
+	github.com/mitchellh/copystructure v1.2.0 // indirect
+	github.com/mitchellh/reflectwalk v1.0.2 // indirect
+	github.com/oklog/ulid/v2 v2.1.1 // indirect
+	github.com/philhofer/fwd v1.2.0 // indirect
+	github.com/pterm/pterm v0.12.83 // indirect
+	github.com/samber/lo v1.53.0 // indirect
+	github.com/sergi/go-diff v1.4.0 // indirect
+	github.com/stretchr/objx v0.5.3 // indirect
+	github.com/tinylib/msgp v1.6.4 // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/valyala/fasthttp v1.71.0 // indirect
+	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
+	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
+	go.opentelemetry.io/contrib v1.43.0 // indirect
+	go.opentelemetry.io/otel v1.44.0 // indirect
+	go.opentelemetry.io/otel/metric v1.44.0 // indirect
+	golang.org/x/crypto v0.52.0 // indirect
+	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8 // indirect
+	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/term v0.43.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
+)
