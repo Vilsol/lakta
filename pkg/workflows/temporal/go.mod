@@ -4,8 +4,8 @@ go 1.26.4
 
 require (
 	github.com/MarvinJWendt/testza v0.5.2
-	github.com/Vilsol/lakta v0.0.6
-	github.com/Vilsol/lakta/pkg/testkit v0.0.0-00010101000000-000000000000
+	github.com/Vilsol/lakta v0.1.0
+	github.com/Vilsol/lakta/pkg/testkit v0.1.0
 	github.com/Vilsol/slox v0.1.0
 	github.com/knadh/koanf/v2 v2.3.5
 	github.com/samber/oops v1.22.0
@@ -79,9 +79,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-)
-
-replace (
-	github.com/Vilsol/lakta => ../../..
-	github.com/Vilsol/lakta/pkg/testkit => ../../../pkg/testkit
 )

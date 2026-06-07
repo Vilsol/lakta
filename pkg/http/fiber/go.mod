@@ -4,9 +4,9 @@ go 1.26.4
 
 require (
 	github.com/MarvinJWendt/testza v0.5.2
-	github.com/Vilsol/lakta v0.0.6
-	github.com/Vilsol/lakta/pkg/health v0.0.0-00010101000000-000000000000
-	github.com/Vilsol/lakta/pkg/testkit v0.0.0-00010101000000-000000000000
+	github.com/Vilsol/lakta v0.1.0
+	github.com/Vilsol/lakta/pkg/health v0.1.0
+	github.com/Vilsol/lakta/pkg/testkit v0.1.0
 	github.com/Vilsol/slox v0.1.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/gofiber/contrib/v3/otel v1.2.0
@@ -75,10 +75,4 @@ require (
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/term v0.43.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
-)
-
-replace (
-	github.com/Vilsol/lakta => ../../..
-	github.com/Vilsol/lakta/pkg/health => ../../../pkg/health
-	github.com/Vilsol/lakta/pkg/testkit => ../../../pkg/testkit
 )
