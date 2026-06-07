@@ -57,9 +57,12 @@ for t in "${TAGS[@]}"; do
   git tag -m "${t}" "${t}"; CREATED+=("${t}")
 done
 
-# --atomic: all refs land or none do, so a mid-push failure never leaves a
-# partially-tagged remote.
-if ! git push --atomic origin "${TAGS[@]}"; then
+# Push the current branch alongside the tags so the remote advances to include
+# the release commit (the go.mod pin), not just the tag refs. --atomic: branch
+# and all tags land together or none do, so a mid-push failure never leaves a
+# partially-released remote.
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+if ! git push --atomic origin "${BRANCH}" "${TAGS[@]}"; then
   echo "push failed — deleting tags created this run for clean retry" >&2
   for t in "${CREATED[@]}"; do git tag -d "${t}" || true; done
   exit 1
