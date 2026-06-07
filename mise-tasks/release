@@ -70,20 +70,24 @@ trap 'rm -rf "$tmp"' EXIT
 PATHS=(github.com/Vilsol/lakta)
 for d in "${MODS[@]}"; do [ "$d" = "." ] && continue; PATHS+=("github.com/Vilsol/lakta/${d}"); done
 
-# Resolve every module in ONE `go list -m` call: the Go module loader fetches
-# them concurrently, so the proxy's on-demand build of each freshly-pushed
-# version happens in parallel instead of 11 times in series (the original loop's
-# bottleneck). The proxy still lags a few seconds after a push, so retry the
-# whole batch before giving up.
+# Verify against the origin directly (GOPROXY=direct), not proxy.golang.org.
+# The tags we just pushed are in git immediately, whereas the public proxy
+# indexes a new version on demand on first request — and `go list -m` resolves
+# version queries serially, so that per-module first-touch fetch is what made
+# this step take minutes. Direct does one repo fetch and reads each tag's go.mod
+# from it (~3s for the whole set). GOSUMDB=off because a brand-new release is not
+# in the checksum DB yet, and that lookup also routes through the proxy. The
+# proxy still indexes lazily on the first consumer `go get` — no need to block on
+# it here.
 QUERIES=("${PATHS[@]/%/@${VERSION}}")
 tries=0
-until ( cd "$tmp" && GOWORK=off GOFLAGS=-mod=mod go list -m "${QUERIES[@]}" >/dev/null 2>&1 ); do
+until ( cd "$tmp" && GOWORK=off GOFLAGS=-mod=mod GOPROXY=direct GOSUMDB=off go list -m "${QUERIES[@]}" >/dev/null 2>&1 ); do
   tries=$((tries + 1))
-  if [ "$tries" -ge 10 ]; then
-    echo "release ${VERSION}: tags pushed, but the proxy has not indexed every module after ${tries} attempts — they should resolve shortly." >&2
-    exit 0
+  if [ "$tries" -ge 3 ]; then
+    echo "release ${VERSION}: tags pushed, but verification could not resolve every module from origin after ${tries} attempts." >&2
+    exit 1
   fi
-  echo "  not all modules resolvable yet (attempt ${tries}); retrying in 6s..." >&2
-  sleep 6
+  echo "  verification retry ${tries}..." >&2
+  sleep 3
 done
 echo "release ${VERSION} complete and resolvable"
