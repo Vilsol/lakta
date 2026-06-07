@@ -5,8 +5,19 @@
   ],
   "postUpdateOptions": [
     "gomodMassage",
-    "gomodTidy"
+    "gomodTidy",
+    "gomodUpdateImportPaths"
   ],
+  "automerge": true,
+  "postUpgradeTasks": {
+    "commands": [
+      "GOWORK=off go list -m all | awk '{print $1}' | LC_ALL=C sort > core-deps.golden"
+    ],
+    "fileFilters": [
+      "core-deps.golden"
+    ],
+    "executionMode": "branch"
+  },
   "packageRules": [
     {
       "description": "Group non-major Go updates across the root and examples modules into a single PR",
