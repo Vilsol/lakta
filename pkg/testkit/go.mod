@@ -3,7 +3,7 @@ module github.com/Vilsol/lakta/pkg/testkit
 go 1.26.4
 
 require (
-	github.com/Vilsol/lakta v0.0.6
+	github.com/Vilsol/lakta v0.1.0
 	github.com/knadh/koanf/v2 v2.3.5
 	github.com/samber/do/v2 v2.0.0
 )
@@ -36,5 +36,3 @@ require (
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 )
-
-replace github.com/Vilsol/lakta => ../..

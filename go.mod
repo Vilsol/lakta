@@ -61,6 +61,4 @@ require (
 	golang.org/x/text v0.37.0 // indirect
 )
 
-require github.com/Vilsol/lakta/pkg/testkit v0.0.0-00010101000000-000000000000
-
-replace github.com/Vilsol/lakta/pkg/testkit => ./pkg/testkit
+require github.com/Vilsol/lakta/pkg/testkit v0.1.0
