@@ -4,6 +4,22 @@ VERSION="${1:?usage: release vX.Y.Z}"
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
+# Refuse to release on a branch that trails origin. Releasing while behind
+# produces a non-fast-forward push at the end (after tags are already cut) or,
+# worse, publishes a version off a stale base. Fetch and bail early if the
+# remote holds commits we don't — being ahead is fine, the release pushes those.
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+git fetch -q origin "$BRANCH"
+if git rev-parse -q --verify "origin/${BRANCH}" >/dev/null; then
+  REMOTE="$(git rev-parse "origin/${BRANCH}")"
+  BASE="$(git merge-base HEAD "origin/${BRANCH}")"
+  if [ "$REMOTE" != "$BASE" ]; then
+    echo "refusing to release: ${BRANCH} is behind or has diverged from origin/${BRANCH}." >&2
+    echo "the remote has commits you don't have locally — reconcile first (e.g. git pull --rebase) and re-run." >&2
+    exit 1
+  fi
+fi
+
 # Releasable modules are auto-detected from go.work: the repo root plus every
 # module under pkg/. cmd/ (internal tooling) and examples/ (demos) are excluded
 # on purpose — they are never published or tagged. New pkg modules are picked up
