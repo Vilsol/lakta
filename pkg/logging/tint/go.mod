@@ -4,8 +4,8 @@ go 1.26.4
 
 require (
 	github.com/MarvinJWendt/testza v0.5.2
-	github.com/Vilsol/lakta v0.1.1
-	github.com/Vilsol/lakta/pkg/testkit v0.1.1
+	github.com/Vilsol/lakta v0.1.2
+	github.com/Vilsol/lakta/pkg/testkit v0.1.2
 	github.com/knadh/koanf/v2 v2.3.5
 	github.com/lmittmann/tint v1.1.3
 	github.com/samber/do/v2 v2.0.0
