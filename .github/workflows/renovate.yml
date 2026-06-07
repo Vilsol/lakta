@@ -37,3 +37,7 @@ jobs:
           # Trusted host-side allowlist: only commands matching these regexes may run
           # via postUpgradeTasks in renovate.json. Repo config can never self-authorize shell.
           RENOVATE_ALLOWED_COMMANDS: '["^GOWORK=off go list -m all "]'
+          # Since Renovate v42.68.5 postUpgradeTasks no longer run in a shell by default,
+          # so the golden-regen env-assign/pipe/redirect break. Re-enable shell execution
+          # (self-hosted-only flag; cannot be set from untrusted renovate.json).
+          RENOVATE_ALLOW_SHELL_EXECUTOR_FOR_POST_UPGRADE_COMMANDS: "true"
