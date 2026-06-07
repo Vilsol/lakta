@@ -4,9 +4,20 @@ VERSION="${1:?usage: release vX.Y.Z}"
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-MODS=(. pkg/logging/tint pkg/logging/slog pkg/otel pkg/health \
-      pkg/http/fiber pkg/grpc pkg/db/sql pkg/db/drivers/pgx \
-      pkg/workflows/temporal pkg/testkit)
+# Releasable modules are auto-detected from go.work: the repo root plus every
+# module under pkg/. cmd/ (internal tooling) and examples/ (demos) are excluded
+# on purpose — they are never published or tagged. New pkg modules are picked up
+# automatically with no edits here.
+mapfile -t MODS < <(go work edit -json | python3 -c '
+import json, sys
+for u in json.load(sys.stdin)["Use"]:
+    p = u["DiskPath"]
+    if p == "." or p.startswith("./pkg/"):
+        print(p[2:] if p.startswith("./") else p)
+')
+if [ "${#MODS[@]}" -eq 0 ]; then
+  echo "no releasable modules detected from go.work" >&2; exit 1
+fi
 
 lakta_paths() { # field: Replace|Require -> lakta module paths in this module's go.mod
   go mod edit -json | python3 -c "
@@ -32,7 +43,7 @@ else
   echo "no go.mod changes to commit (already pinned)"
 fi
 
-# tag list (same as before)
+# Tag per module: root gets the bare version, submodules get "<dir>/<version>".
 TAGS=("${VERSION}")
 for d in "${MODS[@]}"; do [ "$d" = "." ] && continue; TAGS+=("${d}/${VERSION}"); done
 
@@ -41,19 +52,38 @@ for t in "${TAGS[@]}"; do
   if git rev-parse -q --verify "refs/tags/${t}" >/dev/null; then
     echo "tag ${t} already exists — skipping"; continue
   fi
-  git tag "${t}"; CREATED+=("${t}")
+  # -m supplies the message inline so git neither opens an editor nor drops the
+  # signature (tag.gpgsign promotes these to annotated, signed tags).
+  git tag -m "${t}" "${t}"; CREATED+=("${t}")
 done
 
-if ! git push origin "${TAGS[@]}"; then
+# --atomic: all refs land or none do, so a mid-push failure never leaves a
+# partially-tagged remote.
+if ! git push --atomic origin "${TAGS[@]}"; then
   echo "push failed — deleting tags created this run for clean retry" >&2
   for t in "${CREATED[@]}"; do git tag -d "${t}" || true; done
   exit 1
 fi
 
 tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
 PATHS=(github.com/Vilsol/lakta)
 for d in "${MODS[@]}"; do [ "$d" = "." ] && continue; PATHS+=("github.com/Vilsol/lakta/${d}"); done
-for p in "${PATHS[@]}"; do
-  ( cd "$tmp" && GOWORK=off GOFLAGS=-mod=mod go list -m "${p}@${VERSION}" )
+
+# Resolve every module in ONE `go list -m` call: the Go module loader fetches
+# them concurrently, so the proxy's on-demand build of each freshly-pushed
+# version happens in parallel instead of 11 times in series (the original loop's
+# bottleneck). The proxy still lags a few seconds after a push, so retry the
+# whole batch before giving up.
+QUERIES=("${PATHS[@]/%/@${VERSION}}")
+tries=0
+until ( cd "$tmp" && GOWORK=off GOFLAGS=-mod=mod go list -m "${QUERIES[@]}" >/dev/null 2>&1 ); do
+  tries=$((tries + 1))
+  if [ "$tries" -ge 10 ]; then
+    echo "release ${VERSION}: tags pushed, but the proxy has not indexed every module after ${tries} attempts — they should resolve shortly." >&2
+    exit 0
+  fi
+  echo "  not all modules resolvable yet (attempt ${tries}); retrying in 6s..." >&2
+  sleep 6
 done
 echo "release ${VERSION} complete and resolvable"
