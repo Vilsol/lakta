@@ -3,7 +3,7 @@ module github.com/Vilsol/lakta/pkg/testkit
 go 1.26.4
 
 require (
-	github.com/Vilsol/lakta v0.1.0
+	github.com/Vilsol/lakta v0.1.1
 	github.com/knadh/koanf/v2 v2.3.5
 	github.com/samber/do/v2 v2.0.0
 )
