@@ -9,15 +9,6 @@
     "gomodUpdateImportPaths"
   ],
   "automerge": true,
-  "postUpgradeTasks": {
-    "commands": [
-      "GOWORK=off go list -m all | awk '{print $1}' | LC_ALL=C sort > core-deps.golden"
-    ],
-    "fileFilters": [
-      "core-deps.golden"
-    ],
-    "executionMode": "branch"
-  },
   "packageRules": [
     {
       "description": "Group non-major Go updates across the root and examples modules into a single PR",
@@ -30,6 +21,21 @@
         "digest"
       ],
       "groupName": "go module dependencies"
+    },
+    {
+      "description": "Regenerate core-deps.golden only on branches that change Go modules; write atomically and never commit an empty file",
+      "matchManagers": [
+        "gomod"
+      ],
+      "postUpgradeTasks": {
+        "commands": [
+          "GOWORK=off go list -m all | awk '{print $1}' | LC_ALL=C sort > core-deps.golden.tmp && test -s core-deps.golden.tmp && mv core-deps.golden.tmp core-deps.golden"
+        ],
+        "fileFilters": [
+          "core-deps.golden"
+        ],
+        "executionMode": "branch"
+      }
     }
   ]
 }
