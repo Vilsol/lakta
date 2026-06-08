@@ -141,7 +141,7 @@ func (m *Module) Start(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-		return m.Shutdown(ctx)
+		return nil
 	case err := <-startDone:
 		if err != nil {
 			return err

@@ -65,6 +65,58 @@ func TestShutdown_ForcesStopOnDeadline(t *testing.T) {
 	testza.AssertTrue(t, time.Since(start) < 2*time.Second, "Shutdown must force-stop within the deadline")
 }
 
+func TestStart_DoesNotStopServerOnContextCancel(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	m := NewModule(WithHost("127.0.0.1"), WithPort(0))
+	injectRuntimeCtx(m, ctx)
+	testza.AssertNoError(t, m.Init(ctx))
+
+	hs := grpchealth.NewServer()
+	healthpb.RegisterHealthServer(m.server, hs)
+
+	startCtx, cancelStart := context.WithCancel(ctx)
+	startErr := make(chan error, 1)
+	go func() {
+		startErr <- m.Start(startCtx)
+	}()
+
+	// Poll until server is listening.
+	var addr net.Addr
+	for i := range 50 {
+		addr = m.Addr()
+		if addr != nil {
+			break
+		}
+		if i == 49 {
+			t.Fatal("server did not start listening within timeout")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	cancelStart()
+
+	select {
+	case err := <-startErr:
+		testza.AssertNil(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Start did not return after context cancel")
+	}
+
+	// Server must still be serving — a fresh request must succeed.
+	conn, err := grpc.NewClient(addr.String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	testza.AssertNoError(t, err)
+	defer func() { _ = conn.Close() }()
+
+	checkCtx, checkCancel := context.WithTimeout(ctx, 2*time.Second)
+	defer checkCancel()
+	_, err = healthpb.NewHealthClient(conn).Check(checkCtx, &healthpb.HealthCheckRequest{})
+	testza.AssertNoError(t, err)
+
+	testza.AssertNoError(t, m.Shutdown(context.Background()))
+}
+
 func TestKeepaliveDefaults(t *testing.T) {
 	t.Parallel()
 
