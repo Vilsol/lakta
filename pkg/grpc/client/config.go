@@ -2,6 +2,7 @@ package grpcclient
 
 import (
 	"context"
+	"time"
 
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/Vilsol/lakta/pkg/lakta"
@@ -12,10 +13,13 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 )
 
 const (
-	defaultTarget = "localhost:50051"
+	defaultTarget           = "localhost:50051"
+	defaultKeepaliveTime    = 30 * time.Second
+	defaultKeepaliveTimeout = 20 * time.Second
 )
 
 // ClientRegistrar registers typed gRPC clients against a connection.
@@ -69,10 +73,20 @@ func (c *Config) GetCredentials() credentials.TransportCredentials { //nolint:ir
 	return nil
 }
 
+// KeepaliveParams returns generous client keepalive parameters.
+func (c *Config) KeepaliveParams() keepalive.ClientParameters {
+	return keepalive.ClientParameters{
+		Time:                defaultKeepaliveTime,
+		Timeout:             defaultKeepaliveTimeout,
+		PermitWithoutStream: false,
+	}
+}
+
 // DialOptions returns grpc.DialOption slice for creating a client connection.
 func (c *Config) DialOptions() []grpc.DialOption {
 	opts := []grpc.DialOption{
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
+		grpc.WithKeepaliveParams(c.KeepaliveParams()),
 	}
 	if creds := c.GetCredentials(); creds != nil {
 		opts = append(opts, grpc.WithTransportCredentials(creds))
