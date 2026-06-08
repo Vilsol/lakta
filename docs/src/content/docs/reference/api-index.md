@@ -34,6 +34,7 @@ pkg/config: Apply, Config, NewConfig, NewDefaultConfig (low-level/boilerplate co
 | `ProvideValue[T](ctx, value)` | Register an already-constructed value in DI |
 | `Invoke[T](ctx) (T, error)` | Resolve a dependency from the context injector |
 | `HotReloadable` | Adds `OnReload(*koanf.Koanf)`; wired by the runtime for config reloads |
+| `ValidatableModule` | Adds `ValidateReload(*koanf.Koanf) error`; can veto a config hot-reload before it is committed |
 
 ## pkg/config
 
@@ -54,6 +55,7 @@ pkg/config: Apply, Config, NewConfig, NewDefaultConfig (low-level/boilerplate co
 | `Validatable` | Adds `Validate() error`; bound configs are validated on load/reload |
 | `ReloadNotifier` | Subscribe to hot-reload events |
 | `ReloadNotifier.OnReload(fn)` | Register a reload callback |
+| `ReloadNotifier.OnValidate(fn)` | Register a validator that can veto a reload before commit |
 
 ## pkg/testkit
 
