@@ -27,6 +27,8 @@ func (panicModule) Init(context.Context) error     { return nil }
 func (panicModule) Shutdown(context.Context) error { panic("shutdown boom") }
 
 func TestShutdownModule_ReturnsOnDeadline(t *testing.T) {
+	t.Parallel()
+
 	m := blockingShutdownModule{release: make(chan struct{})}
 	t.Cleanup(func() { close(m.release) })
 
@@ -41,6 +43,8 @@ func TestShutdownModule_ReturnsOnDeadline(t *testing.T) {
 }
 
 func TestShutdownModule_ReturnsResultWhenFast(t *testing.T) {
+	t.Parallel()
+
 	testza.AssertNil(t, shutdownModule(context.Background(), quickModule{}))
 
 	wantErr := errors.New("x")
@@ -48,6 +52,8 @@ func TestShutdownModule_ReturnsResultWhenFast(t *testing.T) {
 }
 
 func TestShutdownModule_RecoversPanic(t *testing.T) {
+	t.Parallel()
+
 	err := shutdownModule(context.Background(), panicModule{})
 
 	testza.AssertNotNil(t, err)
@@ -55,6 +61,8 @@ func TestShutdownModule_RecoversPanic(t *testing.T) {
 }
 
 func TestSafeCall_RecoversPanic(t *testing.T) {
+	t.Parallel()
+
 	err := safeCall(func() error { panic("boom") })
 
 	testza.AssertNotNil(t, err)

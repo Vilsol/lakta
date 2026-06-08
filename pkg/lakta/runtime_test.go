@@ -404,6 +404,8 @@ func TestRuntime_AutoLoadsConfigBeforeInit(t *testing.T) {
 }
 
 func TestRunContext_InitPanicTriggersTeardown(t *testing.T) {
+	t.Parallel()
+
 	first := testkit.NewMockModule()
 	panicker := testkit.NewMockModule()
 	panicker.OnInit = func(context.Context) error { panic("init boom") }
@@ -434,9 +436,11 @@ func TestRuntime_AutoLoadConfigError_AbortsInit(t *testing.T) {
 }
 
 func TestRunContext_SyncCleanExitTriggersShutdown(t *testing.T) {
-	fast := testkit.NewMockSyncModule()         // Start returns nil immediately
+	t.Parallel()
+
+	fast := testkit.NewMockSyncModule() // Start returns nil immediately
 	blocker := testkit.NewMockSyncModule()
-	blocker.BlockStart = make(chan struct{})    // blocks until ctx is cancelled
+	blocker.BlockStart = make(chan struct{}) // blocks until ctx is cancelled
 
 	rt := lakta.NewRuntime(fast, blocker)
 
@@ -454,6 +458,8 @@ func TestRunContext_SyncCleanExitTriggersShutdown(t *testing.T) {
 }
 
 func TestRunContext_SyncModuleErrorIsSurfaced(t *testing.T) {
+	t.Parallel()
+
 	failer := testkit.NewMockSyncModule()
 	failer.StartErr = errors.New("start boom") // returns error immediately
 	blocker := testkit.NewMockSyncModule()
