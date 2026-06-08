@@ -156,9 +156,25 @@ func (m *Module) Dependencies() ([]reflect.Type, []reflect.Type) {
 	}
 }
 
-// Shutdown gracefully stops the gRPC server.
-func (m *Module) Shutdown(_ context.Context) error {
-	m.server.GracefulStop()
+// Shutdown gracefully stops the gRPC server, forcing a stop if the context
+// deadline is exceeded before in-flight RPCs drain.
+func (m *Module) Shutdown(ctx context.Context) error {
+	if m.server == nil {
+		return nil
+	}
+
+	stopped := make(chan struct{})
+	go func() {
+		m.server.GracefulStop()
+		close(stopped)
+	}()
+
+	select {
+	case <-stopped:
+	case <-ctx.Done():
+		m.server.Stop()
+	}
+
 	return nil
 }
 
