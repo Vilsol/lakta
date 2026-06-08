@@ -59,9 +59,22 @@ func shutdownModule(ctx context.Context, module Module) error {
 
 `shutdown()` and `teardown()` call `shutdownModule` instead of `module.Shutdown`
 directly. The existing 30s `context.WithTimeout` (runtime.go:212) stays a **shared
-total budget** across the reverse-order loop — once it expires, remaining modules'
-calls return immediately (ctx already done) and are logged as skipped. First-error
-semantics preserved in `shutdown()`.
+total budget** across the reverse-order loop — once it expires, each remaining
+module's call returns immediately (ctx already done) and is **explicitly logged as
+skipped by name** (not silently dropped). First-error semantics preserved in
+`shutdown()`.
+
+**Accepted tradeoff:** skipping remaining modules on deadline expiry sacrifices full
+reverse-order teardown for a bounded shutdown. This is the correct tradeoff for a
+deadline guarantee — you cannot both honor a hard deadline and guarantee every
+module's `Shutdown` runs. The per-module skip logs make any dropped cleanup visible.
+
+**Init-failure teardown also gets a deadline.** Today `teardown()` on an `Init`
+failure (runtime.go:67, :78) runs with the unbounded init ctx — a hanging `Shutdown`
+there would hang forever, contradicting 1a. Fix: `teardown()` creates its own
+`context.WithTimeout(context.Background(), DefaultShutdownTimeout)` and routes every
+call through `shutdownModule`, so the same enforced deadline applies on the
+init-failure path.
 
 ### 1b. Panic recovery on all lifecycle calls
 
@@ -79,29 +92,47 @@ func safeCall(fn func() error) (err error) {
 ```
 
 - `Init` panic → error → triggers reverse `teardown()` (no bare crash, no leak).
-- `Start`/`StartAsync` panic inside the pool func → returned as error (today `conc`
-  re-panics in `Wait()` and crashes) → graceful shutdown path.
+- `Start`/`StartAsync` panic inside the pool func → `safeCall` converts it to an error
+  **before `conc` ever observes a panic**, so it flows through the normal error path
+  regardless of how `conc` handles panics internally → graceful shutdown.
 - `Shutdown` panic → recovered (folded into `shutdownModule`'s goroutine), logged,
   doesn't abort teardown of remaining modules.
 
 ### 1c. Sync-exit triggers shutdown ("first done wins")
 
-Wrap the sync pool in a child cancel context; each `Start` cancels on return:
+The fix feeds a cancelable child context **into the conc pool itself** so cancellation
+propagates through conc's own machinery — rather than layering a second context beside
+the pool's provided one (which races conc's `WithCancelOnError` cancel against a manual
+one). conc only cancels on *error* (`WithCancelOnError`); we additionally want
+cancel-on-*clean-return*.
 
 ```go
 syncCtx, cancelSync := context.WithCancel(ctx)
 defer cancelSync()
-// in each pool.Go:
+
+syncPool := pool.New().
+    WithErrors().
+    WithContext(syncCtx).   // pool derives its per-goroutine ctx from syncCtx
+    WithCancelOnError()
+
+// in each pool.Go (ctx here is the pool-provided ctx, derived from syncCtx):
 syncPool.Go(func(ctx context.Context) error {
-    defer cancelSync() // first to return (nil OR err) cancels siblings
-    ...
-    return safeCall(func() error { return m.Start(syncCtx) })
+    defer cancelSync()      // first to return (nil OR err) cancels syncCtx → pool ctx
+    if cs, ok := m.(contextSetter); ok {
+        cs.setCtx(ctx)      // contextSetter (runtime.go:166) gets the pool-derived ctx
+    }
+    return safeCall(func() error { return m.Start(ctx) })
 })
 ```
 
-First sync module to return cancels `syncCtx` → siblings observe cancellation and
-return → `Wait()` unblocks → runtime proceeds to graceful shutdown. SIGTERM via the
-parent `ctx` still works. The `contextSetter` injection (runtime.go:166) uses `syncCtx`.
+First sync module to return calls `cancelSync()` → `syncCtx` cancels → the pool-derived
+ctx every sibling holds cancels → siblings observe it and return from `Start` →
+`syncPool.Wait()` unblocks → the existing `select` at runtime.go:188 fires on `syncDone`
+→ runtime proceeds to graceful shutdown. **No new select arm needed** — propagating
+through the pool's own context means `Wait()` completes promptly, and waiting for
+siblings to finish their `Start` cleanly (rather than abandoning them via a `syncCtx`
+select arm) is the desired behavior. SIGTERM via the parent `ctx` still works because
+`syncCtx` derives from it.
 
 ---
 
@@ -189,6 +220,8 @@ the §3 table. `statement_timeout` applied via `connConfig.RuntimeParams`.
 Red-green per item, `testza` assertions + `pkg/testkit` mocks:
 
 - Blocking-`Shutdown` mock → `shutdown()` returns within the deadline.
+- Blocking-`Shutdown` mock on an *Init-failure* path (a later module's `Init` errors,
+  an earlier module's `Shutdown` blocks) → `teardown()` returns within the deadline.
 - Panicking-`Init` mock → teardown runs, error returned, no crash.
 - Clean-exit `MockSyncModule` → runtime proceeds to shutdown, siblings cancelled.
 - gRPC `Shutdown` with an already-expired ctx → returns promptly (`Stop()` path).
