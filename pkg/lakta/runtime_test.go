@@ -432,3 +432,43 @@ func TestRuntime_AutoLoadConfigError_AbortsInit(t *testing.T) {
 	testza.AssertNotNil(t, err)
 	testza.AssertFalse(t, configurable.initCalled)
 }
+
+func TestRunContext_SyncCleanExitTriggersShutdown(t *testing.T) {
+	fast := testkit.NewMockSyncModule()         // Start returns nil immediately
+	blocker := testkit.NewMockSyncModule()
+	blocker.BlockStart = make(chan struct{})    // blocks until ctx is cancelled
+
+	rt := lakta.NewRuntime(fast, blocker)
+
+	done := make(chan error, 1)
+	go func() { done <- rt.RunContext(context.Background()) }()
+
+	select {
+	case err := <-done:
+		testza.AssertNil(t, err)
+		testza.AssertEqual(t, int32(1), blocker.ShutdownCalls.Load())
+		testza.AssertEqual(t, int32(1), fast.ShutdownCalls.Load())
+	case <-time.After(5 * time.Second):
+		t.Fatal("RunContext hung — first-done-wins did not cancel the blocking sync module")
+	}
+}
+
+func TestRunContext_SyncModuleErrorIsSurfaced(t *testing.T) {
+	failer := testkit.NewMockSyncModule()
+	failer.StartErr = errors.New("start boom") // returns error immediately
+	blocker := testkit.NewMockSyncModule()
+	blocker.BlockStart = make(chan struct{}) // blocks until cancelled
+
+	rt := lakta.NewRuntime(failer, blocker)
+
+	done := make(chan error, 1)
+	go func() { done <- rt.RunContext(context.Background()) }()
+
+	select {
+	case err := <-done:
+		testza.AssertNotNil(t, err)
+		testza.AssertContains(t, err.Error(), "start boom")
+	case <-time.After(5 * time.Second):
+		t.Fatal("RunContext hung")
+	}
+}

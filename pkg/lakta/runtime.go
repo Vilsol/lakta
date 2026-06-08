@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"runtime/debug"
 	"slices"
+	"sync"
 	"syscall"
 	"time"
 
@@ -150,10 +151,20 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 		return oops.Wrapf(err, "async modules failed")
 	}
 
-	// Phase 2: Start sync modules and block until shutdown signal or all stop.
+	// Phase 2: Start sync modules. The first sync module to return (clean OR error)
+	// records the originating cause and cancels syncCtx; siblings observe the
+	// cancellation and return, then the runtime proceeds to graceful shutdown.
+	syncCtx, cancelSync := context.WithCancel(ctx)
+	defer cancelSync()
+
+	var (
+		firstExit sync.Once
+		firstErr  error
+	)
+
 	syncPool := pool.New().
 		WithErrors().
-		WithContext(ctx).
+		WithContext(syncCtx).
 		WithCancelOnError()
 
 	hasSyncModules := false
@@ -168,7 +179,16 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 					cs.setCtx(ctx)
 				}
 
-				if err := safeCall(func() error { return m.Start(ctx) }); err != nil {
+				err := safeCall(func() error { return m.Start(ctx) })
+
+				// First to return records the cause and cancels siblings; later
+				// returns (often context.Canceled from this cancellation) are ignored.
+				firstExit.Do(func() {
+					firstErr = err
+					cancelSync()
+				})
+
+				if err != nil {
 					slox.Error(ctx, "failed starting sync module",
 						slog.String("name", name), slog.Any("error", err))
 
@@ -181,17 +201,21 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 	}
 
 	if hasSyncModules {
-		syncDone := make(chan error, 1)
+		syncDone := make(chan struct{})
 		go func() {
-			syncDone <- syncPool.Wait()
+			_ = syncPool.Wait()
+			close(syncDone)
 		}()
 
 		select {
 		case <-ctx.Done():
 			slox.Info(ctx, "shutdown signal received")
-		case err := <-syncDone:
-			if err != nil && ctx.Err() == nil {
-				slox.Error(ctx, "sync modules failed", slog.Any("error", err))
+		case <-syncDone:
+			// A sync module returned, so we are shutting down regardless. Surface the
+			// originating cause only if it was a genuine failure — not a clean exit
+			// and not a parent-context cancellation (SIGTERM).
+			if firstErr != nil && ctx.Err() == nil {
+				slox.Error(ctx, "sync module failed", slog.Any("error", firstErr))
 
 				shutdownTimeout, cancel := context.WithTimeout(context.Background(), DefaultShutdownTimeout)
 				defer cancel()
@@ -200,10 +224,10 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 					return shutdownErr
 				}
 
-				return err
+				return oops.Wrapf(firstErr, "sync module failed")
 			}
 
-			slox.Info(ctx, "all sync modules stopped")
+			slox.Info(ctx, "a sync module stopped, shutting down")
 		}
 	} else {
 		<-ctx.Done()
