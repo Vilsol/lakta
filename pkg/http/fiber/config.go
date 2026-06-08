@@ -2,6 +2,7 @@ package fiberserver
 
 import (
 	"net/netip"
+	"time"
 
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/go-viper/mapstructure/v2"
@@ -13,6 +14,12 @@ import (
 const (
 	defaultHost = "0.0.0.0"
 	defaultPort = 8080
+)
+
+const (
+	defaultReadTimeout  = 30 * time.Second
+	defaultWriteTimeout = 60 * time.Second
+	defaultIdleTimeout  = 120 * time.Second
 )
 
 // Router registers routes on a fiber app.
@@ -85,6 +92,15 @@ func (c *Config) ToFiberConfig() fiber.Config {
 			DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
 		})
 		_ = decoder.Decode(map[string]any(c.Raw))
+	}
+	if cfg.ReadTimeout == 0 {
+		cfg.ReadTimeout = defaultReadTimeout
+	}
+	if cfg.WriteTimeout == 0 {
+		cfg.WriteTimeout = defaultWriteTimeout
+	}
+	if cfg.IdleTimeout == 0 {
+		cfg.IdleTimeout = defaultIdleTimeout
 	}
 	return cfg
 }
