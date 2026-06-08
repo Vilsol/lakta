@@ -1,10 +1,13 @@
 package otel
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/MarvinJWendt/testza"
 	"github.com/Vilsol/lakta/pkg/lakta"
+	"github.com/Vilsol/lakta/pkg/testkit"
 	semconv "go.opentelemetry.io/otel/semconv/v1.36.0"
 )
 
@@ -48,4 +51,32 @@ func TestBuildInfoAttrs_EmptyCfgVersionAllowsFallback(t *testing.T) {
 	// In test binaries Main.Version is "" or "(devel)", so no service.version attribute
 	// is expected. This test simply asserts the function doesn't panic.
 	_ = buildInfoAttrs("")
+}
+
+func TestInit_FailOpenWhenSetupErrorsAndNotRequired(t *testing.T) {
+	t.Parallel()
+
+	h := testkit.NewHarness(t)
+	m := NewModule(
+		WithRequired(false),
+		WithSetupFn(func(context.Context, string) (func(context.Context) error, error) {
+			return nil, errors.New("collector exploded")
+		}),
+	)
+
+	testza.AssertNoError(t, m.Init(h.Ctx()))
+}
+
+func TestInit_FatalWhenSetupErrorsAndRequired(t *testing.T) {
+	t.Parallel()
+
+	h := testkit.NewHarness(t)
+	m := NewModule(
+		WithRequired(true),
+		WithSetupFn(func(context.Context, string) (func(context.Context) error, error) {
+			return nil, errors.New("collector exploded")
+		}),
+	)
+
+	testza.AssertNotNil(t, m.Init(h.Ctx()))
 }

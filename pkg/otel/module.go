@@ -2,13 +2,17 @@ package otel
 
 import (
 	"context"
+	"log/slog"
 	"reflect"
 
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/Vilsol/lakta/pkg/lakta"
+	"github.com/Vilsol/slox"
 	"github.com/knadh/koanf/v2"
 	"github.com/samber/oops"
+	"go.opentelemetry.io/otel"
 	otellog "go.opentelemetry.io/otel/log"
+	"go.opentelemetry.io/otel/log/global"
 	nooplog "go.opentelemetry.io/otel/log/noop"
 	otelmetric "go.opentelemetry.io/otel/metric"
 	noopmetric "go.opentelemetry.io/otel/metric/noop"
@@ -52,28 +56,24 @@ func (m *Module) Config() Config {
 func (m *Module) Init(ctx context.Context) error {
 	if !m.config.Enabled {
 		m.providers.shutdown = func(context.Context) error { return nil }
-		lakta.ProvideValue[oteltrace.TracerProvider](ctx, nooptrace.NewTracerProvider())
-		lakta.ProvideValue[otelmetric.MeterProvider](ctx, noopmetric.NewMeterProvider())
-		lakta.ProvideValue[otellog.LoggerProvider](ctx, nooplog.NewLoggerProvider())
+		provideNoopProviders(ctx)
 		return nil
 	}
 
 	if m.config.SetupFn != nil {
 		shutdown, err := m.config.SetupFn(ctx, m.config.ServiceName)
 		if err != nil {
-			return err
+			return m.handleSetupError(ctx, err)
 		}
 		m.providers.shutdown = shutdown
-		lakta.ProvideValue[oteltrace.TracerProvider](ctx, nooptrace.NewTracerProvider())
-		lakta.ProvideValue[otelmetric.MeterProvider](ctx, noopmetric.NewMeterProvider())
-		lakta.ProvideValue[otellog.LoggerProvider](ctx, nooplog.NewLoggerProvider())
+		provideNoopProviders(ctx)
 		return nil
 	}
 
 	var err error
 	m.providers, err = setupOTelSDK(ctx, m.config)
 	if err != nil {
-		return oops.Wrapf(err, "failed to setup OpenTelemetry SDK")
+		return m.handleSetupError(ctx, err)
 	}
 
 	if m.providers.tracerProvider != nil {
@@ -91,6 +91,35 @@ func (m *Module) Init(ctx context.Context) error {
 	} else {
 		lakta.ProvideValue[otellog.LoggerProvider](ctx, nooplog.NewLoggerProvider())
 	}
+
+	return nil
+}
+
+// provideNoopProviders registers noop telemetry providers in DI.
+func provideNoopProviders(ctx context.Context) {
+	lakta.ProvideValue[oteltrace.TracerProvider](ctx, nooptrace.NewTracerProvider())
+	lakta.ProvideValue[otelmetric.MeterProvider](ctx, noopmetric.NewMeterProvider())
+	lakta.ProvideValue[otellog.LoggerProvider](ctx, nooplog.NewLoggerProvider())
+}
+
+// handleSetupError applies the fail-open policy: fatal when Required, otherwise
+// log a warning, register noop providers, and continue.
+func (m *Module) handleSetupError(ctx context.Context, err error) error {
+	if m.config.Required {
+		return oops.Wrapf(err, "failed to setup OpenTelemetry SDK")
+	}
+
+	slox.Warn(ctx, "OpenTelemetry setup failed, continuing without telemetry",
+		slog.String("module", m.config.Name), slog.Any("error", err))
+
+	m.providers = otelProviders{shutdown: func(context.Context) error { return nil }}
+
+	// Reset DI and OTel globals to noop — instrumentation (otelfiber/otelgrpc)
+	// reads the globals, not DI, and setupOTelSDK may have set them before failing.
+	provideNoopProviders(ctx)
+	otel.SetTracerProvider(nooptrace.NewTracerProvider())
+	otel.SetMeterProvider(noopmetric.NewMeterProvider())
+	global.SetLoggerProvider(nooplog.NewLoggerProvider())
 
 	return nil
 }

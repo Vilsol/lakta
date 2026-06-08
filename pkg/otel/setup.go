@@ -54,11 +54,7 @@ func setupOTelSDK(ctx context.Context, cfg Config) (otelProviders, error) {
 
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(cfg.Propagators...))
 
-	res, err := buildResource(ctx, cfg)
-	if err != nil {
-		_ = shutdownAll(ctx)
-		return otelProviders{}, err
-	}
+	res := buildResource(ctx, cfg)
 
 	var providers otelProviders
 	providers.shutdown = shutdownAll
@@ -105,7 +101,7 @@ func setupOTelSDK(ctx context.Context, cfg Config) (otelProviders, error) {
 	return providers, nil
 }
 
-func buildResource(ctx context.Context, cfg Config) (*resource.Resource, error) {
+func buildResource(ctx context.Context, cfg Config) *resource.Resource {
 	attrs := []attribute.KeyValue{
 		semconv.ServiceNameKey.String(cfg.ServiceName),
 		semconv.ServiceInstanceIDKey.String(serviceInstanceID()),
@@ -130,7 +126,14 @@ func buildResource(ctx context.Context, cfg Config) (*resource.Resource, error) 
 		resource.WithHost(),
 		resource.WithAttributes(attrs...),
 	)
-	return res, oops.Wrapf(err, "failed to create OTEL resource")
+	if err != nil {
+		slog.Default().Warn("partial OpenTelemetry resource, continuing", slog.Any("error", err))
+	}
+	if res == nil {
+		res = resource.Default()
+	}
+
+	return res
 }
 
 // buildInfoAttrs reads VCS and module version from the embedded Go build info.

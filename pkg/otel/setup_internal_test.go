@@ -80,8 +80,7 @@ func TestBuildResource_ServiceName(t *testing.T) {
 	t.Parallel()
 	cfg := NewDefaultConfig()
 	cfg.ServiceName = "my-svc"
-	res, err := buildResource(context.Background(), cfg)
-	testza.AssertNil(t, err)
+	res := buildResource(context.Background(), cfg)
 	v, ok := res.Set().Value(attribute.Key("service.name"))
 	testza.AssertTrue(t, ok)
 	testza.AssertEqual(t, "my-svc", v.AsString())
@@ -93,8 +92,7 @@ func TestBuildResource_OptionalFields(t *testing.T) {
 	cfg.ServiceVersion = "1.2.3"
 	cfg.ServiceNamespace = "myns"
 	cfg.Environment = "staging"
-	res, err := buildResource(context.Background(), cfg)
-	testza.AssertNil(t, err)
+	res := buildResource(context.Background(), cfg)
 	for key, want := range map[string]string{
 		"service.version":             "1.2.3",
 		"service.namespace":           "myns",
@@ -110,8 +108,7 @@ func TestNewTracerProvider(t *testing.T) {
 	t.Parallel()
 	cfg := NewDefaultConfig()
 	cfg.TraceExporter = tracetest.NewInMemoryExporter()
-	res, err := buildResource(context.Background(), cfg)
-	testza.AssertNil(t, err)
+	res := buildResource(context.Background(), cfg)
 	tp, err := newTracerProvider(context.Background(), cfg, res)
 	testza.AssertNil(t, err)
 	testza.AssertNotNil(t, tp)
@@ -122,8 +119,7 @@ func TestNewMeterProvider(t *testing.T) {
 	t.Parallel()
 	cfg := NewDefaultConfig()
 	cfg.MetricExporter = noopMetricExporter{}
-	res, err := buildResource(context.Background(), cfg)
-	testza.AssertNil(t, err)
+	res := buildResource(context.Background(), cfg)
 	mp, err := newMeterProvider(context.Background(), cfg, res)
 	testza.AssertNil(t, err)
 	testza.AssertNotNil(t, mp)
@@ -134,8 +130,7 @@ func TestNewLoggerProvider(t *testing.T) {
 	t.Parallel()
 	cfg := NewDefaultConfig()
 	cfg.LogExporter = noopLogExporter{}
-	res, err := buildResource(context.Background(), cfg)
-	testza.AssertNil(t, err)
+	res := buildResource(context.Background(), cfg)
 	lp, err := newLoggerProvider(context.Background(), cfg, res)
 	testza.AssertNil(t, err)
 	testza.AssertNotNil(t, lp)

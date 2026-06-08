@@ -66,6 +66,10 @@ type Config struct {
 	// Enabled controls whether OTEL is set up. When false, noop providers are registered.
 	Enabled bool `koanf:"enabled"`
 
+	// Required makes telemetry setup failures fatal. When false (default), setup
+	// failures are logged and the app continues with noop providers.
+	Required bool `koanf:"required"`
+
 	// Signals lists which telemetry signals to enable: "traces", "metrics", "logs".
 	Signals []string `koanf:"signals"`
 
@@ -95,6 +99,7 @@ func NewDefaultConfig() Config {
 		MetricInterval:  defaultMetricIntervalSeconds * time.Second,
 		RuntimeInterval: time.Second,
 		Enabled:         true,
+		Required:        false,
 		Signals:         []string{signalTraces, signalMetrics, signalLogs},
 		Propagators:     []propagation.TextMapPropagator{propagation.TraceContext{}, propagation.Baggage{}},
 	}
@@ -176,6 +181,11 @@ func WithRuntimeInterval(d time.Duration) Option {
 // WithEnabled enables or disables OTEL setup. When false, noop providers are registered.
 func WithEnabled(enabled bool) Option {
 	return func(m *Config) { m.Enabled = enabled }
+}
+
+// WithRequired makes telemetry setup failures fatal instead of fail-open.
+func WithRequired(required bool) Option {
+	return func(m *Config) { m.Required = required }
 }
 
 // WithSignals sets which telemetry signals to enable ("traces", "metrics", "logs").
