@@ -91,6 +91,9 @@ func (r *ReloadNotifier) OnReload(fn func(*koanf.Koanf)) {
 	r.callbacks = append(r.callbacks, fn)
 }
 
+// OnValidate implements config.ReloadNotifier (no-op for the test double).
+func (r *ReloadNotifier) OnValidate(_ func(*koanf.Koanf) error) {}
+
 // FireReload invokes all registered callbacks with the given koanf instance.
 func (r *ReloadNotifier) FireReload(k *koanf.Koanf) {
 	for _, fn := range r.callbacks {

@@ -93,6 +93,9 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 			if hr, ok := module.(HotReloadable); ok {
 				notifier.OnReload(hr.OnReload)
 			}
+			if v, ok := module.(ValidatableModule); ok {
+				notifier.OnValidate(v.ValidateReload)
+			}
 		}
 	}
 

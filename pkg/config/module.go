@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"log/slog"
 	"reflect"
 	"strings"
 	"sync"
@@ -34,6 +35,7 @@ type Module struct {
 	configFiles    []configFile
 	flagSet        *pflag.FlagSet
 	onReload       []func(k *koanf.Koanf)
+	onValidate     []func(k *koanf.Koanf) error
 	watcherFactory func() (fileWatcher, error)
 }
 
@@ -167,6 +169,15 @@ func (m *Module) OnReload(fn func(k *koanf.Koanf)) {
 	m.onReload = append(m.onReload, fn)
 }
 
+// OnValidate registers a validator invoked on the candidate koanf before a
+// reload is committed. A non-nil error aborts the reload.
+// Validators run under the module's write lock, so they must not call back into the config module.
+func (m *Module) OnValidate(fn func(k *koanf.Koanf) error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.onValidate = append(m.onValidate, fn)
+}
+
 func (m *Module) reload() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -191,11 +202,28 @@ func (m *Module) reload() error {
 		}
 	}
 
+	for _, validate := range m.onValidate {
+		if err := validate(newKoanf); err != nil {
+			return oops.Wrapf(err, "config reload rejected by validator")
+		}
+	}
+
 	m.koanf = newKoanf
 
 	for _, fn := range m.onReload {
-		fn(newKoanf)
+		m.safeCallback(fn, newKoanf)
 	}
 
 	return nil
+}
+
+// safeCallback runs a reload callback, isolating panics so one bad module does
+// not crash the process or prevent other callbacks from running.
+func (m *Module) safeCallback(fn func(k *koanf.Koanf), k *koanf.Koanf) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("config reload callback panicked", slog.Any("panic", r))
+		}
+	}()
+	fn(k)
 }

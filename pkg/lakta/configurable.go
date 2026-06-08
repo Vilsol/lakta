@@ -18,13 +18,23 @@ type NamedModule interface {
 	Name() string
 }
 
-// ReloadNotifier can register callbacks invoked after config hot-reload.
+// ReloadNotifier can register callbacks invoked after config hot-reload, and
+// validators invoked before a reload is committed.
 type ReloadNotifier interface {
 	OnReload(fn func(k *koanf.Koanf))
+	OnValidate(fn func(k *koanf.Koanf) error)
 }
 
 // HotReloadable is implemented by modules that react to config hot-reload.
 // The runtime automatically registers them with the ReloadNotifier after all Init calls complete.
 type HotReloadable interface {
 	OnReload(k *koanf.Koanf)
+}
+
+// ValidatableModule can veto a config hot-reload before it is committed.
+// A non-nil error aborts the reload; the previous config stays live.
+// ValidateReload runs under the config module's reload lock and must not call
+// back into the config module (e.g. Koanf()).
+type ValidatableModule interface {
+	ValidateReload(k *koanf.Koanf) error
 }
