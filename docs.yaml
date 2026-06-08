@@ -25,6 +25,30 @@ modules:
         type: bool
         envVar: LAKTA_MODULES__DB__PGX__<NAME>__HEALTH_CHECK
         description: healthCheck enables or disables the database health check mechanism
+      - key: min_conns
+        type: int32
+        envVar: LAKTA_MODULES__DB__PGX__<NAME>__MIN_CONNS
+        description: minConns is the minimum number of idle connections kept in the pool
+      - key: max_conn_lifetime
+        type: time.Duration
+        default: 1h0m0s
+        envVar: LAKTA_MODULES__DB__PGX__<NAME>__MAX_CONN_LIFETIME
+        description: maxConnLifetime is the maximum age of a connection before it is closed
+      - key: max_conn_idle_time
+        type: time.Duration
+        default: 30m0s
+        envVar: LAKTA_MODULES__DB__PGX__<NAME>__MAX_CONN_IDLE_TIME
+        description: maxConnIdleTime is the maximum idle time before a connection is closed
+      - key: health_check_period
+        type: time.Duration
+        default: 1m0s
+        envVar: LAKTA_MODULES__DB__PGX__<NAME>__HEALTH_CHECK_PERIOD
+        description: healthCheckPeriod is how often the pool checks idle connection health
+      - key: statement_timeout
+        type: time.Duration
+        default: 30s
+        envVar: LAKTA_MODULES__DB__PGX__<NAME>__STATEMENT_TIMEOUT
+        description: statementTimeout sets the per-statement timeout (Postgres statement_timeout). Zero disables it
   - category: grpc
     type: client
     package: github.com/Vilsol/lakta/pkg/grpc/client
@@ -215,6 +239,10 @@ modules:
         default: "true"
         envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__ENABLED
         description: enabled controls whether OTEL is set up. When false, noop providers are registered
+      - key: required
+        type: bool
+        envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__REQUIRED
+        description: required makes telemetry setup failures fatal. When false (default), setup
       - key: signals
         type: '[]string'
         default: '[traces metrics logs]'
