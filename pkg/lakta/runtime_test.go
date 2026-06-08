@@ -403,6 +403,18 @@ func TestRuntime_AutoLoadsConfigBeforeInit(t *testing.T) {
 	testza.AssertTrue(t, configurable.loadConfigOrder < configurable.initOrder)
 }
 
+func TestRunContext_InitPanicTriggersTeardown(t *testing.T) {
+	first := testkit.NewMockModule()
+	panicker := testkit.NewMockModule()
+	panicker.OnInit = func(context.Context) error { panic("init boom") }
+
+	rt := lakta.NewRuntime(first, panicker)
+	err := rt.RunContext(context.Background())
+
+	testza.AssertNotNil(t, err)
+	testza.AssertEqual(t, int32(1), first.ShutdownCalls.Load())
+}
+
 func TestRuntime_AutoLoadConfigError_AbortsInit(t *testing.T) {
 	t.Parallel()
 

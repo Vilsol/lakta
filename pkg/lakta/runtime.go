@@ -74,7 +74,7 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 			}
 		}
 
-		if err := module.Init(ctx); err != nil {
+		if err := safeCall(func() error { return module.Init(ctx) }); err != nil {
 			slox.Error(ctx, "failed initializing module", slog.Any("error", err))
 			r.teardown(ctx, initialized)
 
@@ -120,7 +120,7 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 		switch m := module.(type) {
 		case AsyncModule:
 			asyncPool.Go(func(ctx context.Context) error {
-				if err := m.StartAsync(ctx); err != nil {
+				if err := safeCall(func() error { return m.StartAsync(ctx) }); err != nil {
 					slox.Error(ctx, "failed starting async module",
 						slog.String("name", name), slog.Any("error", err))
 
@@ -168,7 +168,7 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 					cs.setCtx(ctx)
 				}
 
-				if err := m.Start(ctx); err != nil {
+				if err := safeCall(func() error { return m.Start(ctx) }); err != nil {
 					slox.Error(ctx, "failed starting sync module",
 						slog.String("name", name), slog.Any("error", err))
 
@@ -214,6 +214,16 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 	defer cancel()
 
 	return r.shutdown(shutdownTimeout, initialized)
+}
+
+// safeCall runs fn, converting any panic into an error with a stack trace.
+func safeCall(fn func() error) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = oops.With("stack", string(debug.Stack())).Errorf("panic: %v", r)
+		}
+	}()
+	return fn()
 }
 
 // shutdownModule runs module.Shutdown in a goroutine and races it against ctx.

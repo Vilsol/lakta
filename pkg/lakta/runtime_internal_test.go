@@ -53,3 +53,10 @@ func TestShutdownModule_RecoversPanic(t *testing.T) {
 	testza.AssertNotNil(t, err)
 	testza.AssertContains(t, err.Error(), "shutdown boom")
 }
+
+func TestSafeCall_RecoversPanic(t *testing.T) {
+	err := safeCall(func() error { panic("boom") })
+
+	testza.AssertNotNil(t, err)
+	testza.AssertContains(t, err.Error(), "boom")
+}
