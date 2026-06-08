@@ -64,3 +64,18 @@ func TestShutdown_ForcesStopOnDeadline(t *testing.T) {
 	testza.AssertNoError(t, m.Shutdown(shutdownCtx))
 	testza.AssertTrue(t, time.Since(start) < 2*time.Second, "Shutdown must force-stop within the deadline")
 }
+
+func TestKeepaliveDefaults(t *testing.T) {
+	t.Parallel()
+
+	c := NewConfig()
+
+	sp := c.KeepaliveServerParameters()
+	testza.AssertEqual(t, 5*time.Minute, sp.MaxConnectionIdle)
+	testza.AssertEqual(t, 2*time.Hour, sp.Time)
+	testza.AssertEqual(t, 20*time.Second, sp.Timeout)
+
+	ep := c.KeepaliveEnforcementPolicy()
+	testza.AssertEqual(t, 30*time.Second, ep.MinTime)
+	testza.AssertTrue(t, ep.PermitWithoutStream)
+}

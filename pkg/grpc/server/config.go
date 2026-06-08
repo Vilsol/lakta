@@ -2,16 +2,23 @@ package grpcserver
 
 import (
 	"net/netip"
+	"time"
 
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/knadh/koanf/v2"
 	"github.com/samber/oops"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 const (
 	defaultHost = "0.0.0.0"
 	defaultPort = 50051
+
+	defaultMaxConnectionIdle  = 5 * time.Minute
+	defaultKeepaliveTime      = 2 * time.Hour
+	defaultKeepaliveTimeout   = 20 * time.Second
+	defaultEnforcementMinTime = 30 * time.Second
 )
 
 // Config represents configuration for GRPC server [Module]
@@ -87,4 +94,21 @@ func WithHealthCheck(enabled bool) Option {
 // WithService adds service to the list of services to be registered (code-only).
 func WithService(serviceDescriptor *grpc.ServiceDesc, service any) Option {
 	return func(m *Config) { m.Services[serviceDescriptor] = service }
+}
+
+// KeepaliveServerParameters returns generous keepalive parameters for the server.
+func (c *Config) KeepaliveServerParameters() keepalive.ServerParameters {
+	return keepalive.ServerParameters{
+		MaxConnectionIdle: defaultMaxConnectionIdle,
+		Time:              defaultKeepaliveTime,
+		Timeout:           defaultKeepaliveTimeout,
+	}
+}
+
+// KeepaliveEnforcementPolicy returns the server's keepalive enforcement policy.
+func (c *Config) KeepaliveEnforcementPolicy() keepalive.EnforcementPolicy {
+	return keepalive.EnforcementPolicy{
+		MinTime:             defaultEnforcementMinTime,
+		PermitWithoutStream: true,
+	}
 }

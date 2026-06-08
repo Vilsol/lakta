@@ -83,6 +83,8 @@ func (m *Module) Init(ctx context.Context) error {
 
 	server := grpc.NewServer(
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+		grpc.KeepaliveParams(m.config.KeepaliveServerParameters()),
+		grpc.KeepaliveEnforcementPolicy(m.config.KeepaliveEnforcementPolicy()),
 		grpc.ChainUnaryInterceptor(
 			contextInjector,
 			logging.UnaryServerInterceptor(interceptorLogger(), logging.WithLogOnEvents(logging.FinishCall)),
