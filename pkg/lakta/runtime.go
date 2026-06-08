@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"runtime/debug"
 	"slices"
 	"syscall"
 	"time"
@@ -215,38 +216,66 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 	return r.shutdown(shutdownTimeout, initialized)
 }
 
-// teardown shuts down modules in reverse order, logging but not returning errors.
-// Used when cleaning up after an Init failure.
+// shutdownModule runs module.Shutdown in a goroutine and races it against ctx.
+// On deadline expiry the goroutine is abandoned (the process is exiting) and a
+// timeout error is returned. Panics inside Shutdown are recovered into an error.
+func shutdownModule(ctx context.Context, module Module) error {
+	done := make(chan error, 1)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				done <- oops.With("stack", string(debug.Stack())).Errorf("panic during shutdown: %v", r)
+			}
+		}()
+		done <- module.Shutdown(ctx)
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		return oops.Wrapf(ctx.Err(), "shutdown deadline exceeded")
+	}
+}
+
+// teardown shuts down modules in reverse order under a fresh deadline, logging
+// but not returning errors. Used when cleaning up after an Init failure.
 func (r *Runtime) teardown(ctx context.Context, initialized []Module) {
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), DefaultShutdownTimeout)
+	defer cancel()
+
 	for _, module := range slices.Backward(initialized) {
 		name := fmt.Sprintf("%T", module)
 
-		if err := module.Shutdown(ctx); err != nil {
-			slox.Error(
-				ctx,
-				"failed shutting down module",
-				slog.String("name", name),
-				slog.Any("error", err),
-			)
+		if timeoutCtx.Err() != nil {
+			slox.Error(ctx, "shutdown deadline exceeded, skipping module teardown", slog.String("name", name))
+			continue
+		}
+
+		if err := shutdownModule(timeoutCtx, module); err != nil {
+			slox.Error(ctx, "failed shutting down module", slog.String("name", name), slog.Any("error", err))
 		}
 	}
 }
 
-// shutdown shuts down modules in reverse order, returning the first error encountered.
+// shutdown shuts down modules in reverse order, returning the first error.
+// Modules remaining after the deadline expires are logged and skipped.
 func (r *Runtime) shutdown(ctx context.Context, initialized []Module) error {
 	var firstErr error
 
 	for _, module := range slices.Backward(initialized) {
 		name := fmt.Sprintf("%T", module)
 
-		if err := module.Shutdown(ctx); err != nil {
-			slox.Error(
-				ctx,
-				"failed shutting down module",
-				slog.String("name", name),
-				slog.Any("error", err),
-			)
+		if ctx.Err() != nil {
+			slox.Error(ctx, "shutdown deadline exceeded, skipping module", slog.String("name", name))
+			if firstErr == nil {
+				firstErr = oops.With("name", name).Wrapf(ctx.Err(), "shutdown deadline exceeded")
+			}
+			continue
+		}
 
+		if err := shutdownModule(ctx, module); err != nil {
+			slox.Error(ctx, "failed shutting down module", slog.String("name", name), slog.Any("error", err))
 			if firstErr == nil {
 				firstErr = oops.With("name", name).Wrapf(err, "failed shutting down module")
 			}
