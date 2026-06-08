@@ -1,7 +1,9 @@
 package pgx
 
 import (
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/exaring/otelpgx"
@@ -14,6 +16,13 @@ import (
 
 const (
 	defaultMaxOpenConns = 10
+)
+
+const (
+	defaultMaxConnLifetime   = time.Hour
+	defaultMaxConnIdleTime   = 30 * time.Minute
+	defaultHealthCheckPeriod = time.Minute
+	defaultStatementTimeout  = 30 * time.Second
 )
 
 // Config represents configuration for SQL Databse [Module].
@@ -33,6 +42,21 @@ type Config struct {
 	// HealthCheck enables or disables the database health check mechanism.
 	HealthCheck bool `koanf:"health_check"`
 
+	// MinConns is the minimum number of idle connections kept in the pool.
+	MinConns int32 `koanf:"min_conns"`
+
+	// MaxConnLifetime is the maximum age of a connection before it is closed.
+	MaxConnLifetime time.Duration `koanf:"max_conn_lifetime"`
+
+	// MaxConnIdleTime is the maximum idle time before a connection is closed.
+	MaxConnIdleTime time.Duration `koanf:"max_conn_idle_time"`
+
+	// HealthCheckPeriod is how often the pool checks idle connection health.
+	HealthCheckPeriod time.Duration `koanf:"health_check_period"`
+
+	// StatementTimeout sets the per-statement timeout (Postgres statement_timeout). Zero disables it.
+	StatementTimeout time.Duration `koanf:"statement_timeout"`
+
 	// logLevelParsed stores the parsed representation of the LogLevel field.
 	logLevelParsed tracelog.LogLevel `koanf:"-"`
 }
@@ -40,11 +64,16 @@ type Config struct {
 // NewDefaultConfig returns default configuration.
 func NewDefaultConfig() Config {
 	return Config{
-		Name:           config.DefaultInstanceName,
-		DSN:            "",
-		MaxOpenConns:   defaultMaxOpenConns,
-		LogLevel:       "info",
-		logLevelParsed: tracelog.LogLevelInfo,
+		Name:              config.DefaultInstanceName,
+		DSN:               "",
+		MaxOpenConns:      defaultMaxOpenConns,
+		LogLevel:          "info",
+		logLevelParsed:    tracelog.LogLevelInfo,
+		MinConns:          0,
+		MaxConnLifetime:   defaultMaxConnLifetime,
+		MaxConnIdleTime:   defaultMaxConnIdleTime,
+		HealthCheckPeriod: defaultHealthCheckPeriod,
+		StatementTimeout:  defaultStatementTimeout,
 	}
 }
 
@@ -91,6 +120,18 @@ func (c *Config) NewPoolConfig() (*pgxpool.Config, error) {
 	}
 
 	poolConfig.MaxConns = c.MaxOpenConns
+	poolConfig.MinConns = c.MinConns
+	poolConfig.MaxConnLifetime = c.MaxConnLifetime
+	poolConfig.MaxConnIdleTime = c.MaxConnIdleTime
+	poolConfig.HealthCheckPeriod = c.HealthCheckPeriod
+
+	if c.StatementTimeout > 0 {
+		if poolConfig.ConnConfig.RuntimeParams == nil {
+			poolConfig.ConnConfig.RuntimeParams = map[string]string{}
+		}
+		poolConfig.ConnConfig.RuntimeParams["statement_timeout"] = strconv.FormatInt(c.StatementTimeout.Milliseconds(), 10)
+	}
+
 	poolConfig.ConnConfig.Tracer = multitracer.New(
 		&tracelog.TraceLog{
 			Logger:   newLogger(),
@@ -130,4 +171,29 @@ func WithLogLevel(level string) Option {
 // WithHealthCheck enables or disables the database health check.
 func WithHealthCheck(enabled bool) Option {
 	return func(m *Config) { m.HealthCheck = enabled }
+}
+
+// WithMinConns sets the minimum number of idle pool connections.
+func WithMinConns(n int32) Option {
+	return func(m *Config) { m.MinConns = n }
+}
+
+// WithMaxConnLifetime sets the maximum connection age.
+func WithMaxConnLifetime(d time.Duration) Option {
+	return func(m *Config) { m.MaxConnLifetime = d }
+}
+
+// WithMaxConnIdleTime sets the maximum connection idle time.
+func WithMaxConnIdleTime(d time.Duration) Option {
+	return func(m *Config) { m.MaxConnIdleTime = d }
+}
+
+// WithHealthCheckPeriod sets the pool health-check interval.
+func WithHealthCheckPeriod(d time.Duration) Option {
+	return func(m *Config) { m.HealthCheckPeriod = d }
+}
+
+// WithStatementTimeout sets the Postgres statement_timeout. Zero disables it.
+func WithStatementTimeout(d time.Duration) Option {
+	return func(m *Config) { m.StatementTimeout = d }
 }
