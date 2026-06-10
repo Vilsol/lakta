@@ -20,7 +20,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 )
 
-require github.com/knadh/koanf/providers/env v1.1.0
+require github.com/knadh/koanf/providers/env/v2 v2.0.0
 
 require (
 	github.com/kr/pretty v0.3.1 // indirect
