@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/Vilsol/lakta/pkg/lakta"
-	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/providers/env/v2"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/knadh/koanf/v2"
