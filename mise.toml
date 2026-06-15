@@ -1,6 +1,7 @@
 [tools]
 go = "1.26.4"
 golangci-lint = "2.12.2"
+zig = "0.16.0"            # `zig cc` supplies the C linker the race detector needs (no system gcc required)
 
 [tasks.lint]
 run = "golangci-lint run"
@@ -10,6 +11,11 @@ run = "golangci-lint run --fix"
 
 [tasks.test]
 run = "go test ./..."
+
+[tasks.test-race]
+description = "Run tests with the race detector (zig cc supplies the C linker; no system gcc)"
+env = { CGO_ENABLED = "1", CC = "zig cc", CXX = "zig c++" }
+run = "go test -race -count=1 ./..."
 
 [tasks.govulncheck]
 run = "go run golang.org/x/vuln/cmd/govulncheck@latest ./..."
@@ -65,6 +71,7 @@ echo "isolation OK"
 [tasks.ci-all]
 dir = "{{ config_root }}"
 description = "Build, test, race, lint, vuln-check every workspace module"
+env = { CGO_ENABLED = "1", CC = "zig cc", CXX = "zig c++" }
 run = """
 set -e
 mods=$(go work edit -json | python3 -c 'import json,sys;[print(u["DiskPath"]) for u in json.load(sys.stdin)["Use"]]')
