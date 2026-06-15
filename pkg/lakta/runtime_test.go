@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -599,4 +600,37 @@ func TestRunContext_WiresHotReloadAndValidate(t *testing.T) {
 
 	testza.AssertNil(t, rec.validateFns[0](k))
 	testza.AssertEqual(t, k, target.validatedWith)
+}
+
+//nolint:paralleltest // sends a process-global SIGTERM; must run serially so no peer test catches it
+func TestRun_SIGTERMTriggersGracefulShutdown(t *testing.T) {
+	// Intentionally NOT parallel: this sends a process-global SIGTERM, and Go
+	// pauses parallel tests while a serial test runs, so no peer test catches it.
+	blocker := testkit.NewMockSyncModule()
+	blocker.BlockStart = make(chan struct{}) // blocks Start until ctx is cancelled
+
+	rt := lakta.NewRuntime(blocker)
+
+	done := make(chan error, 1)
+	go func() { done <- rt.Run() }()
+
+	// Wait until Start is entered — by then Run has installed its SIGTERM handler,
+	// so the signal is delivered to the runtime instead of terminating the binary.
+	deadline := time.Now().Add(2 * time.Second)
+	for blocker.StartCalls.Load() == 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("sync module never started")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	testza.AssertNil(t, syscall.Kill(syscall.Getpid(), syscall.SIGTERM))
+
+	select {
+	case err := <-done:
+		testza.AssertNil(t, err)
+		testza.AssertEqual(t, int32(1), blocker.ShutdownCalls.Load())
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run did not return after SIGTERM")
+	}
 }
