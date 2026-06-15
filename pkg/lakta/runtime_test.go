@@ -478,3 +478,66 @@ func TestRunContext_SyncModuleErrorIsSurfaced(t *testing.T) {
 		t.Fatal("RunContext hung")
 	}
 }
+
+func TestRunContext_AsyncStartFailure_ShutsDownInitialized(t *testing.T) {
+	t.Parallel()
+
+	startErr := errors.New("async start boom")
+	failer := testkit.NewMockAsyncModule()
+	failer.StartAsyncErr = startErr
+
+	sibling := testkit.NewMockModule() // plain module, also initialized
+
+	rt := lakta.NewRuntime(failer, sibling)
+
+	done := make(chan error, 1)
+	go func() { done <- rt.RunContext(context.Background()) }()
+
+	select {
+	case err := <-done:
+		testza.AssertNotNil(t, err)
+		testza.AssertContains(t, err.Error(), startErr.Error())
+		// Every initialized module must be shut down when an async start fails.
+		testza.AssertEqual(t, int32(1), failer.ShutdownCalls.Load())
+		testza.AssertEqual(t, int32(1), sibling.ShutdownCalls.Load())
+	case <-time.After(5 * time.Second):
+		t.Fatal("RunContext hung after async start failure")
+	}
+}
+
+func TestRunContext_AsyncFailure_CancelsSiblingAsync(t *testing.T) {
+	t.Parallel()
+
+	startErr := errors.New("async boom")
+	failer := testkit.NewMockAsyncModule()
+	failer.StartAsyncErr = startErr
+
+	// A sibling async module that blocks until its context is cancelled — it must
+	// observe the cancellation triggered by the failing peer (WithCancelOnError).
+	sibling := testkit.NewMockAsyncModule()
+	cancelled := make(chan struct{})
+	sibling.OnStartAsync = func(ctx context.Context) error {
+		<-ctx.Done()
+		close(cancelled)
+		return ctx.Err()
+	}
+
+	rt := lakta.NewRuntime(failer, sibling)
+
+	done := make(chan error, 1)
+	go func() { done <- rt.RunContext(context.Background()) }()
+
+	select {
+	case <-cancelled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("async sibling was not cancelled when its peer failed")
+	}
+
+	select {
+	case err := <-done:
+		testza.AssertNotNil(t, err)
+		testza.AssertContains(t, err.Error(), startErr.Error())
+	case <-time.After(5 * time.Second):
+		t.Fatal("RunContext did not return after async failure")
+	}
+}
