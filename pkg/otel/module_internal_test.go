@@ -8,7 +8,12 @@ import (
 	"github.com/MarvinJWendt/testza"
 	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/Vilsol/lakta/pkg/testkit"
+	"github.com/samber/do/v2"
+	otelmetric "go.opentelemetry.io/otel/metric"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	semconv "go.opentelemetry.io/otel/semconv/v1.36.0"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 var (
@@ -79,4 +84,28 @@ func TestInit_FatalWhenSetupErrorsAndRequired(t *testing.T) {
 	)
 
 	testza.AssertNotNil(t, m.Init(h.Ctx()))
+}
+
+//nolint:paralleltest // real setupOTelSDK mutates global OTel state; runs serially
+func TestInit_RegistersRealProvidersInDI(t *testing.T) {
+	h := testkit.NewHarness(t)
+	m := NewModule(
+		WithEnabled(true),
+		WithSignals(signalTraces),
+		WithTraceExporter(tracetest.NewInMemoryExporter()),
+	)
+
+	testza.AssertNil(t, m.Init(h.Ctx()))
+	t.Cleanup(func() { _ = m.Shutdown(context.Background()) })
+
+	// The enabled signal registers the real SDK tracer provider...
+	tp, err := do.Invoke[oteltrace.TracerProvider](h.Injector())
+	testza.AssertNil(t, err)
+	_, isSDK := tp.(*sdktrace.TracerProvider)
+	testza.AssertTrue(t, isSDK)
+
+	// ...and disabled signals still register noop providers so DI lookups succeed.
+	mp, err := do.Invoke[otelmetric.MeterProvider](h.Injector())
+	testza.AssertNil(t, err)
+	testza.AssertNotNil(t, mp)
 }

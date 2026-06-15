@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/MarvinJWendt/testza"
@@ -13,8 +14,24 @@ import (
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
+
+// recordingSpanExporter records whether Shutdown was invoked, so rollback tests
+// can assert an already-built provider was torn down.
+type recordingSpanExporter struct {
+	shutdownCalls atomic.Int32
+}
+
+func (*recordingSpanExporter) ExportSpans(context.Context, []sdktrace.ReadOnlySpan) error {
+	return nil
+}
+
+func (e *recordingSpanExporter) Shutdown(context.Context) error {
+	e.shutdownCalls.Add(1)
+	return nil
+}
 
 const testEndpoint = "localhost:59999"
 
@@ -279,4 +296,25 @@ func TestSetupOTelSDK_NoSignals(t *testing.T) {
 	testza.AssertNil(t, providers.meterProvider)
 	testza.AssertNil(t, providers.loggerProvider)
 	testza.AssertNil(t, providers.shutdown(context.Background()))
+}
+
+//nolint:paralleltest // mutates global OTel state; setupOTelSDK tests run serially
+func TestSetupOTelSDK_RollsBackWhenLaterSignalFails(t *testing.T) {
+	traceExp := &recordingSpanExporter{}
+
+	cfg := NewDefaultConfig()
+	// Traces succeed (injected exporter), then metrics fail because the real HTTP
+	// exporter cannot construct from an invalid endpoint — forcing the rollback path.
+	cfg.Signals = []string{signalTraces, signalMetrics}
+	cfg.TraceExporter = traceExp
+	cfg.Protocol = protocolHTTPProtobuf
+	cfg.Endpoint = "::::" // invalid port → otlpmetrichttp.New fails
+
+	providers, err := setupOTelSDK(context.Background(), cfg)
+
+	testza.AssertNotNil(t, err)
+	// Rollback returns empty providers and shuts down the already-built trace provider.
+	testza.AssertNil(t, providers.tracerProvider)
+	testza.AssertNil(t, providers.meterProvider)
+	testza.AssertEqual(t, int32(1), traceExp.shutdownCalls.Load())
 }
