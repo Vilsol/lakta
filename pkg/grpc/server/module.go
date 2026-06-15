@@ -81,7 +81,12 @@ func (m *Module) Init(ctx context.Context) error {
 		return status.Errorf(codes.Unknown, "panic triggered: %v", p)
 	}
 
-	server := grpc.NewServer(
+	creds, err := m.config.ServerCredentials()
+	if err != nil {
+		return oops.Wrapf(err, "failed to resolve server credentials")
+	}
+
+	serverOptions := []grpc.ServerOption{
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.KeepaliveParams(m.config.KeepaliveServerParameters()),
 		grpc.KeepaliveEnforcementPolicy(m.config.KeepaliveEnforcementPolicy()),
@@ -95,7 +100,13 @@ func (m *Module) Init(ctx context.Context) error {
 			logging.StreamServerInterceptor(interceptorLogger(), logging.WithLogOnEvents(logging.FinishCall)),
 			recovery.StreamServerInterceptor(recovery.WithRecoveryHandler(recoveryHandler)),
 		),
-	)
+	}
+
+	if creds != nil {
+		serverOptions = append(serverOptions, grpc.Creds(creds))
+	}
+
+	server := grpc.NewServer(serverOptions...)
 
 	for descriptor, service := range m.config.Services {
 		server.RegisterService(descriptor, service)

@@ -64,9 +64,14 @@ modules:
         type: bool
         envVar: LAKTA_MODULES__GRPC__CLIENT__<NAME>__INSECURE
         description: insecure determines whether transport credentials should use an insecure configuration
+      - key: tls
+        type: config.TLS
+        envVar: LAKTA_MODULES__GRPC__CLIENT__<NAME>__TLS
+        description: tLS configures file-path based transport security (client cert for mutual
     codeOnly:
-      - option: Credentials
+      - option: WithCredentials
         type: credentials.TransportCredentials
+        description: sets explicit transport credentials, overriding Insecure and
       - option: WithClient
         type: '[]client.ClientRegistrar'
         description: registers a typed client constructor (code-only)
@@ -90,10 +95,17 @@ modules:
         type: bool
         envVar: LAKTA_MODULES__GRPC__SERVER__<NAME>__HEALTH_CHECK
         description: healthCheck determines whether gRPC health checking is enabled or disabled
+      - key: tls
+        type: config.TLS
+        envVar: LAKTA_MODULES__GRPC__SERVER__<NAME>__TLS
+        description: tLS configures file-path based transport security. When unset the server
     codeOnly:
       - option: WithService
         type: map[*grpc.ServiceDesc]any
         description: adds service to the list of services to be registered (code-only)
+      - option: WithCredentials
+        type: credentials.TransportCredentials
+        description: sets explicit transport credentials, overriding TLS file
   - category: health
     type: health
     package: github.com/Vilsol/lakta/pkg/health
@@ -132,6 +144,10 @@ modules:
         type: string
         envVar: LAKTA_MODULES__HTTP__FIBER__<NAME>__HEALTH_PATH
         description: healthPath defines the endpoint path for the health check
+      - key: tls
+        type: config.TLS
+        envVar: LAKTA_MODULES__HTTP__FIBER__<NAME>__TLS
+        description: tLS configures file-path based transport security. When unset the server
     passthrough:
       targetType: Config
       targetPackage: github.com/gofiber/fiber/v3
@@ -141,6 +157,9 @@ modules:
       - option: WithDefaults
         type: '*fiber.Config'
         description: sets typed fiber.Config defaults that can be overridden by Raw/koanf values
+      - option: WithTLSConfig
+        type: '*tls.Config'
+        description: sets an explicit *tls.Config, overriding TLS file config. Use
       - option: WithRouter
         type: '[]fiber.Router'
         description: adds router to the list of routers to be invoked (code-only)

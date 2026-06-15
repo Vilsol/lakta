@@ -64,7 +64,10 @@ func (m *Module) Init(ctx context.Context) error {
 func (m *Module) StartAsync(ctx context.Context) error {
 	conn, err := pgxpool.NewWithConfig(ctx, m.poolConfig)
 	if err != nil {
-		return oops.With("dsn", m.config.DSN).
+		// Attach host/database only — the raw DSN embeds the password.
+		return oops.
+			With("host", m.poolConfig.ConnConfig.Host).
+			With("database", m.poolConfig.ConnConfig.Database).
 			Wrapf(err, "failed to connect to database")
 	}
 

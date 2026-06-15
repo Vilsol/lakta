@@ -2,6 +2,7 @@ package fiberserver
 
 import (
 	"context"
+	"crypto/tls"
 	"log/slog"
 	"net"
 	"net/netip"
@@ -112,12 +113,25 @@ func (m *Module) Start(ctx context.Context) error {
 	m.listener = listener
 	m.mu.Unlock()
 
-	slox.Info(ctx, "fiber http server started", slog.String("address", m.addrPort.String()))
+	tlsConfig, err := m.config.ResolveTLS()
+	if err != nil {
+		return oops.Wrapf(err, "failed to resolve TLS config")
+	}
+
+	serveListener := listener
+	scheme := "http"
+	if tlsConfig != nil {
+		serveListener = tls.NewListener(listener, tlsConfig)
+		scheme = "https"
+	}
+
+	slox.Info(ctx, "fiber http server started",
+		slog.String("address", m.addrPort.String()), slog.String("scheme", scheme))
 
 	var wg errgroup.Group
 
 	wg.Go(func() error {
-		return oops.Wrapf(m.server.Listener(listener), "failed to start fiber http server")
+		return oops.Wrapf(m.server.Listener(serveListener), "failed to start fiber http server")
 	})
 
 	startDone := make(chan error, 1)

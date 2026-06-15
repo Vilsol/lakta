@@ -144,7 +144,7 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 	if err := asyncPool.Wait(); err != nil {
 		slox.Error(ctx, "async modules failed", slog.Any("error", err))
 
-		shutdownTimeout, cancel := context.WithTimeout(context.Background(), DefaultShutdownTimeout)
+		shutdownTimeout, cancel := shutdownContext(ctx)
 		defer cancel()
 
 		if shutdownErr := r.shutdown(shutdownTimeout, initialized); shutdownErr != nil {
@@ -220,7 +220,7 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 			if firstErr != nil && ctx.Err() == nil {
 				slox.Error(ctx, "sync module failed", slog.Any("error", firstErr))
 
-				shutdownTimeout, cancel := context.WithTimeout(context.Background(), DefaultShutdownTimeout)
+				shutdownTimeout, cancel := shutdownContext(ctx)
 				defer cancel()
 
 				if shutdownErr := r.shutdown(shutdownTimeout, initialized); shutdownErr != nil {
@@ -237,10 +237,17 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 		slox.Info(ctx, "shutdown signal received")
 	}
 
-	shutdownTimeout, cancel := context.WithTimeout(context.Background(), DefaultShutdownTimeout)
+	shutdownTimeout, cancel := shutdownContext(ctx)
 	defer cancel()
 
 	return r.shutdown(shutdownTimeout, initialized)
+}
+
+// shutdownContext derives a fresh timeout context for shutdown. It preserves
+// ctx values (logger, injector) but is detached from ctx cancellation, which is
+// typically already triggered by the time shutdown runs.
+func shutdownContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), DefaultShutdownTimeout)
 }
 
 // safeCall runs fn, converting any panic into an error with a stack trace.
@@ -278,7 +285,7 @@ func shutdownModule(ctx context.Context, module Module) error {
 // teardown shuts down modules in reverse order under a fresh deadline, logging
 // but not returning errors. Used when cleaning up after an Init failure.
 func (r *Runtime) teardown(ctx context.Context, initialized []Module) {
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), DefaultShutdownTimeout)
+	timeoutCtx, cancel := shutdownContext(ctx)
 	defer cancel()
 
 	for _, module := range slices.Backward(initialized) {

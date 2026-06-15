@@ -8,6 +8,7 @@ import (
 	"github.com/knadh/koanf/v2"
 	"github.com/samber/oops"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 )
 
@@ -35,8 +36,17 @@ type Config struct {
 	// HealthCheck determines whether gRPC health checking is enabled or disabled.
 	HealthCheck bool `koanf:"health_check"`
 
+	// TLS configures file-path based transport security. When unset the server
+	// listens in plaintext.
+	TLS config.TLS `koanf:"tls"`
+
 	// Services is a map of gRPC service descriptors and their implementations to be registered on the server.
 	Services map[*grpc.ServiceDesc]any `code_only:"WithService" koanf:"-"`
+
+	// Credentials overrides TLS with explicit transport credentials, e.g. a
+	// SPIFFE/SPIRE source via credentials.NewTLS(tlsconfig.MTLSServerConfig(...)).
+	// Takes precedence over TLS when set.
+	Credentials credentials.TransportCredentials `code_only:"WithCredentials" koanf:"-"`
 }
 
 // NewDefaultConfig returns default configuration
@@ -94,6 +104,31 @@ func WithHealthCheck(enabled bool) Option {
 // WithService adds service to the list of services to be registered (code-only).
 func WithService(serviceDescriptor *grpc.ServiceDesc, service any) Option {
 	return func(m *Config) { m.Services[serviceDescriptor] = service }
+}
+
+// WithCredentials sets explicit transport credentials, overriding TLS file
+// config. Use for in-process sources such as SPIFFE/SPIRE (code-only).
+func WithCredentials(creds credentials.TransportCredentials) Option {
+	return func(m *Config) { m.Credentials = creds }
+}
+
+// ServerCredentials resolves the transport credentials for the server:
+// explicit Credentials win, otherwise TLS file paths are loaded, otherwise nil
+// (plaintext).
+func (c *Config) ServerCredentials() (credentials.TransportCredentials, error) { //nolint:ireturn
+	if c.Credentials != nil {
+		return c.Credentials, nil
+	}
+
+	tlsCfg, err := c.TLS.ServerConfig()
+	if err != nil {
+		return nil, oops.Wrapf(err, "failed to build server TLS config")
+	}
+	if tlsCfg == nil {
+		return nil, nil
+	}
+
+	return credentials.NewTLS(tlsCfg), nil
 }
 
 // KeepaliveServerParameters returns generous keepalive parameters for the server.

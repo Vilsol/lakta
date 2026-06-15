@@ -1,6 +1,7 @@
 package fiberserver
 
 import (
+	"crypto/tls"
 	"net/netip"
 	"time"
 
@@ -39,8 +40,16 @@ type Config struct {
 	// HealthPath defines the endpoint path for the health check.
 	HealthPath string `koanf:"health_path"`
 
+	// TLS configures file-path based transport security. When unset the server
+	// listens in plaintext.
+	TLS config.TLS `koanf:"tls"`
+
 	// Defaults stores the base fiber.Config values that can be overridden by Raw or koanf configurations.
 	Defaults *fiber.Config `code_only:"WithDefaults" koanf:"-"`
+
+	// TLSConfig overrides TLS with an explicit *tls.Config, e.g. a SPIFFE/SPIRE
+	// source via tlsconfig.MTLSServerConfig(...). Takes precedence over TLS.
+	TLSConfig *tls.Config `code_only:"WithTLSConfig" koanf:"-"`
 
 	// Routers defines a list of Router functions to configure routes for a Fiber application.
 	Routers []Router `code_only:"WithRouter" koanf:"-"`
@@ -136,4 +145,22 @@ func WithDefaults(cfg fiber.Config) Option {
 // WithRouter adds router to the list of routers to be invoked (code-only).
 func WithRouter(router Router) Option {
 	return func(m *Config) { m.Routers = append(m.Routers, router) }
+}
+
+// WithTLSConfig sets an explicit *tls.Config, overriding TLS file config. Use
+// for in-process sources such as SPIFFE/SPIRE (code-only).
+func WithTLSConfig(cfg *tls.Config) Option {
+	return func(m *Config) { m.TLSConfig = cfg }
+}
+
+// ResolveTLS returns the effective *tls.Config: explicit TLSConfig wins,
+// otherwise TLS file paths are loaded, otherwise nil (plaintext).
+func (c *Config) ResolveTLS() (*tls.Config, error) {
+	if c.TLSConfig != nil {
+		return c.TLSConfig, nil
+	}
+
+	cfg, err := c.TLS.ServerConfig()
+
+	return cfg, oops.Wrapf(err, "failed to build TLS config")
 }

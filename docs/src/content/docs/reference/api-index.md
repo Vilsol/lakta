@@ -52,6 +52,7 @@ pkg/config: Apply, Config, NewConfig, NewDefaultConfig (low-level/boilerplate co
 | `ModulePath(category, type, instance string) string` | Generate a `modules.<category>.<type>.<instance>` path |
 | `UnmarshalKoanf[C](c *C, k *koanf.Koanf, path string) error` | Decode a config sub-tree into a typed struct (used in `LoadConfig`) |
 | `Passthrough[T]` | `map[string]any` field type that captures extra keys for raw passthrough |
+| `TLS` | Embeddable file-path TLS config (`cert_file`/`key_file`/`ca_file`/`client_ca_file`/`client_auth`); builds server/client `*tls.Config` |
 | `Validatable` | Adds `Validate() error`; bound configs are validated on load/reload |
 | `ReloadNotifier` | Subscribe to hot-reload events |
 | `ReloadNotifier.OnReload(fn)` | Register a reload callback |

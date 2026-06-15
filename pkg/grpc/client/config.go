@@ -36,8 +36,13 @@ type Config struct {
 	// Insecure determines whether transport credentials should use an insecure configuration.
 	Insecure bool `koanf:"insecure"`
 
-	// Credentials specifies the transport credentials for the gRPC connection; ignored if Insecure is true.
-	Credentials credentials.TransportCredentials `code_only:"true" koanf:"-"`
+	// TLS configures file-path based transport security (client cert for mutual
+	// TLS, CA bundle to verify the server). Ignored if Insecure or Credentials is set.
+	TLS config.TLS `koanf:"tls"`
+
+	// Credentials specifies the transport credentials for the gRPC connection,
+	// e.g. a SPIFFE/SPIRE source; takes precedence over Insecure and TLS.
+	Credentials credentials.TransportCredentials `code_only:"WithCredentials" koanf:"-"`
 
 	// ClientRegistrars contains a list of functions to register typed gRPC clients with a client connection during setup.
 	ClientRegistrars []ClientRegistrar `code_only:"WithClient" koanf:"-"`
@@ -62,15 +67,26 @@ func (c *Config) LoadFromKoanf(k *koanf.Koanf, path string) error {
 	return oops.Wrapf(config.UnmarshalKoanf(c, k, path), "failed to unmarshal config")
 }
 
-// GetCredentials returns the transport credentials, applying Insecure if set.
-func (c *Config) GetCredentials() credentials.TransportCredentials { //nolint:ireturn
+// GetCredentials resolves the transport credentials: explicit Credentials win,
+// then Insecure, then TLS file paths, otherwise nil (gRPC then rejects the dial
+// unless the caller supplies credentials, i.e. fail-closed).
+func (c *Config) GetCredentials() (credentials.TransportCredentials, error) { //nolint:ireturn
 	if c.Credentials != nil {
-		return c.Credentials
+		return c.Credentials, nil
 	}
 	if c.Insecure {
-		return insecure.NewCredentials()
+		return insecure.NewCredentials(), nil
 	}
-	return nil
+
+	tlsCfg, err := c.TLS.ClientConfig()
+	if err != nil {
+		return nil, oops.Wrapf(err, "failed to build client TLS config")
+	}
+	if tlsCfg != nil {
+		return credentials.NewTLS(tlsCfg), nil
+	}
+
+	return nil, nil
 }
 
 // KeepaliveParams returns generous client keepalive parameters.
@@ -83,15 +99,21 @@ func (c *Config) KeepaliveParams() keepalive.ClientParameters {
 }
 
 // DialOptions returns grpc.DialOption slice for creating a client connection.
-func (c *Config) DialOptions() []grpc.DialOption {
+func (c *Config) DialOptions() ([]grpc.DialOption, error) {
 	opts := []grpc.DialOption{
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		grpc.WithKeepaliveParams(c.KeepaliveParams()),
 	}
-	if creds := c.GetCredentials(); creds != nil {
+
+	creds, err := c.GetCredentials()
+	if err != nil {
+		return nil, err
+	}
+	if creds != nil {
 		opts = append(opts, grpc.WithTransportCredentials(creds))
 	}
-	return opts
+
+	return opts, nil
 }
 
 // Option configures the Module.
@@ -110,6 +132,12 @@ func WithTarget(target string) Option {
 // WithInsecure enables or disables insecure transport credentials.
 func WithInsecure(insecure bool) Option {
 	return func(m *Config) { m.Insecure = insecure }
+}
+
+// WithCredentials sets explicit transport credentials, overriding Insecure and
+// TLS file config. Use for in-process sources such as SPIFFE/SPIRE (code-only).
+func WithCredentials(creds credentials.TransportCredentials) Option {
+	return func(m *Config) { m.Credentials = creds }
 }
 
 // WithClient registers a typed client constructor (code-only).

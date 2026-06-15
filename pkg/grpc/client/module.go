@@ -41,7 +41,12 @@ func (m *Module) LoadConfig(k *koanf.Koanf) error {
 // Init loads configuration, creates the gRPC connection, and registers typed clients.
 func (m *Module) Init(ctx context.Context) error {
 	// Create connection using config-provided options
-	conn, err := grpc.NewClient(m.config.Target, m.config.DialOptions()...)
+	dialOptions, err := m.config.DialOptions()
+	if err != nil {
+		return oops.Wrapf(err, "failed to resolve dial options")
+	}
+
+	conn, err := grpc.NewClient(m.config.Target, dialOptions...)
 	if err != nil {
 		return oops.Wrap(err)
 	}
