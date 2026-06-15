@@ -9,9 +9,20 @@ import (
 	"github.com/Vilsol/lakta/pkg/health"
 	"github.com/Vilsol/lakta/pkg/testkit"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/status"
 )
+
+// panicHealthServer panics on Check to exercise the recovery interceptor.
+type panicHealthServer struct {
+	healthpb.UnimplementedHealthServer
+}
+
+func (panicHealthServer) Check(context.Context, *healthpb.HealthCheckRequest) (*healthpb.HealthCheckResponse, error) {
+	panic("handler boom")
+}
 
 func TestGRPCServerModule_Listens(t *testing.T) {
 	t.Parallel()
@@ -93,4 +104,33 @@ func TestGRPCServerModule_AddrNilBeforeStart(t *testing.T) {
 
 	m := grpcserver.NewModule()
 	testza.AssertNil(t, m.Addr())
+}
+
+func TestGRPCServerModule_PanicRecovery(t *testing.T) {
+	t.Parallel()
+
+	m := grpcserver.NewModule(
+		grpcserver.WithHost("127.0.0.1"),
+		grpcserver.WithPort(0),
+		grpcserver.WithService(&healthpb.Health_ServiceDesc, panicHealthServer{}),
+	)
+
+	testkit.NewRuntimeHarness(t, m)
+	addr := testkit.WaitForAddr(t, m)
+
+	conn, err := grpc.NewClient(addr.String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	testza.AssertNil(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+
+	resp, err := healthpb.NewHealthClient(conn).Check(context.Background(), &healthpb.HealthCheckRequest{})
+
+	// The recovery interceptor must turn the panic into a gRPC status rather than
+	// crashing the server or dropping the connection.
+	testza.AssertNil(t, resp)
+	testza.AssertNotNil(t, err)
+
+	st, ok := status.FromError(err)
+	testza.AssertTrue(t, ok)
+	testza.AssertEqual(t, codes.Unknown, st.Code())
+	testza.AssertContains(t, st.Message(), "panic triggered")
 }
