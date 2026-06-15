@@ -11,6 +11,18 @@ run = "golangci-lint run --fix"
 [tasks.test]
 run = "go test ./..."
 
+[tasks.test-integration]
+dir = "{{ config_root }}"
+description = "Run DB + Temporal integration tests against real services (needs Docker + Postgres on localhost:5432 with test/test/test)"
+run = """
+set -e
+export LAKTA_INTEGRATION=1
+export CGO_ENABLED=1
+( cd ./pkg/db/drivers/pgx && go test -race -count=1 ./... )
+( cd ./pkg/db/sql && go test -race -count=1 ./... )
+( cd ./pkg/workflows/temporal && go test -race -tags integration -count=1 ./... )
+"""
+
 [tasks.govulncheck]
 run = "go run golang.org/x/vuln/cmd/govulncheck@latest ./..."
 
