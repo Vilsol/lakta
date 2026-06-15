@@ -1,7 +1,9 @@
 package fiberserver_test
 
 import (
+	"context"
 	"io"
+	"net"
 	"net/http"
 	"testing"
 
@@ -11,6 +13,29 @@ import (
 	"github.com/Vilsol/lakta/pkg/testkit"
 	"github.com/gofiber/fiber/v3"
 )
+
+func TestFiberModule_StartBindFailure(t *testing.T) {
+	t.Parallel()
+
+	// Occupy a port, then point the server at it so Listen fails.
+	occupied, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
+	testza.AssertNil(t, err)
+	t.Cleanup(func() { _ = occupied.Close() })
+	tcpAddr, ok := occupied.Addr().(*net.TCPAddr)
+	testza.AssertTrue(t, ok)
+	port := uint16(tcpAddr.Port) //nolint:gosec // OS-assigned ephemeral port fits uint16
+
+	m := fiberserver.NewModule(
+		fiberserver.WithHost("127.0.0.1"),
+		fiberserver.WithPort(port),
+	)
+
+	rh := testkit.NewRuntimeHarness(t, m)
+	startErr := rh.Shutdown()
+
+	testza.AssertNotNil(t, startErr)
+	testza.AssertContains(t, startErr.Error(), "failed to listen")
+}
 
 func TestFiberModule_Listens(t *testing.T) {
 	t.Parallel()

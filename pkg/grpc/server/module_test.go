@@ -2,6 +2,7 @@ package grpcserver_test
 
 import (
 	"context"
+	"net"
 	"testing"
 
 	"github.com/MarvinJWendt/testza"
@@ -104,6 +105,29 @@ func TestGRPCServerModule_AddrNilBeforeStart(t *testing.T) {
 
 	m := grpcserver.NewModule()
 	testza.AssertNil(t, m.Addr())
+}
+
+func TestGRPCServerModule_StartBindFailure(t *testing.T) {
+	t.Parallel()
+
+	// Occupy a port, then point the server at it so Listen fails.
+	occupied, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
+	testza.AssertNil(t, err)
+	t.Cleanup(func() { _ = occupied.Close() })
+	tcpAddr, ok := occupied.Addr().(*net.TCPAddr)
+	testza.AssertTrue(t, ok)
+	port := uint16(tcpAddr.Port) //nolint:gosec // OS-assigned ephemeral port fits uint16
+
+	m := grpcserver.NewModule(
+		grpcserver.WithHost("127.0.0.1"),
+		grpcserver.WithPort(port),
+	)
+
+	rh := testkit.NewRuntimeHarness(t, m)
+	startErr := rh.Shutdown()
+
+	testza.AssertNotNil(t, startErr)
+	testza.AssertContains(t, startErr.Error(), "failed to listen")
 }
 
 func TestGRPCServerModule_PanicRecovery(t *testing.T) {
