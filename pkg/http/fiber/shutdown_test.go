@@ -87,3 +87,52 @@ func TestFiberModule_ShutdownDrainsAndClosesListener(t *testing.T) {
 		t.Fatal("expected connection to be refused after shutdown")
 	}
 }
+
+func TestFiberModule_ShutdownDeadlineExceeded(t *testing.T) {
+	t.Parallel()
+
+	reached := make(chan struct{}, 1)
+	released := make(chan struct{})
+
+	m := fiberserver.NewModule(
+		fiberserver.WithHost("127.0.0.1"),
+		fiberserver.WithPort(0),
+		fiberserver.WithRouter(func(app *fiber.App) {
+			app.Get("/slow", func(c fiber.Ctx) error {
+				reached <- struct{}{}
+				<-released
+				return c.SendString("done")
+			})
+		}),
+	)
+
+	testkit.NewRuntimeHarness(t, m)
+	// Registered after the harness so LIFO cleanup releases the in-flight request
+	// before the harness's own graceful shutdown tries to drain it.
+	t.Cleanup(func() { close(released) })
+
+	addr := testkit.WaitForAddr(t, m)
+
+	go func() {
+		req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://"+addr.String()+"/slow", nil)
+		if resp, reqErr := http.DefaultClient.Do(req); reqErr == nil {
+			_ = resp.Body.Close()
+		}
+	}()
+
+	select {
+	case <-reached:
+	case <-time.After(2 * time.Second):
+		t.Fatal("request did not reach handler")
+	}
+
+	// Shut down with an already-expired deadline while the request is in-flight:
+	// draining cannot complete, so Shutdown must surface an error.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancel()
+	time.Sleep(10 * time.Millisecond) // ensure the deadline has elapsed
+
+	err := m.Shutdown(ctx)
+	testza.AssertNotNil(t, err)
+	testza.AssertContains(t, err.Error(), "shutdown")
+}

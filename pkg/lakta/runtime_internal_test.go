@@ -3,6 +3,7 @@ package lakta
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,6 +16,14 @@ type blockingShutdownModule struct {
 
 func (blockingShutdownModule) Init(context.Context) error       { return nil }
 func (m blockingShutdownModule) Shutdown(context.Context) error { <-m.release; return nil }
+
+type countingShutdownModule struct{ calls atomic.Int32 }
+
+func (*countingShutdownModule) Init(context.Context) error { return nil }
+func (m *countingShutdownModule) Shutdown(context.Context) error {
+	m.calls.Add(1)
+	return nil
+}
 
 type quickModule struct{ err error }
 
@@ -67,4 +76,24 @@ func TestSafeCall_RecoversPanic(t *testing.T) {
 
 	testza.AssertNotNil(t, err)
 	testza.AssertContains(t, err.Error(), "boom")
+}
+
+func TestShutdown_DeadlineExceeded_SkipsRemaining(t *testing.T) {
+	t.Parallel()
+
+	skipped := &countingShutdownModule{}
+	blocker := blockingShutdownModule{release: make(chan struct{})}
+	t.Cleanup(func() { close(blocker.release) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	r := &Runtime{}
+	// Reverse order: blocker shuts down first and runs past the deadline, so the
+	// remaining module is skipped and a deadline error is returned.
+	err := r.shutdown(ctx, []Module{skipped, blocker})
+
+	testza.AssertNotNil(t, err)
+	testza.AssertContains(t, err.Error(), "deadline exceeded")
+	testza.AssertEqual(t, int32(0), skipped.calls.Load())
 }
