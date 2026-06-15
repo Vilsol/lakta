@@ -10,6 +10,8 @@ github.com/MarvinJWendt/testza v0.5.2 h1:53KDo64C1z/h/d/stCYCPY69bt/OSwjq5KpFNwi
 github.com/MarvinJWendt/testza v0.5.2/go.mod h1:xu53QFE5sCdjtMCKk8YMQ2MnymimEctc4n3EjyIYvEY=
 github.com/Vilsol/lakta/pkg/testkit v0.1.3 h1:q6Sd59nhHtNyOVCceJSRl+JXGCn6cH4kbpFZw3Rrc5s=
 github.com/Vilsol/lakta/pkg/testkit v0.1.3/go.mod h1:a3oyvwrsPsXhpAQDM3UBex9gGFsY9VoR3FbwoKQyFpY=
+github.com/Vilsol/lakta/pkg/testkit v0.2.0 h1:khVLugVza2sJK0qdoExHfjftJ9oK9LP6gm0m7N4er1o=
+github.com/Vilsol/lakta/pkg/testkit v0.2.0/go.mod h1:2+bHBTQGZegHVqidzuTFHjf/pk1bip3y7KtfdjmhehQ=
 github.com/Vilsol/slox v0.1.0 h1:oppc4Q6Bym47mbeGIxO+uKaxHbzGNMWn9BQxRMHKKcE=
 github.com/Vilsol/slox v0.1.0/go.mod h1:UrkiCYCauzAFx23xq4AdvxllP78nVfCUqJ74Op1/KWw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
