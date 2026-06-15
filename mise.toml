@@ -1,6 +1,7 @@
 [tools]
 go = "1.26.4"
 golangci-lint = "2.12.2"
+zig = "0.16.0"            # `zig cc` supplies the C linker the race detector needs (no system gcc required)
 
 [tasks.lint]
 run = "golangci-lint run"
@@ -11,13 +12,17 @@ run = "golangci-lint run --fix"
 [tasks.test]
 run = "go test ./..."
 
+[tasks.test-race]
+description = "Run tests with the race detector (zig cc supplies the C linker; no system gcc)"
+env = { CGO_ENABLED = "1", CC = "zig cc", CXX = "zig c++" }
+run = "go test -race -count=1 ./..."
+
 [tasks.test-integration]
 dir = "{{ config_root }}"
 description = "Run DB + Temporal integration tests against real services (needs Docker + Postgres on localhost:5432 with test/test/test)"
+env = { LAKTA_INTEGRATION = "1", CGO_ENABLED = "1", CC = "zig cc", CXX = "zig c++" }
 run = """
 set -e
-export LAKTA_INTEGRATION=1
-export CGO_ENABLED=1
 ( cd ./pkg/db/drivers/pgx && go test -race -count=1 ./... )
 ( cd ./pkg/db/sql && go test -race -count=1 ./... )
 ( cd ./pkg/workflows/temporal && go test -race -tags integration -count=1 ./... )
@@ -77,6 +82,7 @@ echo "isolation OK"
 [tasks.ci-all]
 dir = "{{ config_root }}"
 description = "Build, test, race, lint, vuln-check every workspace module"
+env = { CGO_ENABLED = "1", CC = "zig cc", CXX = "zig c++" }
 run = """
 set -e
 mods=$(go work edit -json | python3 -c 'import json,sys;[print(u["DiskPath"]) for u in json.load(sys.stdin)["Use"]]')
