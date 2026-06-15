@@ -541,3 +541,62 @@ func TestRunContext_AsyncFailure_CancelsSiblingAsync(t *testing.T) {
 		t.Fatal("RunContext did not return after async failure")
 	}
 }
+
+// recordingNotifier records callbacks the runtime registers, so the test can
+// assert wiring happened and then invoke them. The testkit double cannot be
+// used here because its OnValidate is a no-op.
+type recordingNotifier struct {
+	reloadFns   []func(*koanf.Koanf)
+	validateFns []func(*koanf.Koanf) error
+}
+
+func (r *recordingNotifier) OnReload(fn func(*koanf.Koanf)) { r.reloadFns = append(r.reloadFns, fn) }
+func (r *recordingNotifier) OnValidate(fn func(*koanf.Koanf) error) {
+	r.validateFns = append(r.validateFns, fn)
+}
+
+// reloadValidateMock is both HotReloadable and ValidatableModule.
+type reloadValidateMock struct {
+	reloadedWith  *koanf.Koanf
+	validatedWith *koanf.Koanf
+}
+
+func (m *reloadValidateMock) Init(context.Context) error     { return nil }
+func (m *reloadValidateMock) Shutdown(context.Context) error { return nil }
+func (m *reloadValidateMock) OnReload(k *koanf.Koanf)        { m.reloadedWith = k }
+
+func (m *reloadValidateMock) ValidateReload(k *koanf.Koanf) error {
+	m.validatedWith = k
+	return nil
+}
+
+func reloadNotifierProvider(n lakta.ReloadNotifier) *testkit.MockModule {
+	m := testkit.NewMockModule()
+	m.OnInit = func(ctx context.Context) error {
+		lakta.ProvideValue[lakta.ReloadNotifier](ctx, n)
+		return nil
+	}
+	return m
+}
+
+func TestRunContext_WiresHotReloadAndValidate(t *testing.T) {
+	t.Parallel()
+
+	rec := &recordingNotifier{}
+	target := &reloadValidateMock{}
+
+	rh := testkit.NewRuntimeHarness(t, reloadNotifierProvider(rec), target)
+	testza.AssertNil(t, rh.Shutdown())
+
+	// The runtime must register the module's reload + validate callbacks.
+	testza.AssertEqual(t, 1, len(rec.reloadFns))
+	testza.AssertEqual(t, 1, len(rec.validateFns))
+
+	// And the registered callbacks must reach the module.
+	k := koanf.New(".")
+	rec.reloadFns[0](k)
+	testza.AssertEqual(t, k, target.reloadedWith)
+
+	testza.AssertNil(t, rec.validateFns[0](k))
+	testza.AssertEqual(t, k, target.validatedWith)
+}
