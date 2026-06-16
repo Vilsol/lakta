@@ -228,6 +228,61 @@ func TestRuntime_AutoSort(t *testing.T) {
 	testza.AssertTrue(t, seqB < seqC)
 }
 
+func TestRuntime_SelfDependencyIgnored(t *testing.T) {
+	t.Parallel()
+
+	typeA := reflect.TypeFor[*depTypeA]()
+
+	// A module that both provides and requires its own type: the self-edge must
+	// be skipped rather than reported as a cycle.
+	m := testkit.NewMockProviderModule()
+	m.ProvidesTypes = []reflect.Type{typeA}
+	m.RequiredDeps = []reflect.Type{typeA}
+
+	rh := testkit.NewRuntimeHarness(t, m)
+	testza.AssertNil(t, rh.Shutdown())
+	testza.AssertEqual(t, int32(1), m.InitCalls.Load())
+}
+
+func TestRuntime_DiamondDependencies(t *testing.T) {
+	t.Parallel()
+
+	var counter atomic.Int64
+	var seqA, seqB, seqC, seqD int64
+
+	typeA := reflect.TypeFor[*depTypeA]()
+	typeB := reflect.TypeFor[*depTypeB]()
+	typeC := reflect.TypeFor[*depTypeC]()
+
+	mA := testkit.NewMockProviderModule()
+	mA.ProvidesTypes = []reflect.Type{typeA}
+	mA.OnInit = func(_ context.Context) error { seqA = counter.Add(1); return nil }
+
+	mB := testkit.NewMockProviderModule()
+	mB.ProvidesTypes = []reflect.Type{typeB}
+	mB.RequiredDeps = []reflect.Type{typeA}
+	mB.OnInit = func(_ context.Context) error { seqB = counter.Add(1); return nil }
+
+	mC := testkit.NewMockProviderModule()
+	mC.ProvidesTypes = []reflect.Type{typeC}
+	mC.RequiredDeps = []reflect.Type{typeA}
+	mC.OnInit = func(_ context.Context) error { seqC = counter.Add(1); return nil }
+
+	// D depends on both B and C — a diamond converging on A.
+	mD := testkit.NewMockProviderModule()
+	mD.RequiredDeps = []reflect.Type{typeB, typeC}
+	mD.OnInit = func(_ context.Context) error { seqD = counter.Add(1); return nil }
+
+	// Pass shuffled; the sort must resolve A -> {B, C} -> D.
+	rh := testkit.NewRuntimeHarness(t, mD, mC, mB, mA)
+	testza.AssertNil(t, rh.Shutdown())
+
+	testza.AssertTrue(t, seqA < seqB)
+	testza.AssertTrue(t, seqA < seqC)
+	testza.AssertTrue(t, seqB < seqD)
+	testza.AssertTrue(t, seqC < seqD)
+}
+
 func TestRuntime_CycleDetected(t *testing.T) {
 	t.Parallel()
 

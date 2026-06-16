@@ -2,6 +2,7 @@ package health_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/MarvinJWendt/testza"
@@ -10,6 +11,41 @@ import (
 	healthgo "github.com/hellofresh/health-go/v5"
 	"github.com/samber/do/v2"
 )
+
+func TestHealthModule_FailingCheckReportsDown(t *testing.T) {
+	t.Parallel()
+
+	h := testkit.NewHarness(t)
+	m := health.NewModule(health.WithCheck(healthgo.Config{
+		Name:  "failing",
+		Check: func(context.Context) error { return errors.New("boom") },
+	}))
+	testza.AssertNil(t, m.Init(h.Ctx()))
+
+	instance, err := do.Invoke[*healthgo.Health](h.Injector())
+	testza.AssertNil(t, err)
+
+	result := instance.Measure(context.Background())
+	testza.AssertEqual(t, healthgo.StatusUnavailable, result.Status)
+}
+
+func TestHealthModule_SkipOnErrCheckReportsDegraded(t *testing.T) {
+	t.Parallel()
+
+	h := testkit.NewHarness(t)
+	m := health.NewModule(health.WithCheck(healthgo.Config{
+		Name:      "degraded",
+		SkipOnErr: true,
+		Check:     func(context.Context) error { return errors.New("soft fail") },
+	}))
+	testza.AssertNil(t, m.Init(h.Ctx()))
+
+	instance, err := do.Invoke[*healthgo.Health](h.Injector())
+	testza.AssertNil(t, err)
+
+	result := instance.Measure(context.Background())
+	testza.AssertEqual(t, healthgo.StatusPartiallyAvailable, result.Status)
+}
 
 func TestHealthModule_ProvidesHealth(t *testing.T) {
 	t.Parallel()
