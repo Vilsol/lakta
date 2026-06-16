@@ -113,10 +113,33 @@ func (c *Config) GetLogLevel() tracelog.LogLevel {
 }
 
 // NewPoolConfig parses the DSN and configures the pool with settings from config.
-func (c *Config) NewPoolConfig() (*pgxpool.Config, error) {
-	poolConfig, err := pgxpool.ParseConfig(c.DSN)
+// safeParseConfig wraps pgxpool.ParseConfig, converting a panic on malformed
+// input (e.g. the DSN `="\`) into an error so a bad config never crashes.
+func safeParseConfig(dsn string) (*pgxpool.Config, error) {
+	var (
+		cfg *pgxpool.Config
+		err error
+	)
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				err = oops.Errorf("panic parsing DSN: %v", r)
+			}
+		}()
+		cfg, err = pgxpool.ParseConfig(dsn)
+	}()
+
 	if err != nil {
 		return nil, oops.Wrapf(err, "failed to parse database DSN")
+	}
+	return cfg, nil
+}
+
+func (c *Config) NewPoolConfig() (*pgxpool.Config, error) {
+	poolConfig, err := safeParseConfig(c.DSN)
+	if err != nil {
+		return nil, err
 	}
 
 	poolConfig.MaxConns = c.MaxOpenConns
