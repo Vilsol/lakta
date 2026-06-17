@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/Vilsol/lakta/pkg/lakta"
-	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/providers/env/v2"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/knadh/koanf/v2"
@@ -82,8 +82,11 @@ func envKeyTransform(prefix, s string) string {
 
 func (m *Module) loadEnvVars() error {
 	prefix := m.config.EnvPrefix
-	err := m.koanf.Load(env.Provider(prefix, ".", func(s string) string {
-		return envKeyTransform(prefix, s)
+	err := m.koanf.Load(env.Provider(".", env.Opt{
+		Prefix: prefix,
+		TransformFunc: func(k, v string) (string, any) {
+			return envKeyTransform(prefix, k), v
+		},
 	}), nil)
 	if err != nil {
 		return oops.Wrapf(err, "failed to load env vars")
@@ -190,8 +193,11 @@ func (m *Module) reload() error {
 		}
 	}
 
-	if err := newKoanf.Load(env.Provider(m.config.EnvPrefix, ".", func(s string) string {
-		return envKeyTransform(m.config.EnvPrefix, s)
+	if err := newKoanf.Load(env.Provider(".", env.Opt{
+		Prefix: m.config.EnvPrefix,
+		TransformFunc: func(k, v string) (string, any) {
+			return envKeyTransform(m.config.EnvPrefix, k), v
+		},
 	}), nil); err != nil {
 		return oops.Wrapf(err, "failed to reload env vars")
 	}

@@ -20,8 +20,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 )
 
-require github.com/knadh/koanf/providers/env v1.1.0
-
 require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
@@ -61,4 +59,7 @@ require (
 	golang.org/x/text v0.37.0 // indirect
 )
 
-require github.com/Vilsol/lakta/pkg/testkit v0.2.0
+require (
+	github.com/Vilsol/lakta/pkg/testkit v0.2.0
+	github.com/knadh/koanf/providers/env/v2 v2.0.0
+)
