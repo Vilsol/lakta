@@ -34,8 +34,25 @@ type Module struct {
 	server   *grpc.Server
 	addrPort netip.AddrPort
 
-	mu       sync.Mutex
-	listener net.Listener
+	mu          sync.Mutex
+	listener    net.Listener
+	serveCtx    context.Context //nolint:containedctx // cancelled on shutdown deadline to drain in-flight handlers
+	cancelServe context.CancelFunc
+}
+
+// serveContext lazily derives a cancellable child of the runtime context the
+// first time a handler runs. Cancelling it on the shutdown deadline unblocks
+// in-flight handlers so the single GracefulStop drains: gRPC offers no safe
+// hard Stop() while GracefulStop is in progress (grpc/grpc-go#8480).
+func (m *Module) serveContext() context.Context {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.serveCtx == nil {
+		m.serveCtx, m.cancelServe = context.WithCancel(m.RuntimeCtx())
+	}
+
+	return m.serveCtx
 }
 
 // NewModule creates a new gRPC server module with the given options.
@@ -61,13 +78,13 @@ func (m *Module) LoadConfig(k *koanf.Koanf) error {
 func (m *Module) Init(ctx context.Context) error {
 	contextInjector := func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		span := trace.SpanFromContext(ctx)
-		runtimeCtx := trace.ContextWithSpan(m.RuntimeCtx(), span)
+		runtimeCtx := trace.ContextWithSpan(m.serveContext(), span)
 		return handler(runtimeCtx, req)
 	}
 
 	streamContextInjector := func(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		span := trace.SpanFromContext(ss.Context())
-		runtimeCtx := trace.ContextWithSpan(m.RuntimeCtx(), span)
+		runtimeCtx := trace.ContextWithSpan(m.serveContext(), span)
 		return handler(srv, &contextServerStream{ServerStream: ss, ctx: runtimeCtx})
 	}
 
@@ -169,8 +186,12 @@ func (m *Module) Dependencies() ([]reflect.Type, []reflect.Type) {
 	}
 }
 
-// Shutdown gracefully stops the gRPC server, forcing a stop if the context
-// deadline is exceeded before in-flight RPCs drain.
+// Shutdown gracefully stops the gRPC server. If the context deadline is
+// exceeded before in-flight RPCs drain, it cancels their handler contexts so
+// they return and GracefulStop completes. It deliberately never calls Stop()
+// concurrently with GracefulStop: gRPC funnels both into one internal routine
+// guarded by a shared mutex, and calling them together deadlocks
+// (grpc/grpc-go#8480, grpc/grpc-go#4584).
 func (m *Module) Shutdown(ctx context.Context) error {
 	if m.server == nil {
 		return nil
@@ -185,7 +206,15 @@ func (m *Module) Shutdown(ctx context.Context) error {
 	select {
 	case <-stopped:
 	case <-ctx.Done():
-		m.server.Stop()
+		m.mu.Lock()
+		cancel := m.cancelServe
+		m.mu.Unlock()
+
+		if cancel != nil {
+			cancel()
+		}
+
+		<-stopped
 	}
 
 	return nil
