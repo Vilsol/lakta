@@ -10,7 +10,7 @@ require (
 	github.com/knadh/koanf/v2 v2.3.5
 	github.com/samber/oops v1.22.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0
-	go.temporal.io/sdk v1.44.1
+	go.temporal.io/sdk v1.45.0
 	go.temporal.io/sdk/contrib/opentelemetry v0.7.0
 	google.golang.org/grpc v1.81.1
 )
