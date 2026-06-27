@@ -14,7 +14,7 @@
     "js-yaml": "4.2.0"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.39.0",
+    "@astrojs/starlight": "^0.41.0",
     "@astrojs/starlight-tailwind": "^5.0.0",
     "@tailwindcss/vite": "^4.0.7",
     "astro": "^6.0.0",
