@@ -49,6 +49,27 @@ modules:
         default: 30s
         envVar: LAKTA_MODULES__DB__PGX__<NAME>__STATEMENT_TIMEOUT
         description: statementTimeout sets the per-statement timeout (Postgres statement_timeout). Zero disables it
+  - category: events
+    type: bus
+    package: github.com/Vilsol/lakta/pkg/events/bus
+    configPath: modules.events.bus.<name>
+    description: represents configuration for the event bus [Module]
+    fields:
+      - key: buffer_size
+        type: int
+        default: "1024"
+        envVar: LAKTA_MODULES__EVENTS__BUS__<NAME>__BUFFER_SIZE
+        description: bufferSize is the queue capacity for each async subscription
+  - category: features
+    type: flags
+    package: github.com/Vilsol/lakta/pkg/features/flags
+    configPath: modules.features.flags.<name>
+    description: represents configuration for the feature flags [Module]
+    fields:
+      - key: flags
+        type: map[string]any
+        envVar: LAKTA_MODULES__FEATURES__FLAGS__<NAME>__FLAGS
+        description: 'flags holds the raw flag definitions: scalars for plain values, or'
   - category: grpc
     type: client
     package: github.com/Vilsol/lakta/pkg/grpc/client

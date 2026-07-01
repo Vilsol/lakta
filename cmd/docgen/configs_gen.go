@@ -4,6 +4,8 @@ package main
 
 import (
 	pkg_db_drivers_pgx "github.com/Vilsol/lakta/pkg/db/drivers/pgx"
+	pkg_events_bus "github.com/Vilsol/lakta/pkg/events/bus"
+	pkg_features_flags "github.com/Vilsol/lakta/pkg/features/flags"
 	pkg_grpc_client "github.com/Vilsol/lakta/pkg/grpc/client"
 	pkg_grpc_server "github.com/Vilsol/lakta/pkg/grpc/server"
 	pkg_health "github.com/Vilsol/lakta/pkg/health"
@@ -16,6 +18,8 @@ import (
 
 var defaultConfigs = []any{
 	pkg_db_drivers_pgx.NewDefaultConfig(),
+	pkg_events_bus.NewDefaultConfig(),
+	pkg_features_flags.NewDefaultConfig(),
 	pkg_grpc_client.NewDefaultConfig(),
 	pkg_grpc_server.NewDefaultConfig(),
 	pkg_health.NewDefaultConfig(),
