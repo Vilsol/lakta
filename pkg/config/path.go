@@ -11,6 +11,7 @@ const (
 	CategoryGRPC      = "grpc"
 	CategoryDB        = "db"
 	CategoryWorkflows = "workflows"
+	CategoryEvents    = "events"
 )
 
 // DefaultInstanceName is the default instance name for modules.
