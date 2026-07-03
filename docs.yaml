@@ -288,6 +288,20 @@ modules:
         default: '[traces metrics logs]'
         envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__SIGNALS
         description: 'signals lists which telemetry signals to enable: "traces", "metrics", "logs"'
+  - category: workers
+    type: pool
+    package: github.com/Vilsol/lakta/pkg/workers/pool
+    configPath: modules.workers.pool.<name>
+    description: represents configuration for the worker pool [Module]
+    fields:
+      - key: pools
+        type: map[string]pool.PoolConfig
+        envVar: LAKTA_MODULES__WORKERS__POOL__<NAME>__POOLS
+        description: pools defines the named pools this module manages. Prefer snake_case
+    codeOnly:
+      - option: WithPool
+        type: map[string]pool.PoolConfig
+        description: registers a pool in code (code-only); config with the same name
   - category: workflows
     type: temporal
     package: github.com/Vilsol/lakta/pkg/workflows/temporal

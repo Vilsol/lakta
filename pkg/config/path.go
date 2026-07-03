@@ -13,6 +13,7 @@ const (
 	CategoryWorkflows = "workflows"
 	CategoryEvents    = "events"
 	CategoryFeatures  = "features"
+	CategoryWorkers   = "workers"
 )
 
 // DefaultInstanceName is the default instance name for modules.

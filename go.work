@@ -15,6 +15,7 @@ use (
 	./pkg/logging/tint
 	./pkg/otel
 	./pkg/testkit
+	./pkg/workers/pool
 	./pkg/workflows/temporal
 )
 

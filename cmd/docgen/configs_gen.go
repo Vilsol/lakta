@@ -13,6 +13,7 @@ import (
 	pkg_logging_slog "github.com/Vilsol/lakta/pkg/logging/slog"
 	pkg_logging_tint "github.com/Vilsol/lakta/pkg/logging/tint"
 	pkg_otel "github.com/Vilsol/lakta/pkg/otel"
+	pkg_workers_pool "github.com/Vilsol/lakta/pkg/workers/pool"
 	pkg_workflows_temporal "github.com/Vilsol/lakta/pkg/workflows/temporal"
 )
 
@@ -27,5 +28,6 @@ var defaultConfigs = []any{
 	pkg_logging_slog.NewDefaultConfig(),
 	pkg_logging_tint.NewDefaultConfig(),
 	pkg_otel.NewDefaultConfig(),
+	pkg_workers_pool.NewDefaultConfig(),
 	pkg_workflows_temporal.NewDefaultConfig(),
 }
