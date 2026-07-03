@@ -288,6 +288,20 @@ modules:
         default: '[traces metrics logs]'
         envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__SIGNALS
         description: 'signals lists which telemetry signals to enable: "traces", "metrics", "logs"'
+  - category: resilience
+    type: policy
+    package: github.com/Vilsol/lakta/pkg/resilience/policy
+    configPath: modules.resilience.policy.<name>
+    description: represents configuration for the resilience policy [Module]
+    fields:
+      - key: policies
+        type: map[string]policy.PolicyConfig
+        envVar: LAKTA_MODULES__RESILIENCE__POLICY__<NAME>__POLICIES
+        description: policies defines the named policies this module manages. Prefer
+    codeOnly:
+      - option: WithPolicy
+        type: map[string][]failsafe.Policy[interface {}]
+        description: registers a policy chain in code (code-only), ordered outermost
   - category: workers
     type: pool
     package: github.com/Vilsol/lakta/pkg/workers/pool

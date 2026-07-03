@@ -14,6 +14,7 @@ const (
 	CategoryEvents    = "events"
 	CategoryFeatures  = "features"
 	CategoryWorkers   = "workers"
+	CategoryResilience = "resilience"
 )
 
 // DefaultInstanceName is the default instance name for modules.

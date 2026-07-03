@@ -14,6 +14,9 @@ use (
 	./pkg/logging/slog
 	./pkg/logging/tint
 	./pkg/otel
+	./pkg/resilience/fiber
+	./pkg/resilience/grpc
+	./pkg/resilience/policy
 	./pkg/testkit
 	./pkg/workers/pool
 	./pkg/workflows/temporal
