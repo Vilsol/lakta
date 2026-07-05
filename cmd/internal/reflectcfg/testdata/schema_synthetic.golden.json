@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vilsol.github.io/lakta/lakta.schema.json",
+  "type": "object",
+  "properties": {
+    "modules": {
+      "type": "object",
+      "properties": {
+        "demo": {
+          "type": "object",
+          "properties": {
+            "raw": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/demo_raw"
+                }
+              },
+              "additionalProperties": false
+            },
+            "widget": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/demo_widget"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "demo_raw": {
+      "type": "object",
+      "description": "https://pkg.go.dev/github.com/gofiber/fiber/v3@v3.3.0#Config",
+      "additionalProperties": true
+    },
+    "demo_widget": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "host": {
+          "type": "string",
+          "description": "bind host",
+          "default": "0.0.0.0"
+        },
+        "hosts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "level": {
+          "enum": [
+            "debug",
+            "info",
+            "warn"
+          ]
+        },
+        "port": {
+          "type": "integer",
+          "description": "listen port"
+        },
+        "ratio": {
+          "type": "number"
+        },
+        "tags": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "timeout": {
+          "type": "string",
+          "default": "30s",
+          "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "timeout"
+      ]
+    }
+  }
+}

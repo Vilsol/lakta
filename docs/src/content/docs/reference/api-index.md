@@ -54,6 +54,7 @@ pkg/config: Apply, Config, NewConfig, NewDefaultConfig (low-level/boilerplate co
 | `WithConfigName(name string) Option` | Set config file base name (default: `"lakta"`) |
 | `WithArgs(args []string) Option` | Enable CLI flag overrides (`os.Args[1:]`) |
 | `WithEnvPrefix(prefix string) Option` | Set env var prefix (default: `"LAKTA_"`) |
+| `WithProfile(name string) Option` | Overlay `lakta.<name>.<ext>` on the base config (default: `LAKTA_PROFILE`) |
 | `WithDebounceDelay(d time.Duration) Option` | Debounce window for fsnotify hot-reload events |
 | `Bind[T](path ...string) Module` | Bind a config sub-tree to a typed struct; adds as a module |
 | `Get[T](ctx) *T` | Read the current bound value (atomic, zero-alloc) |

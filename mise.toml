@@ -57,6 +57,20 @@ dir = "{{ config_root }}"
 depends = ["docgen"]
 run = "git diff --exit-code -- docs.yaml cmd/docgen/configs_gen.go"
 
+[tasks.schema]
+dir = "{{ config_root }}"
+description = "Regenerate the checked-in Draft 2020-12 JSON Schema (and its docs-site copy) from the built-in module configs"
+run = """
+go generate ./cmd/docgen
+go run ./cmd/docgen -format=schema > lakta.schema.json
+cp lakta.schema.json docs/public/lakta.schema.json
+"""
+
+[tasks.schema-check]
+dir = "{{ config_root }}"
+depends = ["schema"]
+run = "git diff --exit-code -- lakta.schema.json docs/public/lakta.schema.json"
+
 [tasks.apicheck]
 dir = "{{ config_root }}"
 run = "go run ./cmd/apicheck"

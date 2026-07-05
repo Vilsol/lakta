@@ -27,6 +27,9 @@ jobs:
       - name: Docs up to date
         run: mise run docgen-check
 
+      - name: Schema up to date
+        run: mise run schema-check
+
       - name: API index up to date
         run: mise run apicheck
 

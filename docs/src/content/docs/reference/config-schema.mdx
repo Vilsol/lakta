@@ -12,3 +12,61 @@ or changing a module's `Config`.
 Replace `default` with any instance name when using multiple instances of a module.
 
 <ConfigSchema />
+
+## Editor autocompletion (JSON Schema)
+
+Lakta ships a Draft 2020-12 JSON Schema covering every built-in module, generated
+from the same source as this page via `mise run schema` and checked in at
+`lakta.schema.json` (hosted at `https://vilsol.github.io/lakta/lakta.schema.json`).
+
+Point the [YAML language server](https://github.com/redhat-developer/yaml-language-server)
+at it with a modeline atop your config file to get autocompletion and validation
+(e.g. a malformed duration string is flagged):
+
+```yaml
+# yaml-language-server: $schema=https://vilsol.github.io/lakta/lakta.schema.json
+modules:
+  grpc:
+    server:
+      default:
+        host: "0.0.0.0"
+        port: 50051
+```
+
+Category (`grpc`) and type (`server`) keys are fixed to the shipped built-ins;
+instance names (`default`, or any `[A-Za-z0-9_-]+`) are open. `Passthrough`
+modules (e.g. `http.fiber`) allow arbitrary extra keys.
+
+### Schema Store
+
+The schema is registered with [JSON Schema Store](https://www.schemastore.org/) so
+editors resolve it automatically for `lakta.*` config files. The catalog entry
+(`src/api/json/catalog.json` in `SchemaStore/schemastore`) is:
+
+```json
+{
+  "name": "Lakta",
+  "description": "Lakta microservice framework configuration",
+  "fileMatch": ["lakta.yaml", "lakta.yml", "lakta.*.yaml", "lakta.*.yml"],
+  "url": "https://vilsol.github.io/lakta/lakta.schema.json"
+}
+```
+
+### Verifying autocompletion manually
+
+1. Create `lakta.yaml` with the modeline above.
+2. Open it in an editor with the YAML language server (VS Code + the RedHat YAML
+   extension, or Neovim + `yamlls`).
+3. Type under `modules.grpc.server.default.` — completions for `host`, `port`, etc.
+   appear.
+4. Set a `time.Duration` field (e.g. a pgx `health_check_period`) to `notaduration`
+   — the server flags it against the duration pattern.
+
+## Environment profiles
+
+Set `LAKTA_PROFILE=<name>` (or pass `config.WithProfile("<name>")`) to overlay a
+`lakta.<name>.<ext>` file on top of the base `lakta.<ext>` in each config
+directory. The overlay loads after the base (koanf last-wins), so its keys win
+while base-only keys survive. Precedence is: base files → profile files → env
+vars → CLI flags. Profile files join the watched set, so hot-reload works for
+them too. A missing overlay file is silently skipped.

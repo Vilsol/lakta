@@ -1,4 +1,4 @@
-package main
+package reflectcfg
 
 import (
 	"go/ast"

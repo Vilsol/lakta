@@ -12,6 +12,7 @@ require (
 	github.com/Vilsol/lakta/pkg/logging/tint v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/lakta/pkg/otel v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/lakta/pkg/workflows/temporal v0.0.0-00010101000000-000000000000
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	golang.org/x/mod v0.37.0
 	gopkg.in/yaml.v3 v3.0.1
 )

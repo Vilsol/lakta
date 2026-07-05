@@ -4,6 +4,7 @@
 package config
 
 import (
+	"os"
 	"time"
 
 	"github.com/Vilsol/lakta/pkg/lakta"
@@ -15,6 +16,7 @@ const (
 	defaultEnvPrefix     = "LAKTA_"
 	defaultConfigName    = "lakta"
 	defaultDebounceDelay = 100 * time.Millisecond
+	envProfileVar        = "LAKTA_PROFILE"
 )
 
 // ReloadNotifier is an alias for lakta.ReloadNotifier.
@@ -37,6 +39,11 @@ type Config struct {
 	// DebounceDelay is how long to wait after a file change event before reloading config.
 	// Defaults to 100ms. Set to a lower value in tests.
 	DebounceDelay time.Duration
+
+	// Profile selects an environment overlay file (lakta.<Profile>.<ext>) loaded
+	// after the base config so its keys win. Empty disables the overlay.
+	// Defaults from the LAKTA_PROFILE env var.
+	Profile string
 }
 
 // Option manipulates Config.
@@ -50,6 +57,7 @@ func NewDefaultConfig() Config {
 		ConfigName:    defaultConfigName,
 		Args:          nil,
 		DebounceDelay: defaultDebounceDelay,
+		Profile:       os.Getenv(envProfileVar),
 	}
 }
 
@@ -90,6 +98,14 @@ func WithDebounceDelay(d time.Duration) Option {
 func WithArgs(args []string) Option {
 	return func(cfg *Config) {
 		cfg.Args = args
+	}
+}
+
+// WithProfile sets the environment profile overlay (e.g. "prod" loads
+// lakta.prod.<ext> after the base file). Overrides the LAKTA_PROFILE default.
+func WithProfile(name string) Option {
+	return func(cfg *Config) {
+		cfg.Profile = name
 	}
 }
 

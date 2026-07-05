@@ -1,0 +1,582 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vilsol.github.io/lakta/lakta.schema.json",
+  "type": "object",
+  "properties": {
+    "modules": {
+      "type": "object",
+      "properties": {
+        "db": {
+          "type": "object",
+          "properties": {
+            "pgx": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/db_pgx"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "debug": {
+          "type": "object",
+          "properties": {
+            "actuator": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/debug_actuator"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "events": {
+          "type": "object",
+          "properties": {
+            "bus": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/events_bus"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "features": {
+          "type": "object",
+          "properties": {
+            "flags": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/features_flags"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "grpc": {
+          "type": "object",
+          "properties": {
+            "client": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/grpc_client"
+                }
+              },
+              "additionalProperties": false
+            },
+            "server": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/grpc_server"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "health": {
+          "type": "object",
+          "properties": {
+            "health": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/health_health"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "http": {
+          "type": "object",
+          "properties": {
+            "fiber": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/http_fiber"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "logging": {
+          "type": "object",
+          "properties": {
+            "slog": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/logging_slog"
+                }
+              },
+              "additionalProperties": false
+            },
+            "tint": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/logging_tint"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "otel": {
+          "type": "object",
+          "properties": {
+            "otel": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/otel_otel"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "resilience": {
+          "type": "object",
+          "properties": {
+            "policy": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/resilience_policy"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "workers": {
+          "type": "object",
+          "properties": {
+            "pool": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/workers_pool"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "workflows": {
+          "type": "object",
+          "properties": {
+            "temporal": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/workflows_temporal"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "db_pgx": {
+      "type": "object",
+      "properties": {
+        "dsn": {
+          "type": "string",
+          "description": "dSN is the database connection string used to configure the database connection"
+        },
+        "health_check": {
+          "type": "boolean",
+          "description": "healthCheck enables or disables the database health check mechanism"
+        },
+        "health_check_period": {
+          "type": "string",
+          "description": "healthCheckPeriod is how often the pool checks idle connection health",
+          "default": "1m0s",
+          "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+        },
+        "log_level": {
+          "description": "logLevel specifies the logging level for database operations, supporting values like trace, debug, info, warn, error, none",
+          "default": "info",
+          "enum": [
+            "trace",
+            "debug",
+            "info",
+            "warn",
+            "error",
+            "none"
+          ]
+        },
+        "max_conn_idle_time": {
+          "type": "string",
+          "description": "maxConnIdleTime is the maximum idle time before a connection is closed",
+          "default": "30m0s",
+          "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+        },
+        "max_conn_lifetime": {
+          "type": "string",
+          "description": "maxConnLifetime is the maximum age of a connection before it is closed",
+          "default": "1h0m0s",
+          "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+        },
+        "max_open_conns": {
+          "type": "integer",
+          "description": "maxOpenConns specifies the maximum number of open connections to the database. It maps to the \"max_open_conns\" configuration",
+          "default": "10"
+        },
+        "min_conns": {
+          "type": "integer",
+          "description": "minConns is the minimum number of idle connections kept in the pool"
+        },
+        "statement_timeout": {
+          "type": "string",
+          "description": "statementTimeout sets the per-statement timeout (Postgres statement_timeout). Zero disables it",
+          "default": "30s",
+          "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "dsn"
+      ]
+    },
+    "debug_actuator": {
+      "type": "object",
+      "properties": {
+        "allow_insecure": {
+          "type": "boolean",
+          "description": "allowInsecure downgrades the fail-closed security refusals (non-loopback"
+        },
+        "base_path": {
+          "type": "string",
+          "description": "basePath prefixes every endpoint. Default /debug",
+          "default": "/debug"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "enabled gates the whole module; when false Init/Start are no-ops. Default false"
+        },
+        "endpoints": {
+          "type": "string",
+          "description": "endpoints toggles optional endpoint groups. All default true",
+          "default": "{true true true true}"
+        },
+        "host": {
+          "type": "string",
+          "description": "host to bind the private actuator listener. Default 127.0.0.1",
+          "default": "127.0.0.1"
+        },
+        "port": {
+          "type": "integer",
+          "description": "port to bind. Default 6060",
+          "default": "6060"
+        },
+        "redact_patterns": {
+          "type": "array",
+          "description": "redactPatterns extends (does not replace) the default key-redaction set",
+          "items": {
+            "type": "string"
+          }
+        },
+        "show_values": {
+          "description": "showValues controls config-value masking: never|always|when_authorized",
+          "default": "never",
+          "enum": [
+            "never",
+            "always",
+            "when_authorized"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "events_bus": {
+      "type": "object",
+      "properties": {
+        "buffer_size": {
+          "type": "integer",
+          "description": "bufferSize is the queue capacity for each async subscription",
+          "default": "1024"
+        }
+      },
+      "additionalProperties": false
+    },
+    "features_flags": {
+      "type": "object",
+      "properties": {
+        "flags": {
+          "type": "object",
+          "description": "flags holds the raw flag definitions: scalars for plain values, or",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "grpc_client": {
+      "type": "object",
+      "properties": {
+        "insecure": {
+          "type": "boolean",
+          "description": "insecure determines whether transport credentials should use an insecure configuration"
+        },
+        "target": {
+          "type": "string",
+          "description": "target specifies the target address for the gRPC client connection",
+          "default": "localhost:50051"
+        },
+        "tls": {
+          "type": "string",
+          "description": "tLS configures file-path based transport security (client cert for mutual"
+        }
+      },
+      "additionalProperties": false
+    },
+    "grpc_server": {
+      "type": "object",
+      "properties": {
+        "health_check": {
+          "type": "boolean",
+          "description": "healthCheck determines whether gRPC health checking is enabled or disabled"
+        },
+        "host": {
+          "type": "string",
+          "description": "host specifies the address for the GRPC server to bind to",
+          "default": "0.0.0.0"
+        },
+        "port": {
+          "type": "integer",
+          "description": "port represents the port number on which the GRPC server listens",
+          "default": "50051"
+        },
+        "tls": {
+          "type": "string",
+          "description": "tLS configures file-path based transport security. When unset the server"
+        }
+      },
+      "additionalProperties": false
+    },
+    "health_health": {
+      "type": "object",
+      "properties": {
+        "component_name": {
+          "type": "string",
+          "description": "componentName defines the name of the component"
+        },
+        "component_version": {
+          "type": "string",
+          "description": "componentVersion represents the version of the component"
+        }
+      },
+      "additionalProperties": false
+    },
+    "http_fiber": {
+      "type": "object",
+      "description": "https://pkg.go.dev/github.com/gofiber/fiber/v3@v3.3.0#Config",
+      "properties": {
+        "health_path": {
+          "type": "string",
+          "description": "healthPath defines the endpoint path for the health check"
+        },
+        "host": {
+          "type": "string",
+          "description": "host specifies the server's hostname or IP address to bind",
+          "default": "0.0.0.0"
+        },
+        "port": {
+          "type": "integer",
+          "description": "port specifies the port number the server listens on",
+          "default": "8080"
+        },
+        "tls": {
+          "type": "string",
+          "description": "tLS configures file-path based transport security. When unset the server"
+        }
+      },
+      "additionalProperties": true
+    },
+    "logging_slog": {
+      "type": "object",
+      "properties": {
+        "global_default": {
+          "type": "boolean",
+          "description": "globalDefault indicates whether the logger should be set as the default globally",
+          "default": "true"
+        },
+        "level": {
+          "type": "string",
+          "description": "level represents the default log level to be used in the configuration",
+          "default": "info"
+        },
+        "levels": {
+          "type": "object",
+          "description": "levels defines a map of per-package log level overrides",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "logging_tint": {
+      "type": "object",
+      "properties": {
+        "time_format": {
+          "type": "string",
+          "description": "timeFormat specifies the format for timestamping log entries",
+          "default": "2006-01-02T15:04:05Z07:00"
+        }
+      },
+      "additionalProperties": false
+    },
+    "otel_otel": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "enabled controls whether OTEL is set up. When false, noop providers are registered",
+          "default": "true"
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "endpoint overrides the OTLP exporter endpoint. Empty uses the SDK default (env vars)"
+        },
+        "environment": {
+          "type": "string",
+          "description": "environment is the deployment environment (e.g. \"production\", \"staging\")"
+        },
+        "headers": {
+          "type": "object",
+          "description": "headers are additional headers sent with every OTLP export (e.g. auth tokens)",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "insecure": {
+          "type": "boolean",
+          "description": "insecure disables TLS on the OTLP connection — useful for local collectors"
+        },
+        "metric_interval": {
+          "type": "string",
+          "description": "metricInterval sets the periodic metric export interval",
+          "default": "1m0s",
+          "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+        },
+        "protocol": {
+          "type": "string",
+          "description": "protocol sets the OTLP transport: \"grpc\" (default), \"http/protobuf\", or \"http/json\"",
+          "default": "grpc"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "required makes telemetry setup failures fatal. When false (default), setup"
+        },
+        "runtime_interval": {
+          "type": "string",
+          "description": "runtimeInterval sets the minimum Go runtime stats collection interval",
+          "default": "1s",
+          "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+        },
+        "sample_rate": {
+          "type": "number",
+          "description": "sampleRate sets the trace sampling ratio. 1.0 = always sample, 0.0 = never sample",
+          "default": "1"
+        },
+        "service_name": {
+          "type": "string",
+          "description": "serviceName specifies the OpenTelemetry service name",
+          "default": "lakta"
+        },
+        "service_namespace": {
+          "type": "string",
+          "description": "serviceNamespace is included as semconv.ServiceNamespaceKey in the resource"
+        },
+        "service_version": {
+          "type": "string",
+          "description": "serviceVersion is included as semconv.ServiceVersionKey in the resource"
+        },
+        "signals": {
+          "type": "array",
+          "description": "signals lists which telemetry signals to enable: \"traces\", \"metrics\", \"logs\"",
+          "default": "[traces metrics logs]",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "resilience_policy": {
+      "type": "object",
+      "properties": {
+        "policies": {
+          "type": "object",
+          "description": "policies defines the named policies this module manages. Prefer",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "workers_pool": {
+      "type": "object",
+      "properties": {
+        "pools": {
+          "type": "object",
+          "description": "pools defines the named pools this module manages. Prefer snake_case",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflows_temporal": {
+      "type": "object",
+      "properties": {
+        "insecure": {
+          "type": "boolean",
+          "description": "insecure indicates whether transport credentials should be bypassed, enabling an insecure connection"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "namespace defines the Temporal namespace to be used for client and worker operations",
+          "default": "default"
+        },
+        "target": {
+          "type": "string",
+          "description": "target specifies the Temporal server's target address for client connections",
+          "default": "localhost:7233"
+        },
+        "task_queue": {
+          "type": "string",
+          "description": "taskQueue specifies the Temporal task queue name for workflow and activity execution"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "task_queue"
+      ]
+    }
+  }
+}
