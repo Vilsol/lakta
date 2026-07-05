@@ -32,6 +32,7 @@ type Module struct {
 
 	server   *fiber.App
 	addrPort netip.AddrPort
+	routes   *RoutesRegistry
 
 	mu       sync.Mutex
 	listener net.Listener
@@ -89,6 +90,19 @@ func (m *Module) Init(ctx context.Context) error {
 
 	m.server = app
 
+	// Provide-if-absent a single shared routes registry: do/v2 overrides
+	// same-type providers, so the first fiber instance to init seeds the one
+	// registry and every instance appends its snapshot at Start. Guarded for
+	// bare test contexts that carry no injector.
+	if lakta.HasInjector(ctx) {
+		reg, regErr := lakta.Invoke[*RoutesRegistry](ctx)
+		if regErr != nil {
+			reg = NewRoutesRegistry()
+			lakta.ProvideValue(ctx, reg)
+		}
+		m.routes = reg
+	}
+
 	addrPort, err := m.config.AddrPort()
 	if err != nil {
 		return oops.Wrapf(err, "failed to parse host address")
@@ -106,6 +120,12 @@ func (m *Module) Start(ctx context.Context) error {
 			return oops.Wrapf(err, "failed to get health instance")
 		}
 		m.server.Get(m.config.HealthPath, adaptor.HTTPHandlerFunc(h.HandlerFunc))
+	}
+
+	// Routes are fully registered by now; publish this instance's snapshot to
+	// the shared registry so consumers can aggregate across all fiber instances.
+	if m.routes != nil {
+		m.routes.Append(RoutesSnapshot{Instance: m.config.Name, Routes: m.server.GetRoutes()})
 	}
 
 	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", m.addrPort.String())

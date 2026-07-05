@@ -30,6 +30,14 @@ func WithInjector(ctx context.Context, injector do.Injector) context.Context {
 	return context.WithValue(ctx, injectorKey{}, injector)
 }
 
+// HasInjector reports whether ctx carries a DI injector. Modules whose Init may
+// run under a bare (test) context use it to guard optional DI access that would
+// otherwise panic via GetInjector.
+func HasInjector(ctx context.Context) bool {
+	_, ok := tryInjector(ctx)
+	return ok
+}
+
 // Provide injects a provider into the injector.
 func Provide[T any](ctx context.Context, provider do.Provider[T]) {
 	do.Provide(GetInjector(ctx), provider)

@@ -95,6 +95,9 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 
 	ctx = slox.Into(ctx, logger)
 
+	// Init durations and states are now recorded; render the wiring report.
+	emitWiringReport(ctx, info)
+
 	// Phase 1: Start async modules (non-blocking setup).
 	asyncPool := pool.New().
 		WithErrors().

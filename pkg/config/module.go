@@ -24,6 +24,7 @@ func (m *Module) Provides() []reflect.Type {
 	return []reflect.Type{
 		reflect.TypeFor[*koanf.Koanf](),
 		reflect.TypeFor[ReloadNotifier](),
+		reflect.TypeFor[*Module](),
 	}
 }
 
@@ -66,6 +67,7 @@ func (m *Module) Init(ctx context.Context) error {
 
 	lakta.ProvideValue(ctx, m.koanf)
 	lakta.ProvideValue[ReloadNotifier](ctx, m)
+	lakta.ProvideValue(ctx, m)
 
 	return nil
 }

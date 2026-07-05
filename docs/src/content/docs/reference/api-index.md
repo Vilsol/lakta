@@ -40,6 +40,8 @@ pkg/config: Apply, Config, NewConfig, NewDefaultConfig (low-level/boilerplate co
 | `Provide[T](ctx, fn)` | Register a DI provider |
 | `ProvideValue[T](ctx, value)` | Register an already-constructed value in DI |
 | `Invoke[T](ctx) (T, error)` | Resolve a dependency from the context injector |
+| `HasInjector(ctx) bool` | Report whether a context carries a DI injector (guards optional DI access in bare test contexts) |
+| `RenderWiringReport(info []ModuleInfo, prov map[string]string) string` | Render a `RuntimeInfo` snapshot as an aligned wiring table (boot debug log / `LAKTA_DEBUG_WIRING=1` dump) |
 | `HotReloadable` | Adds `OnReload(*koanf.Koanf)`; wired by the runtime for config reloads |
 | `ValidatableModule` | Adds `ValidateReload(*koanf.Koanf) error`; can veto a config hot-reload before it is committed |
 
@@ -64,6 +66,7 @@ pkg/config: Apply, Config, NewConfig, NewDefaultConfig (low-level/boilerplate co
 | `ReloadNotifier` | Subscribe to hot-reload events |
 | `ReloadNotifier.OnReload(fn)` | Register a reload callback |
 | `ReloadNotifier.OnValidate(fn)` | Register a validator that can veto a reload before commit |
+| `ProvenanceEntry` | Per-key config origin (`file`/`env`/`flag`/`default`) from `Module.ProvenanceSnapshot()` |
 
 ## pkg/testkit
 

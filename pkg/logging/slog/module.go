@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"strings"
+	"sync"
 
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/Vilsol/lakta/pkg/lakta"
@@ -26,6 +27,10 @@ type Module struct {
 	runtimeFrame runtime.Frame
 	config       Config
 	filter       *levelFilter
+
+	// levelMu guards config mutation shared by SetLevel (LevelController) and
+	// OnReload, which can run concurrently.
+	levelMu sync.Mutex
 }
 
 const skippedFrames = 2
@@ -91,6 +96,7 @@ func (m *Module) Init(ctx context.Context) error {
 	)
 
 	lakta.ProvideValue(ctx, m.logger)
+	lakta.ProvideValue[LevelController](ctx, m)
 
 	slog.SetDefault(m.logger)
 
@@ -110,8 +116,10 @@ func (m *Module) OnReload(k *koanf.Koanf) {
 	cfg.ParseLevel()
 	cfg.ParseLevels()
 
+	m.levelMu.Lock()
 	m.config = cfg
 	m.filter.Update(cfg.levelParsed, cfg.levelsParsed)
+	m.levelMu.Unlock()
 
 	slog.Info("logging levels reloaded")
 }
@@ -159,6 +167,7 @@ func prefixMatchesAnyModule(prefix string, modulePaths []string) bool {
 func (m *Module) Provides() []reflect.Type {
 	return []reflect.Type{
 		reflect.TypeFor[*slog.Logger](),
+		reflect.TypeFor[LevelController](),
 	}
 }
 
