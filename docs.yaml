@@ -49,6 +49,57 @@ modules:
         default: 30s
         envVar: LAKTA_MODULES__DB__PGX__<NAME>__STATEMENT_TIMEOUT
         description: statementTimeout sets the per-statement timeout (Postgres statement_timeout). Zero disables it
+  - category: debug
+    type: actuator
+    package: github.com/Vilsol/lakta/pkg/debug/actuator
+    configPath: modules.debug.actuator.<name>
+    description: represents configuration for the actuator [Module]. Defaults are
+    fields:
+      - key: enabled
+        type: bool
+        envVar: LAKTA_MODULES__DEBUG__ACTUATOR__<NAME>__ENABLED
+        description: enabled gates the whole module; when false Init/Start are no-ops. Default false
+      - key: host
+        type: string
+        default: 127.0.0.1
+        envVar: LAKTA_MODULES__DEBUG__ACTUATOR__<NAME>__HOST
+        description: host to bind the private actuator listener. Default 127.0.0.1
+      - key: port
+        type: uint16
+        default: "6060"
+        envVar: LAKTA_MODULES__DEBUG__ACTUATOR__<NAME>__PORT
+        description: port to bind. Default 6060
+      - key: base_path
+        type: string
+        default: /debug
+        envVar: LAKTA_MODULES__DEBUG__ACTUATOR__<NAME>__BASE_PATH
+        description: basePath prefixes every endpoint. Default /debug
+      - key: show_values
+        type: string
+        default: never
+        enum: never,always,when_authorized
+        envVar: LAKTA_MODULES__DEBUG__ACTUATOR__<NAME>__SHOW_VALUES
+        description: 'showValues controls config-value masking: never|always|when_authorized'
+      - key: redact_patterns
+        type: '[]string'
+        envVar: LAKTA_MODULES__DEBUG__ACTUATOR__<NAME>__REDACT_PATTERNS
+        description: redactPatterns extends (does not replace) the default key-redaction set
+      - key: endpoints
+        type: actuator.EndpointToggles
+        default: '{true true true true}'
+        envVar: LAKTA_MODULES__DEBUG__ACTUATOR__<NAME>__ENDPOINTS
+        description: endpoints toggles optional endpoint groups. All default true
+      - key: allow_insecure
+        type: bool
+        envVar: LAKTA_MODULES__DEBUG__ACTUATOR__<NAME>__ALLOW_INSECURE
+        description: allowInsecure downgrades the fail-closed security refusals (non-loopback
+    codeOnly:
+      - option: WithMount
+        type: fiber.Router
+        description: mounts endpoints under the caller's router instead of a private
+      - option: WithAuth
+        type: ""
+        description: sets the auth middleware gating sensitive endpoints (code-only)
   - category: events
     type: bus
     package: github.com/Vilsol/lakta/pkg/events/bus

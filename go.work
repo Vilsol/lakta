@@ -6,6 +6,7 @@ use (
 	./examples/microservices
 	./pkg/db/drivers/pgx
 	./pkg/db/sql
+	./pkg/debug/actuator
 	./pkg/events
 	./pkg/features/flags
 	./pkg/grpc
