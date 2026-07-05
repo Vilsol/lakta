@@ -17,6 +17,14 @@ func GetInjector(ctx context.Context) do.Injector { //nolint:ireturn
 	return injector
 }
 
+// tryInjector is the non-panicking sibling of GetInjector: it reports whether
+// ctx carries an injector instead of panicking, so RunContext can adopt a
+// pre-seeded one. Unexported — GetInjector keeps its panic contract.
+func tryInjector(ctx context.Context) (do.Injector, bool) { //nolint:ireturn
+	inj, ok := ctx.Value(injectorKey{}).(do.Injector)
+	return inj, ok
+}
+
 // WithInjector returns a new context with the injector set.
 func WithInjector(ctx context.Context, injector do.Injector) context.Context {
 	return context.WithValue(ctx, injectorKey{}, injector)

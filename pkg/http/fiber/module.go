@@ -83,6 +83,10 @@ func (m *Module) Init(ctx context.Context) error {
 		router(app)
 	}
 
+	for _, router := range m.config.RoutersCtx {
+		router(ctx, app)
+	}
+
 	m.server = app
 
 	addrPort, err := m.config.AddrPort()

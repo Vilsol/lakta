@@ -19,6 +19,15 @@ func TestModulePath_NamedInstance(t *testing.T) {
 	testza.AssertEqual(t, "modules.grpc.server.internal", config.ModulePath("grpc", "server", "internal"))
 }
 
+func TestCategoryConstants_TaxonomyBatch(t *testing.T) {
+	t.Parallel()
+
+	testza.AssertEqual(t, "debug", config.CategoryDebug)
+	testza.AssertEqual(t, "cache", config.CategoryCache)
+	testza.AssertEqual(t, "auth", config.CategoryAuth)
+	testza.AssertEqual(t, "dev", config.CategoryDev)
+}
+
 func TestModulePath_AllCategories(t *testing.T) {
 	t.Parallel()
 

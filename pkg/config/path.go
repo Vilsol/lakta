@@ -4,17 +4,21 @@ import "fmt"
 
 // Category constants for module organization.
 const (
-	CategoryOTel      = "otel"
-	CategoryLogging   = "logging"
-	CategoryHealth    = "health"
-	CategoryHTTP      = "http"
-	CategoryGRPC      = "grpc"
-	CategoryDB        = "db"
-	CategoryWorkflows = "workflows"
-	CategoryEvents    = "events"
-	CategoryFeatures  = "features"
-	CategoryWorkers   = "workers"
+	CategoryOTel       = "otel"
+	CategoryLogging    = "logging"
+	CategoryHealth     = "health"
+	CategoryHTTP       = "http"
+	CategoryGRPC       = "grpc"
+	CategoryDB         = "db"
+	CategoryWorkflows  = "workflows"
+	CategoryEvents     = "events"
+	CategoryFeatures   = "features"
+	CategoryWorkers    = "workers"
 	CategoryResilience = "resilience"
+	CategoryDebug      = "debug"
+	CategoryCache      = "cache"
+	CategoryAuth       = "auth"
+	CategoryDev        = "dev"
 )
 
 // DefaultInstanceName is the default instance name for modules.

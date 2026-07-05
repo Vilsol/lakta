@@ -1,6 +1,7 @@
 package fiberserver
 
 import (
+	"context"
 	"crypto/tls"
 	"net/netip"
 	"time"
@@ -25,6 +26,12 @@ const (
 
 // Router registers routes on a fiber app.
 type Router func(app *fiber.App)
+
+// RouterCtx registers routes on a fiber app with context access, so a router
+// closure can resolve DI-provided registries (auth, validation, resilience)
+// via lakta.Invoke at route-definition time. The ctx carries the injector and
+// is passed during the fiber module's Init.
+type RouterCtx func(ctx context.Context, app *fiber.App)
 
 // Config represents configuration for HTTP Fiber server [Module]
 type Config struct {
@@ -54,6 +61,9 @@ type Config struct {
 	// Routers defines a list of Router functions to configure routes for a Fiber application.
 	Routers []Router `code_only:"WithRouter" koanf:"-"`
 
+	// RoutersCtx defines context-aware routers, invoked during Init after Routers.
+	RoutersCtx []RouterCtx `code_only:"WithRouterCtx" koanf:"-"`
+
 	// Raw passthrough for fiber.Config fields (app_name, read_timeout, etc.)
 	Raw config.Passthrough[fiber.Config] `koanf:",remain"`
 }
@@ -61,10 +71,11 @@ type Config struct {
 // NewDefaultConfig returns default configuration
 func NewDefaultConfig() Config {
 	return Config{
-		Name:    config.DefaultInstanceName,
-		Host:    defaultHost,
-		Port:    defaultPort,
-		Routers: make([]Router, 0),
+		Name:       config.DefaultInstanceName,
+		Host:       defaultHost,
+		Port:       defaultPort,
+		Routers:    make([]Router, 0),
+		RoutersCtx: make([]RouterCtx, 0),
 	}
 }
 
@@ -145,6 +156,13 @@ func WithDefaults(cfg fiber.Config) Option {
 // WithRouter adds router to the list of routers to be invoked (code-only).
 func WithRouter(router Router) Option {
 	return func(m *Config) { m.Routers = append(m.Routers, router) }
+}
+
+// WithRouterCtx adds a context-aware router (code-only). Its closure runs during
+// the fiber module's Init after plain Routers; declare the registry it consumes
+// as a dep (or ensure the provider module inits earlier) so Invoke resolves.
+func WithRouterCtx(router RouterCtx) Option {
+	return func(m *Config) { m.RoutersCtx = append(m.RoutersCtx, router) }
 }
 
 // WithTLSConfig sets an explicit *tls.Config, overriding TLS file config. Use

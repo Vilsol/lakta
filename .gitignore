@@ -108,3 +108,6 @@ $RECYCLE.BIN/
 .dolt/
 *.db
 .beads-credential-key
+
+# Live-reload dev builds (mise run dev)
+tmp/

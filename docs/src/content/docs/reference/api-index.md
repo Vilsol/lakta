@@ -20,6 +20,13 @@ pkg/config: Apply, Config, NewConfig, NewDefaultConfig (low-level/boilerplate co
 |--------|-------------|
 | `NewRuntime(modules ...Module) *Runtime` | Create and run the service |
 | `Runtime.Run()` | Start the runtime, block until shutdown |
+| `Runtime.Validate() error` | Pre-flight dependency-graph check (cycles, unmet declared deps); no side effects |
+| `ErrUnmetDependency` | Sentinel for unmet declared required deps; match via `errors.Is` |
+| `RuntimeInfo` | Live module-metadata registry the runtime provides in DI; read via `Snapshot()` |
+| `RuntimeInfo.Snapshot() []ModuleInfo` | Deep-copied point-in-time view of module metadata/state |
+| `ModuleInfo` | Per-module metadata: name, type, init order, provides/requires/optional, lifecycle, state, init duration |
+| `LifecycleKind` | Module lifecycle class: `init`/`sync`/`async` |
+| `ModuleState` | Furthest lifecycle stage: `pending`/`initialized`/`started`/`stopped`/`failed` |
 | `Module` | Interface: `Init(ctx) error`, `Shutdown(ctx) error` |
 | `SyncModule` | Adds `Start(ctx) error` |
 | `AsyncModule` | Adds `StartAsync(ctx) error` |

@@ -2,6 +2,19 @@
 go = "1.26.4"
 golangci-lint = "2.12.2"
 zig = "0.16.0"            # `zig cc` supplies the C linker the race detector needs (no system gcc required)
+"go:github.com/bokwoon95/wgo" = "latest"
+
+[tasks.dev]
+dir = "{{ config_root }}"
+description = "Live-reload an example service (mise run dev data); SIGTERM-forwarding keeps lakta graceful shutdown, last-good binary survives compile errors"
+usage = '''
+arg "[svc]" help="Example service under examples/microservices/" default="data"
+'''
+run = '''
+svc="$usage_svc"
+wgo -file '\.go$' go build -tags dev -o ./tmp/dev-$svc ./examples/microservices/$svc :: \
+wgo -postpone -file "./tmp/dev-$svc" ./tmp/dev-$svc
+'''
 
 [tasks.lint]
 run = "golangci-lint run"

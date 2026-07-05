@@ -184,6 +184,9 @@ modules:
       - option: WithRouter
         type: '[]fiber.Router'
         description: adds router to the list of routers to be invoked (code-only)
+      - option: WithRouterCtx
+        type: '[]fiber.RouterCtx'
+        description: adds a context-aware router (code-only). Its closure runs during
   - category: logging
     type: slog
     package: github.com/Vilsol/lakta/pkg/logging/slog

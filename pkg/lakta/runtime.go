@@ -2,6 +2,7 @@ package lakta
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -46,45 +47,27 @@ func (r *Runtime) Run() error {
 // RunContext initializes, starts, and manages graceful shutdown of all modules.
 // ctx cancellation is the shutdown trigger — callers are responsible for signal handling.
 func (r *Runtime) RunContext(ctx context.Context) error {
-	sorted, err := sortModules(r.modules)
+	sorted, meta, err := sortModules(r.modules)
 	if err != nil {
 		return err
 	}
 
-	injector := do.New()
-	ctx = WithInjector(ctx, injector)
+	// Adopt a ctx-supplied injector (harness/test-slice mocks) instead of
+	// overwriting it; without one, behavior is unchanged (fresh do.New).
+	injector, ok := tryInjector(ctx)
+	if !ok {
+		injector = do.New()
+		ctx = WithInjector(ctx, injector)
+	}
 
-	// Initialize modules sequentially in dependency order.
-	// Track successfully initialized modules for reverse teardown on failure.
-	initialized := make([]Module, 0, len(sorted))
+	// Provided before the Init loop so later-initializing modules (the
+	// actuator) can Invoke[*RuntimeInfo].
+	info := &RuntimeInfo{modules: describeModules(sorted, meta)}
+	ProvideValue(ctx, info)
 
-	for _, module := range sorted {
-		name := fmt.Sprintf("%T", module)
-
-		if c, ok := module.(Configurable); ok {
-			k, kErr := do.Invoke[*koanf.Koanf](injector)
-			if kErr == nil && k.Exists(c.ConfigPath()) {
-				if err := c.LoadConfig(k); err != nil {
-					slox.Error(ctx, "failed loading config for module", slog.String("name", name), slog.Any("error", err))
-					r.teardown(ctx, initialized)
-
-					return oops.
-						With("name", name).
-						Wrapf(err, "failed loading config for module")
-				}
-			}
-		}
-
-		if err := safeCall(func() error { return module.Init(ctx) }); err != nil {
-			slox.Error(ctx, "failed initializing module", slog.Any("error", err))
-			r.teardown(ctx, initialized)
-
-			return oops.
-				With("name", name).
-				Wrapf(err, "failed initializing module")
-		}
-
-		initialized = append(initialized, module)
+	initialized, err := r.initModules(ctx, sorted, injector, info)
+	if err != nil {
+		return err
 	}
 
 	// Wire HotReloadable modules to the ReloadNotifier.
@@ -118,12 +101,14 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 		WithContext(ctx).
 		WithCancelOnError()
 
-	for _, module := range sorted {
+	for order, module := range sorted {
 		name := fmt.Sprintf("%T", module)
 
 		switch m := module.(type) {
 		case AsyncModule:
 			asyncPool.Go(func(ctx context.Context) error {
+				info.setState(order, StateStarted)
+
 				if err := safeCall(func() error { return m.StartAsync(ctx) }); err != nil {
 					slox.Error(ctx, "failed starting async module",
 						slog.String("name", name), slog.Any("error", err))
@@ -147,7 +132,7 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 		shutdownTimeout, cancel := shutdownContext(ctx)
 		defer cancel()
 
-		if shutdownErr := r.shutdown(shutdownTimeout, initialized); shutdownErr != nil {
+		if shutdownErr := r.shutdown(shutdownTimeout, initialized, info); shutdownErr != nil {
 			return shutdownErr
 		}
 
@@ -172,12 +157,14 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 
 	hasSyncModules := false
 
-	for _, module := range sorted {
+	for order, module := range sorted {
 		if m, ok := module.(SyncModule); ok {
 			hasSyncModules = true
 			name := fmt.Sprintf("%T", module)
 
 			syncPool.Go(func(ctx context.Context) error {
+				info.setState(order, StateStarted)
+
 				if cs, ok := m.(contextSetter); ok {
 					cs.setCtx(ctx)
 				}
@@ -223,7 +210,7 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 				shutdownTimeout, cancel := shutdownContext(ctx)
 				defer cancel()
 
-				if shutdownErr := r.shutdown(shutdownTimeout, initialized); shutdownErr != nil {
+				if shutdownErr := r.shutdown(shutdownTimeout, initialized, info); shutdownErr != nil {
 					return shutdownErr
 				}
 
@@ -240,7 +227,52 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 	shutdownTimeout, cancel := shutdownContext(ctx)
 	defer cancel()
 
-	return r.shutdown(shutdownTimeout, initialized)
+	return r.shutdown(shutdownTimeout, initialized, info)
+}
+
+// initModules initializes modules sequentially in dependency order, loading
+// config for Configurable modules first and recording state/duration in info.
+// On failure it tears down the already-initialized prefix and returns the
+// wrapped error.
+func (r *Runtime) initModules(ctx context.Context, sorted []Module, injector do.Injector, info *RuntimeInfo) ([]Module, error) {
+	initialized := make([]Module, 0, len(sorted))
+
+	for order, module := range sorted {
+		name := fmt.Sprintf("%T", module)
+
+		if c, ok := module.(Configurable); ok {
+			k, kErr := do.Invoke[*koanf.Koanf](injector)
+			if kErr == nil && k.Exists(c.ConfigPath()) {
+				if err := c.LoadConfig(k); err != nil {
+					slox.Error(ctx, "failed loading config for module", slog.String("name", name), slog.Any("error", err))
+					info.setState(order, StateFailed)
+					r.teardown(ctx, initialized, info)
+
+					return nil, oops.
+						With("name", name).
+						Wrapf(err, "failed loading config for module")
+				}
+			}
+		}
+
+		initStart := time.Now()
+		if err := safeCall(func() error { return module.Init(ctx) }); err != nil {
+			slox.Error(ctx, "failed initializing module", slog.Any("error", err))
+			info.setState(order, StateFailed)
+			r.teardown(ctx, initialized, info)
+
+			return nil, oops.
+				With("name", name).
+				Wrapf(err, "failed initializing module")
+		}
+
+		info.setInitDuration(order, time.Since(initStart))
+		info.setState(order, StateInitialized)
+
+		initialized = append(initialized, module)
+	}
+
+	return initialized, nil
 }
 
 // shutdownContext derives a fresh timeout context for shutdown. It preserves
@@ -284,11 +316,11 @@ func shutdownModule(ctx context.Context, module Module) error {
 
 // teardown shuts down modules in reverse order under a fresh deadline, logging
 // but not returning errors. Used when cleaning up after an Init failure.
-func (r *Runtime) teardown(ctx context.Context, initialized []Module) {
+func (r *Runtime) teardown(ctx context.Context, initialized []Module, info *RuntimeInfo) {
 	timeoutCtx, cancel := shutdownContext(ctx)
 	defer cancel()
 
-	for _, module := range slices.Backward(initialized) {
+	for order, module := range slices.Backward(initialized) {
 		name := fmt.Sprintf("%T", module)
 
 		if timeoutCtx.Err() != nil {
@@ -298,16 +330,21 @@ func (r *Runtime) teardown(ctx context.Context, initialized []Module) {
 
 		if err := shutdownModule(timeoutCtx, module); err != nil {
 			slox.Error(ctx, "failed shutting down module", slog.String("name", name), slog.Any("error", err))
+			continue
 		}
+
+		info.setState(order, StateStopped)
 	}
 }
 
 // shutdown shuts down modules in reverse order, returning the first error.
 // Modules remaining after the deadline expires are logged and skipped.
-func (r *Runtime) shutdown(ctx context.Context, initialized []Module) error {
+// initialized is a prefix of the topo-sorted slice, so its index is the
+// module's InitOrder.
+func (r *Runtime) shutdown(ctx context.Context, initialized []Module, info *RuntimeInfo) error {
 	var firstErr error
 
-	for _, module := range slices.Backward(initialized) {
+	for order, module := range slices.Backward(initialized) {
 		name := fmt.Sprintf("%T", module)
 
 		if ctx.Err() != nil {
@@ -323,17 +360,72 @@ func (r *Runtime) shutdown(ctx context.Context, initialized []Module) error {
 			if firstErr == nil {
 				firstErr = oops.With("name", name).Wrapf(err, "failed shutting down module")
 			}
+			continue
 		}
+
+		info.setState(order, StateStopped)
 	}
 
 	return firstErr
 }
 
+// ErrUnmetDependency is the typed sentinel for a module declaring a required
+// dependency no other module Provides(). Unmet-dep errors wrap it (oops, with
+// module/type detail) so callers match via errors.Is instead of string-matching.
+var ErrUnmetDependency = errors.New("unmet module dependency")
+
+// moduleMeta is the metadata sortModules derives while building the dependency
+// graph. Threaded out (indexed parallel to the sorted slice) so describeModules
+// reuses it instead of re-calling Provides()/Dependencies().
+type moduleMeta struct {
+	provides []reflect.Type
+	required []reflect.Type
+	optional []reflect.Type
+}
+
+// Validate runs the dependency topo-sort only — no do.New, no Init, no side
+// effects. Catches cycles and unmet declared required deps up front.
+// Limitation: undeclared do.MustInvoke calls are invisible here and only
+// surface at Init.
+func (r *Runtime) Validate() error {
+	_, _, err := sortModules(r.modules)
+	return err
+}
+
+// describeModules builds the initial []ModuleInfo (State = StatePending) from
+// the sorted modules and their meta, assigning InitOrder = index.
+func describeModules(sorted []Module, meta []moduleMeta) []ModuleInfo {
+	infos := make([]ModuleInfo, len(sorted))
+
+	for i, m := range sorted {
+		var name string
+		if nm, ok := m.(NamedModule); ok {
+			name = nm.Name()
+		}
+
+		infos[i] = ModuleInfo{
+			Name:      name,
+			Type:      fmt.Sprintf("%T", m),
+			InitOrder: i,
+			Provides:  renderTypes(meta[i].provides),
+			Requires:  renderTypes(meta[i].required),
+			Optional:  renderTypes(meta[i].optional),
+			Lifecycle: lifecycleOf(m),
+			State:     StatePending,
+		}
+	}
+
+	return infos
+}
+
 // sortModules topologically sorts modules based on Provider/Dependent declarations
 // using Kahn's algorithm. Modules with no declared deps preserve their original order.
-func sortModules(modules []Module) ([]Module, error) {
+// meta[i] holds the declarations derived for sorted[i], so callers avoid a second
+// reflect pass. Unmet required deps satisfy errors.Is(err, ErrUnmetDependency).
+func sortModules(modules []Module) ([]Module, []moduleMeta, error) {
 	// Build type → module index map from Provider declarations
 	typeOwner := make(map[reflect.Type]int)
+	metaByIdx := make([]moduleMeta, len(modules))
 
 	for i, m := range modules {
 		p, ok := m.(Provider)
@@ -341,7 +433,9 @@ func sortModules(modules []Module) ([]Module, error) {
 			continue
 		}
 
-		for _, t := range p.Provides() {
+		metaByIdx[i].provides = p.Provides()
+
+		for _, t := range metaByIdx[i].provides {
 			typeOwner[t] = i
 		}
 	}
@@ -358,14 +452,16 @@ func sortModules(modules []Module) ([]Module, error) {
 		}
 
 		required, optional := d.Dependencies()
+		metaByIdx[i].required = required
+		metaByIdx[i].optional = optional
 
 		for _, t := range required {
 			ownerIdx, found := typeOwner[t]
 			if !found {
-				return nil, oops.Errorf(
-					"module %T requires type %v but no module provides it",
-					m, t,
-				)
+				return nil, nil, oops.
+					With("module", fmt.Sprintf("%T", m)).
+					With("type", t.String()).
+					Wrapf(ErrUnmetDependency, "module %T requires type %v but no module provides it", m, t)
 			}
 
 			if ownerIdx == i {
@@ -401,11 +497,13 @@ func sortModules(modules []Module) ([]Module, error) {
 	}
 
 	sorted := make([]Module, 0, len(modules))
+	meta := make([]moduleMeta, 0, len(modules))
 
 	for len(queue) > 0 {
 		idx := queue[0]
 		queue = queue[1:]
 		sorted = append(sorted, modules[idx])
+		meta = append(meta, metaByIdx[idx])
 
 		for _, next := range edges[idx] {
 			inDegree[next]--
@@ -416,8 +514,8 @@ func sortModules(modules []Module) ([]Module, error) {
 	}
 
 	if len(sorted) != len(modules) {
-		return nil, oops.Errorf("cycle detected in module dependencies")
+		return nil, nil, oops.Errorf("cycle detected in module dependencies")
 	}
 
-	return sorted, nil
+	return sorted, meta, nil
 }
