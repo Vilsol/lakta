@@ -16,6 +16,7 @@ import (
 	pkg_otel "github.com/Vilsol/lakta/pkg/otel"
 	pkg_resilience_policy "github.com/Vilsol/lakta/pkg/resilience/policy"
 	pkg_workers_pool "github.com/Vilsol/lakta/pkg/workers/pool"
+	pkg_workers_scheduler "github.com/Vilsol/lakta/pkg/workers/scheduler"
 	pkg_workflows_temporal "github.com/Vilsol/lakta/pkg/workflows/temporal"
 )
 
@@ -33,5 +34,6 @@ var defaultConfigs = []any{
 	pkg_otel.NewDefaultConfig(),
 	pkg_resilience_policy.NewDefaultConfig(),
 	pkg_workers_pool.NewDefaultConfig(),
+	pkg_workers_scheduler.NewDefaultConfig(),
 	pkg_workflows_temporal.NewDefaultConfig(),
 }

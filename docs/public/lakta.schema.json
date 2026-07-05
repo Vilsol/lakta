@@ -175,6 +175,15 @@
                 }
               },
               "additionalProperties": false
+            },
+            "scheduler": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/workers_scheduler"
+                }
+              },
+              "additionalProperties": false
             }
           }
         },
@@ -547,6 +556,24 @@
           "additionalProperties": {
             "type": "string"
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "workers_scheduler": {
+      "type": "object",
+      "properties": {
+        "jobs": {
+          "type": "object",
+          "description": "jobs holds config-declared job overlays. Prefer snake_case names;",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "timezone": {
+          "type": "string",
+          "description": "timezone is the scheduler-wide default location (IANA name). Per-job",
+          "default": "UTC"
         }
       },
       "additionalProperties": false

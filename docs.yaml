@@ -370,6 +370,25 @@ modules:
       - option: WithPool
         type: map[string]pool.PoolConfig
         description: registers a pool in code (code-only); config with the same name
+  - category: workers
+    type: scheduler
+    package: github.com/Vilsol/lakta/pkg/workers/scheduler
+    configPath: modules.workers.scheduler.<name>
+    description: 'is the worker-scheduler module config. Mirrors pool.Config: a config'
+    fields:
+      - key: timezone
+        type: string
+        default: UTC
+        envVar: LAKTA_MODULES__WORKERS__SCHEDULER__<NAME>__TIMEZONE
+        description: timezone is the scheduler-wide default location (IANA name). Per-job
+      - key: jobs
+        type: map[string]scheduler.JobSpec
+        envVar: LAKTA_MODULES__WORKERS__SCHEDULER__<NAME>__JOBS
+        description: jobs holds config-declared job overlays. Prefer snake_case names;
+    codeOnly:
+      - option: WithJob
+        type: map[string]scheduler.JobSpec
+        description: registers a code-owned job. Seeds CodeJobs[name] with Schedule +
   - category: workflows
     type: temporal
     package: github.com/Vilsol/lakta/pkg/workflows/temporal
