@@ -1,5 +1,5 @@
 [tools]
-go = "1.26.4"
+go = "1.26.5"
 golangci-lint = "2.12.2"
 zig = "0.16.0"            # `zig cc` supplies the C linker the race detector needs (no system gcc required)
 
