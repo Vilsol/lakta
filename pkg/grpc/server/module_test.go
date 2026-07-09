@@ -155,6 +155,8 @@ func TestGRPCServerModule_PanicRecovery(t *testing.T) {
 
 	st, ok := status.FromError(err)
 	testza.AssertTrue(t, ok)
-	testza.AssertEqual(t, codes.Unknown, st.Code())
-	testza.AssertContains(t, st.Message(), "panic triggered")
+	// Panics now map to an opaque INTERNAL status; the panic value stays in logs.
+	testza.AssertEqual(t, codes.Internal, st.Code())
+	testza.AssertEqual(t, "internal error", st.Message())
+	testza.AssertNotContains(t, st.Message(), "handler boom")
 }

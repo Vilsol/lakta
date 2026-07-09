@@ -8,6 +8,8 @@ use (
 	./pkg/db/drivers/pgx
 	./pkg/db/sql
 	./pkg/debug/actuator
+	./pkg/errors/fiber
+	./pkg/errors/grpc
 	./pkg/events
 	./pkg/features/flags
 	./pkg/grpc

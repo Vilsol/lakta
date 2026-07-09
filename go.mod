@@ -62,4 +62,5 @@ require (
 require (
 	github.com/Vilsol/lakta/pkg/testkit v0.2.0
 	github.com/knadh/koanf/providers/env/v2 v2.0.0
+	google.golang.org/grpc v1.82.0
 )

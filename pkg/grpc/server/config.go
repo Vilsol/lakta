@@ -47,6 +47,14 @@ type Config struct {
 	// SPIFFE/SPIRE source via credentials.NewTLS(tlsconfig.MTLSServerConfig(...)).
 	// Takes precedence over TLS when set.
 	Credentials credentials.TransportCredentials `code_only:"WithCredentials" koanf:"-"`
+
+	// UnaryInterceptors are appended after the built-in
+	// contextInjector/logging/recovery trio, in registration order (code-only).
+	UnaryInterceptors []grpc.UnaryServerInterceptor `code_only:"WithUnaryInterceptor" koanf:"-"`
+
+	// StreamInterceptors are appended after the built-in trio, in registration
+	// order (code-only).
+	StreamInterceptors []grpc.StreamServerInterceptor `code_only:"WithStreamInterceptor" koanf:"-"`
 }
 
 // NewDefaultConfig returns default configuration
@@ -110,6 +118,18 @@ func WithService(serviceDescriptor *grpc.ServiceDesc, service any) Option {
 // config. Use for in-process sources such as SPIFFE/SPIRE (code-only).
 func WithCredentials(creds credentials.TransportCredentials) Option {
 	return func(m *Config) { m.Credentials = creds }
+}
+
+// WithUnaryInterceptor appends a unary interceptor, applied after the built-in
+// contextInjector/logging/recovery trio (code-only).
+func WithUnaryInterceptor(i grpc.UnaryServerInterceptor) Option {
+	return func(m *Config) { m.UnaryInterceptors = append(m.UnaryInterceptors, i) }
+}
+
+// WithStreamInterceptor appends a stream interceptor, applied after the built-in
+// trio (code-only).
+func WithStreamInterceptor(i grpc.StreamServerInterceptor) Option {
+	return func(m *Config) { m.StreamInterceptors = append(m.StreamInterceptors, i) }
 }
 
 // ServerCredentials resolves the transport credentials for the server:

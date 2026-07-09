@@ -192,6 +192,12 @@ modules:
       - option: WithCredentials
         type: credentials.TransportCredentials
         description: sets explicit transport credentials, overriding TLS file
+      - option: WithUnaryInterceptor
+        type: '[]grpc.UnaryServerInterceptor'
+        description: appends a unary interceptor, applied after the built-in
+      - option: WithStreamInterceptor
+        type: '[]grpc.StreamServerInterceptor'
+        description: appends a stream interceptor, applied after the built-in
   - category: health
     type: health
     package: github.com/Vilsol/lakta/pkg/health
@@ -246,6 +252,9 @@ modules:
       - option: WithTLSConfig
         type: '*tls.Config'
         description: sets an explicit *tls.Config, overriding TLS file config. Use
+      - option: WithErrorHandler
+        type: '*'
+        description: sets the fiber.Config-level error handler (code-only)
       - option: WithRouter
         type: '[]fiber.Router'
         description: adds router to the list of routers to be invoked (code-only)

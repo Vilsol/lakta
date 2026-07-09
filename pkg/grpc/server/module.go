@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/Vilsol/lakta/pkg/config"
+	apperrors "github.com/Vilsol/lakta/pkg/errors"
 	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/Vilsol/slox"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
@@ -19,7 +20,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
 )
@@ -94,8 +94,13 @@ func (m *Module) Init(ctx context.Context) error {
 		})
 	}
 
-	recoveryHandler := func(p any) error {
-		return status.Errorf(codes.Unknown, "panic triggered: %v", p)
+	recoveryHandler := func(ctx context.Context, p any) error {
+		slox.Error(ctx, "recovered from panic in grpc handler", slog.Any("panic", p))
+		// Recovery is outer of the appended errors interceptor, so it renders the
+		// panic itself: build an INTERNAL AppError and map it to an opaque status.
+		// The panic value stays in the log line above, never on the wire.
+		appErr := apperrors.Internal("internal error")
+		return status.New(appErr.GRPC, appErr.Message).Err()
 	}
 
 	creds, err := m.config.ServerCredentials()
@@ -107,16 +112,22 @@ func (m *Module) Init(ctx context.Context) error {
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.KeepaliveParams(m.config.KeepaliveServerParameters()),
 		grpc.KeepaliveEnforcementPolicy(m.config.KeepaliveEnforcementPolicy()),
-		grpc.ChainUnaryInterceptor(
-			contextInjector,
-			logging.UnaryServerInterceptor(interceptorLogger(), logging.WithLogOnEvents(logging.FinishCall)),
-			recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(recoveryHandler)),
-		),
-		grpc.ChainStreamInterceptor(
-			streamContextInjector,
-			logging.StreamServerInterceptor(interceptorLogger(), logging.WithLogOnEvents(logging.FinishCall)),
-			recovery.StreamServerInterceptor(recovery.WithRecoveryHandler(recoveryHandler)),
-		),
+		grpc.ChainUnaryInterceptor(append(
+			[]grpc.UnaryServerInterceptor{
+				contextInjector,
+				logging.UnaryServerInterceptor(interceptorLogger(), logging.WithLogOnEvents(logging.FinishCall)),
+				recovery.UnaryServerInterceptor(recovery.WithRecoveryHandlerContext(recoveryHandler)),
+			},
+			m.config.UnaryInterceptors...,
+		)...),
+		grpc.ChainStreamInterceptor(append(
+			[]grpc.StreamServerInterceptor{
+				streamContextInjector,
+				logging.StreamServerInterceptor(interceptorLogger(), logging.WithLogOnEvents(logging.FinishCall)),
+				recovery.StreamServerInterceptor(recovery.WithRecoveryHandlerContext(recoveryHandler)),
+			},
+			m.config.StreamInterceptors...,
+		)...),
 	}
 
 	if creds != nil {

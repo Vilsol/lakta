@@ -58,6 +58,10 @@ type Config struct {
 	// source via tlsconfig.MTLSServerConfig(...). Takes precedence over TLS.
 	TLSConfig *tls.Config `code_only:"WithTLSConfig" koanf:"-"`
 
+	// ErrorHandler sets the fiber.Config-level error handler (code-only). Wire an
+	// errfiber.ErrorHandler here to render handler errors as problem+json.
+	ErrorHandler *fiber.ErrorHandler `code_only:"WithErrorHandler" koanf:"-"`
+
 	// Routers defines a list of Router functions to configure routes for a Fiber application.
 	Routers []Router `code_only:"WithRouter" koanf:"-"`
 
@@ -112,6 +116,9 @@ func (c *Config) ToFiberConfig() fiber.Config {
 			DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
 		})
 		_ = decoder.Decode(map[string]any(c.Raw))
+	}
+	if c.ErrorHandler != nil {
+		cfg.ErrorHandler = *c.ErrorHandler
 	}
 	if cfg.ReadTimeout == 0 {
 		cfg.ReadTimeout = defaultReadTimeout
@@ -169,6 +176,11 @@ func WithRouterCtx(router RouterCtx) Option {
 // for in-process sources such as SPIFFE/SPIRE (code-only).
 func WithTLSConfig(cfg *tls.Config) Option {
 	return func(m *Config) { m.TLSConfig = cfg }
+}
+
+// WithErrorHandler sets the fiber.Config-level error handler (code-only).
+func WithErrorHandler(h fiber.ErrorHandler) Option {
+	return func(m *Config) { m.ErrorHandler = &h }
 }
 
 // ResolveTLS returns the effective *tls.Config: explicit TLSConfig wins,
