@@ -4,6 +4,7 @@ use (
 	.
 	./cmd
 	./examples/microservices
+	./pkg/cache/memory
 	./pkg/db/drivers/pgx
 	./pkg/db/sql
 	./pkg/debug/actuator

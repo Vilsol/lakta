@@ -6,6 +6,20 @@
     "modules": {
       "type": "object",
       "properties": {
+        "cache": {
+          "type": "object",
+          "properties": {
+            "memory": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/cache_memory"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
         "db": {
           "type": "object",
           "properties": {
@@ -205,6 +219,19 @@
     }
   },
   "$defs": {
+    "cache_memory": {
+      "type": "object",
+      "properties": {
+        "caches": {
+          "type": "object",
+          "description": "caches holds config-declared caches. Prefer snake_case names; hyphens",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "db_pgx": {
       "type": "object",
       "properties": {

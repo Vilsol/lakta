@@ -1,4 +1,18 @@
 modules:
+  - category: cache
+    type: memory
+    package: github.com/Vilsol/lakta/pkg/cache/memory
+    configPath: modules.cache.memory.<name>
+    description: 'mirrors pool.Config: config Caches overlay code-only CodeCaches by name'
+    fields:
+      - key: caches
+        type: map[string]memory.Spec
+        envVar: LAKTA_MODULES__CACHE__MEMORY__<NAME>__CACHES
+        description: caches holds config-declared caches. Prefer snake_case names; hyphens
+    codeOnly:
+      - option: WithCache
+        type: map[string]memory.Spec
+        description: registers a cache in code (code-only); config with the same name
   - category: db
     type: pgx
     package: github.com/Vilsol/lakta/pkg/db/drivers/pgx
