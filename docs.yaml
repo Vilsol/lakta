@@ -1,4 +1,23 @@
 modules:
+  - category: auth
+    type: verifier
+    package: github.com/Vilsol/lakta/pkg/auth/verifier
+    configPath: modules.auth.verifier.<name>
+    description: is unmarshaled from modules.auth.verifier.<instance>
+    fields:
+      - key: issuers
+        type: '[]verifier.IssuerConfig'
+        envVar: LAKTA_MODULES__AUTH__VERIFIER__<NAME>__ISSUERS
+      - key: static_key
+        type: '*verifier.StaticKey'
+        envVar: LAKTA_MODULES__AUTH__VERIFIER__<NAME>__STATIC_KEY
+      - key: scope_claim
+        type: string
+        default: scope
+        envVar: LAKTA_MODULES__AUTH__VERIFIER__<NAME>__SCOPE_CLAIM
+      - key: roles_claim
+        type: string
+        envVar: LAKTA_MODULES__AUTH__VERIFIER__<NAME>__ROLES_CLAIM
   - category: cache
     type: memory
     package: github.com/Vilsol/lakta/pkg/cache/memory

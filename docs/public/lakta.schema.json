@@ -6,6 +6,20 @@
     "modules": {
       "type": "object",
       "properties": {
+        "auth": {
+          "type": "object",
+          "properties": {
+            "verifier": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/auth_verifier"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
         "cache": {
           "type": "object",
           "properties": {
@@ -219,6 +233,28 @@
     }
   },
   "$defs": {
+    "auth_verifier": {
+      "type": "object",
+      "properties": {
+        "issuers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "roles_claim": {
+          "type": "string"
+        },
+        "scope_claim": {
+          "type": "string",
+          "default": "scope"
+        },
+        "static_key": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
     "cache_memory": {
       "type": "object",
       "properties": {

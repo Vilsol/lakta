@@ -4,6 +4,9 @@ use (
 	.
 	./cmd
 	./examples/microservices
+	./pkg/auth/fiber
+	./pkg/auth/grpc
+	./pkg/auth/verifier
 	./pkg/cache/memory
 	./pkg/db/drivers/pgx
 	./pkg/db/sql

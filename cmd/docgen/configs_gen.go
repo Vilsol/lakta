@@ -3,6 +3,7 @@
 package main
 
 import (
+	pkg_auth_verifier "github.com/Vilsol/lakta/pkg/auth/verifier"
 	pkg_cache_memory "github.com/Vilsol/lakta/pkg/cache/memory"
 	pkg_db_drivers_pgx "github.com/Vilsol/lakta/pkg/db/drivers/pgx"
 	pkg_debug_actuator "github.com/Vilsol/lakta/pkg/debug/actuator"
@@ -22,6 +23,7 @@ import (
 )
 
 var defaultConfigs = []any{
+	pkg_auth_verifier.NewDefaultConfig(),
 	pkg_cache_memory.NewDefaultConfig(),
 	pkg_db_drivers_pgx.NewDefaultConfig(),
 	pkg_debug_actuator.NewDefaultConfig(),
