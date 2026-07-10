@@ -39,6 +39,14 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'Lakta',
+			logo: { src: './src/assets/lakta.svg', alt: 'Lakta' },
+			head: [
+				{ tag: 'meta', attrs: { property: 'og:image', content: 'https://vilsol.github.io/lakta/og.png' } },
+				{ tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },
+				{ tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
+				{ tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
+				{ tag: 'meta', attrs: { name: 'twitter:image', content: 'https://vilsol.github.io/lakta/og.png' } },
+			],
 			plugins: [
 				starlightLinksValidator(),
 				starlightLlmsTxt({
