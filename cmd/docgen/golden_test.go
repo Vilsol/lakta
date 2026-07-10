@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/MarvinJWendt/testza"
-	"github.com/Vilsol/lakta/cmd/internal/reflectcfg"
+	"github.com/Vilsol/lakta/pkg/reflectcfg"
 )
 
 // chdirRepoRoot points the test at the workspace root so extractComments can
@@ -43,7 +43,7 @@ func TestDocgenYAMLByteIdentical(t *testing.T) {
 	modVersions, err := reflectcfg.ParseGoMod()
 	testza.AssertNoError(t, err)
 
-	out := reflectcfg.Reflect(defaultConfigs, modVersions)
+	out := reflectcfg.Reflect(defaultEntries, modVersions)
 
 	var buf bytes.Buffer
 	testza.AssertNoError(t, reflectcfg.EncodeYAML(&buf, out))
@@ -64,7 +64,7 @@ func TestSchemaByteIdentical(t *testing.T) {
 	modVersions, err := reflectcfg.ParseGoMod()
 	testza.AssertNoError(t, err)
 
-	out := reflectcfg.Reflect(defaultConfigs, modVersions)
+	out := reflectcfg.Reflect(defaultEntries, modVersions)
 
 	var buf bytes.Buffer
 	testza.AssertNoError(t, reflectcfg.EncodeSchema(&buf, out, schemaID))

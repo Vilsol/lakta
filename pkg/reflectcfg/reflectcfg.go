@@ -1,16 +1,20 @@
-// Package reflectcfg reflects the registered default config structs into a
+// Package reflectcfg reflects module default config structs into a
 // documentation tree and emits either the YAML docgen output or a Draft 2020-12
-// JSON Schema. It is the single reflection source shared by
-// `docgen -format=yaml` and `docgen -format=schema`.
+// JSON Schema. It is the reflection source behind lakta's own `docgen`, and the
+// public API for downstream services: pair each registered module with its
+// default config via FromModule, then Reflect + EncodeYAML/EncodeSchema.
 package reflectcfg
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -22,9 +26,11 @@ import (
 
 const (
 	yamlIndent = 2
-	modulePath = "github.com/Vilsol/lakta"
 	// tagValueTrue is the "true" literal used by the code_only and required tags.
 	tagValueTrue = "true"
+	// configPathSegments is the segment count of a canonical config path:
+	// modules.<category>.<type>.<instance>.
+	configPathSegments = 4
 )
 
 // Output is the root doc tree.
@@ -32,7 +38,7 @@ type Output struct {
 	Modules []ModuleDoc `yaml:"modules"`
 }
 
-// ModuleDoc describes one built-in module's config surface.
+// ModuleDoc describes one module's config surface.
 type ModuleDoc struct {
 	Category    string          `yaml:"category"`
 	Type        string          `yaml:"type"`
@@ -74,15 +80,51 @@ type CodeOnlyDoc struct {
 	Description string `yaml:"description,omitempty"`
 }
 
+// Entry pairs one module's default config value with its koanf config path.
+type Entry struct {
+	// Path is the module's config path, e.g. "modules.grpc.server.default".
+	// The instance segment is replaced by "<name>" in the docs; an empty or
+	// non-canonical path falls back to package-path inference.
+	Path   string
+	Config any
+}
+
+// FromModule builds an Entry from a module's declared ConfigPath() and its
+// default config value — the two halves of the lakta.Configurable contract:
+//
+//	reflectcfg.FromModule(server.NewModule(), server.NewDefaultConfig())
+func FromModule(mod interface{ ConfigPath() string }, cfg any) Entry {
+	return Entry{Path: mod.ConfigPath(), Config: cfg}
+}
+
 // Reflect walks the registered default config values into the doc tree.
 // modVersions maps dependency module paths to versions for passthrough links;
 // nil is tolerated (URLs are simply omitted).
-func Reflect(configs []any, modVersions map[string]string) Output {
+func Reflect(entries []Entry, modVersions map[string]string) Output {
+	seen := make(map[string]bool, len(entries))
+	pkgPaths := make([]string, 0, len(entries))
+	for _, e := range entries {
+		if p := configType(e.Config).PkgPath(); !seen[p] {
+			seen[p] = true
+			pkgPaths = append(pkgPaths, p)
+		}
+	}
+	comments := extractComments(pkgPaths)
+
 	var out Output
-	for _, cfg := range configs {
-		out.Modules = append(out.Modules, processConfig(cfg, modVersions))
+	for _, e := range entries {
+		out.Modules = append(out.Modules, processConfig(e, modVersions, comments))
 	}
 	return out
+}
+
+// configType unwraps a pointer so both Config values and *Config pointers work.
+func configType(cfg any) reflect.Type {
+	t := reflect.TypeOf(cfg)
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	return t
 }
 
 // EncodeYAML writes the doc tree as YAML (the current docgen behavior).
@@ -98,14 +140,18 @@ func EncodeYAML(w io.Writer, out Output) error {
 	return nil
 }
 
-func processConfig(cfg any, modVersions map[string]string) ModuleDoc {
-	t := reflect.TypeOf(cfg)
-	v := reflect.ValueOf(cfg)
+func processConfig(e Entry, modVersions map[string]string, commentsByPkg map[string]sourceComments) ModuleDoc {
+	t := reflect.TypeOf(e.Config)
+	v := reflect.ValueOf(e.Config)
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+		v = v.Elem()
+	}
 	pkgPath := t.PkgPath()
 
-	category, modType := inferCategoryAndType(pkgPath)
+	category, modType := categoryAndType(e.Path, pkgPath)
 
-	comments := extractComments(pkgPath)
+	comments := commentsByPkg[pkgPath]
 
 	doc := ModuleDoc{
 		Category:    category,
@@ -240,6 +286,16 @@ func envVarName(configPath, key string) string {
 	return "LAKTA_" + strings.ToUpper(strings.ReplaceAll(configPath, ".", "__")+"__"+key)
 }
 
+// categoryAndType prefers the module's declared config path
+// ("modules.<category>.<type>.<instance>") — the runtime's actual source of
+// truth; an empty or non-canonical path falls back to package-path inference.
+func categoryAndType(path, pkgPath string) (string, string) {
+	if parts := strings.Split(path, "."); len(parts) == configPathSegments && parts[0] == "modules" {
+		return parts[1], parts[2]
+	}
+	return inferCategoryAndType(pkgPath)
+}
+
 // inferCategoryAndType extracts category and type from a package path like
 // "github.com/Vilsol/lakta/pkg/grpc/server" -> ("grpc", "server")
 // "github.com/Vilsol/lakta/pkg/db/drivers/pgx" -> ("db", "pgx")
@@ -361,21 +417,62 @@ type sourceComments struct {
 	funcs        map[string]string
 }
 
-// extractComments parses the Go source for a package and extracts doc comments
-// from the Config struct (type + fields) and WithXxx option functions.
-func extractComments(pkgPath string) sourceComments {
+// extractComments parses the Go source of each package and extracts doc
+// comments from the Config struct (type + fields) and WithXxx option
+// functions. Missing packages simply yield empty comments.
+func extractComments(pkgPaths []string) map[string]sourceComments {
+	all := make(map[string]sourceComments, len(pkgPaths))
+
+	dirs, err := packageDirs(pkgPaths)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not resolve package dirs: %v\n", err)
+		return all
+	}
+
+	for pkgPath, dir := range dirs {
+		all[pkgPath] = parseDirComments(dir)
+	}
+
+	return all
+}
+
+// packageDirs resolves import paths to source directories with a single
+// `go list` invocation, so packages from any module resolve (module cache,
+// replace targets, workspace members) regardless of the working directory.
+func packageDirs(pkgPaths []string) (map[string]string, error) {
+	if len(pkgPaths) == 0 {
+		return nil, nil
+	}
+
+	// -e keeps one unresolvable package (empty Dir, skipped below) from
+	// failing the whole batch.
+	args := append([]string{"list", "-e", "-f", "{{.ImportPath}} {{.Dir}}"}, pkgPaths...)
+	out, err := exec.CommandContext(context.Background(), "go", args...).Output() //nolint:gosec
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return nil, fmt.Errorf("go list: %w: %s", err, exitErr.Stderr)
+		}
+		return nil, fmt.Errorf("go list: %w", err)
+	}
+
+	dirs := make(map[string]string, len(pkgPaths))
+	for line := range strings.Lines(string(out)) {
+		if pkgPath, dir, found := strings.Cut(strings.TrimSpace(line), " "); found && dir != "" {
+			dirs[pkgPath] = dir
+		}
+	}
+
+	return dirs, nil
+}
+
+// parseDirComments extracts the doc comments from every Go file in dir.
+func parseDirComments(dir string) sourceComments {
 	sc := sourceComments{
 		fields:       make(map[string]string),
 		fieldsByType: make(map[string]string),
 		funcs:        make(map[string]string),
 	}
-
-	// Resolve package path to filesystem directory
-	rel, found := strings.CutPrefix(pkgPath, modulePath+"/")
-	if !found {
-		return sc
-	}
-	dir := filepath.Join(".", rel)
 
 	fset := token.NewFileSet()
 	pkgs, err := parser.ParseDir(fset, dir, nil, parser.ParseComments) //nolint:staticcheck

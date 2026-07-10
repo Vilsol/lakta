@@ -89,5 +89,5 @@ func TestRender_FormatsAndIncludesCalls(t *testing.T) {
 	out := string(src)
 	testza.AssertContains(t, out, "DO NOT EDIT")
 	testza.AssertContains(t, out, `pkg_grpc_server "github.com/Vilsol/lakta/pkg/grpc/server"`)
-	testza.AssertContains(t, out, "pkg_grpc_server.NewDefaultConfig(),")
+	testza.AssertContains(t, out, "reflectcfg.FromModule(pkg_grpc_server.NewModule(), pkg_grpc_server.NewDefaultConfig()),")
 }

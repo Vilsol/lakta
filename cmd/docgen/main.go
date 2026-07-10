@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Vilsol/lakta/cmd/internal/reflectcfg"
+	"github.com/Vilsol/lakta/pkg/reflectcfg"
 )
 
 // schemaID is the hosted URL where lakta.schema.json is served (docs site
@@ -27,7 +27,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "warning: could not parse go.mod: %v\n", err)
 	}
 
-	out := reflectcfg.Reflect(defaultConfigs, modVersions)
+	out := reflectcfg.Reflect(defaultEntries, modVersions)
 
 	switch *format {
 	case "yaml":

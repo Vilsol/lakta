@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"reflect"
 	"testing"
 
@@ -30,6 +31,41 @@ func TestInferCategoryAndType(t *testing.T) {
 	cat, typ = inferCategoryAndType("example.com/standalone")
 	testza.AssertEqual(t, "example.com/standalone", cat)
 	testza.AssertEqual(t, "example.com/standalone", typ)
+}
+
+func TestCategoryAndType(t *testing.T) {
+	t.Parallel()
+
+	// canonical module path wins over package-path inference
+	cat, typ := categoryAndType("modules.custom.widget.default", "example.com/svc/internal/widget")
+	testza.AssertEqual(t, "custom", cat)
+	testza.AssertEqual(t, "widget", typ)
+
+	// empty path falls back to inference
+	cat, typ = categoryAndType("", "github.com/Vilsol/lakta/pkg/grpc/server")
+	testza.AssertEqual(t, "grpc", cat)
+	testza.AssertEqual(t, "server", typ)
+
+	// non-canonical path (wrong segment count / prefix) falls back too
+	cat, typ = categoryAndType("widget.default", "github.com/Vilsol/lakta/pkg/otel")
+	testza.AssertEqual(t, "otel", cat)
+	testza.AssertEqual(t, "otel", typ)
+}
+
+func TestPackageDirs(t *testing.T) {
+	t.Parallel()
+
+	// own package resolves to the current directory; unknown packages are
+	// skipped (-e) instead of failing the batch.
+	dirs, err := packageDirs([]string{"github.com/Vilsol/lakta/pkg/reflectcfg", "example.com/does/not/exist"})
+	testza.AssertNoError(t, err)
+
+	wd, err := os.Getwd()
+	testza.AssertNoError(t, err)
+	testza.AssertEqual(t, wd, dirs["github.com/Vilsol/lakta/pkg/reflectcfg"])
+
+	_, ok := dirs["example.com/does/not/exist"]
+	testza.AssertFalse(t, ok)
 }
 
 func TestEnvVarName(t *testing.T) {
