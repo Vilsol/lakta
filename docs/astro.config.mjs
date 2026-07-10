@@ -4,6 +4,7 @@ import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import starlightLinksValidator from 'starlight-links-validator';
 import tailwindcss from '@tailwindcss/vite';
 import yaml from 'js-yaml';
 
@@ -37,6 +38,7 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'Lakta',
+			plugins: [starlightLinksValidator()],
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/Vilsol/lakta' }],
 			sidebar: [
 				{

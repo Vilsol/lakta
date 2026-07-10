@@ -95,4 +95,4 @@ func (m *Module) Start(ctx context.Context) error {
 
 ## Testing your module
 
-See [Testing with testkit](/guides/testing) for how to write unit tests without a full runtime.
+See [Testing with testkit](/lakta/guides/testing/) for how to write unit tests without a full runtime.
