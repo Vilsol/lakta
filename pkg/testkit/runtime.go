@@ -28,7 +28,15 @@ type RuntimeHarness struct {
 // t.Cleanup ensures Shutdown is called if the test does not call it explicitly.
 func NewRuntimeHarness(t *testing.T, modules ...lakta.Module) *RuntimeHarness {
 	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
+	return newRuntimeHarnessCtx(t, context.Background(), modules...)
+}
+
+// newRuntimeHarnessCtx is NewRuntimeHarness with a caller-supplied parent context,
+// letting a Slice boot the runtime with its pre-seeded injector context so that
+// grace-period Shutdown, t.Cleanup, and the natural-completion race come for free.
+func newRuntimeHarnessCtx(t *testing.T, parent context.Context, modules ...lakta.Module) *RuntimeHarness {
+	t.Helper()
+	ctx, cancel := context.WithCancel(parent)
 
 	h := &RuntimeHarness{
 		t:      t,

@@ -86,6 +86,18 @@ pkg/config: Apply, Config, NewConfig, NewDefaultConfig (low-level/boilerplate co
 | `NewMockProviderModule() *MockProviderModule` | Module mock that registers a DI provider |
 | `MapProvider` | `map[string]any` implementing `koanf.Provider` for seeding config |
 | `WaitForAddr(t, m) net.Addr` | Block until a module reports its listen address |
+| `NewSlice(t, modules...) *Slice` | Boot a subset of modules with mocked collaborators |
+| `Slice.With(modules...) *Slice` | Append more modules under test |
+| `Slice.WithConfig(map) *Slice` | Preset koanf config + `ReloadNotifier` |
+| `Slice.WithTestLogger() *Slice` | Bridge slog records to `t.Log` |
+| `Mock[T](s, v) *Slice` | Seed a double for an unmet dependency (free generic function) |
+| `SliceProvide[T](s, fn) *Slice` | Register an arbitrary provider in the slice (free generic function) |
+| `Slice.Validate() error` | Pre-boot check: unmet declared deps + mock/module collisions |
+| `Slice.Start() *Slice` | Validate then boot the runtime with the pre-seeded injector |
+| `Slice.Shutdown() error` | Gracefully stop the sliced runtime |
+| `Get[T](s) T` | Invoke `T` from the slice injector or `t.Fatal` (free generic function) |
+| `Slice.Provided() []string` | Names of services registered in the slice injector |
+| `Slice.Notifier() *ReloadNotifier` | Shared reload notifier, for `FireReload` in tests |
 
 ## pkg/logging/slox
 
