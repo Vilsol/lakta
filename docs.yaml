@@ -255,6 +255,9 @@ modules:
       - option: WithErrorHandler
         type: '*'
         description: sets the fiber.Config-level error handler (code-only)
+      - option: WithStructValidator
+        type: fiber.StructValidator
+        description: sets the fiber.Config-level struct validator (code-only)
       - option: WithRouter
         type: '[]fiber.Router'
         description: adds router to the list of routers to be invoked (code-only)
