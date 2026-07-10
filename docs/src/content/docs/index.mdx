@@ -13,6 +13,9 @@ hero:
       Lakta
     </span>
   tagline: An opinionated Go microservice framework. Modules, DI, and lifecycle management — batteries included.
+  image:
+    file: ../../assets/lakta.svg
+    alt: ''
   actions:
     - text: Get started
       link: /lakta/getting-started/installation/
@@ -44,7 +47,7 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 
 ## A complete service in one file
 
-```go compile=skip
+```go compile=skip title="main.go"
 func main() {
     if err := lakta.NewRuntime(
         config.NewModule(

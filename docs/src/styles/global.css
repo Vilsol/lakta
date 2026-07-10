@@ -6,9 +6,21 @@
 
 @theme {
 	/*
-	Configure your Tailwind theme that will be used by Starlight.
+	Forge-amber accent ("lakta" is Latvian for anvil). starlight-tailwind
+	derives the Starlight accent variables from this Tailwind scale.
 	https://starlight.astro.build/guides/css-and-tailwind/#styling-starlight-with-tailwind
 	*/
+	--color-accent-50: var(--color-amber-50);
+	--color-accent-100: var(--color-amber-100);
+	--color-accent-200: var(--color-amber-200);
+	--color-accent-300: var(--color-amber-300);
+	--color-accent-400: var(--color-amber-400);
+	--color-accent-500: var(--color-amber-500);
+	--color-accent-600: var(--color-amber-600);
+	--color-accent-700: var(--color-amber-700);
+	--color-accent-800: var(--color-amber-800);
+	--color-accent-900: var(--color-amber-900);
+	--color-accent-950: var(--color-amber-950);
 }
 
 /*
