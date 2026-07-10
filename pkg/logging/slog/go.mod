@@ -4,8 +4,8 @@ go 1.26.4
 
 require (
 	github.com/MarvinJWendt/testza v0.5.2
-	github.com/Vilsol/lakta v0.4.0
-	github.com/Vilsol/lakta/pkg/testkit v0.4.0
+	github.com/Vilsol/lakta v0.4.1
+	github.com/Vilsol/lakta/pkg/testkit v0.4.1
 	github.com/Vilsol/slox v0.1.0
 	github.com/knadh/koanf/v2 v2.3.5
 	github.com/remychantenay/slog-otel v1.3.5

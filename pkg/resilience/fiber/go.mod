@@ -4,9 +4,9 @@ go 1.26.4
 
 require (
 	github.com/MarvinJWendt/testza v0.5.2
-	github.com/Vilsol/lakta v0.4.0
-	github.com/Vilsol/lakta/pkg/resilience/policy v0.4.0
-	github.com/Vilsol/lakta/pkg/testkit v0.4.0
+	github.com/Vilsol/lakta v0.4.1
+	github.com/Vilsol/lakta/pkg/resilience/policy v0.4.1
+	github.com/Vilsol/lakta/pkg/testkit v0.4.1
 	github.com/failsafe-go/failsafe-go v0.9.6
 	github.com/gofiber/fiber/v3 v3.4.0
 	github.com/samber/do/v2 v2.0.0

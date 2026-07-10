@@ -5,8 +5,8 @@ go 1.26.4
 require (
 	github.com/MarvinJWendt/testza v0.5.2
 	github.com/Masterminds/squirrel v1.5.4
-	github.com/Vilsol/lakta v0.4.0
-	github.com/Vilsol/lakta/pkg/testkit v0.4.0
+	github.com/Vilsol/lakta v0.4.1
+	github.com/Vilsol/lakta/pkg/testkit v0.4.1
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/samber/do/v2 v2.0.0
 	github.com/samber/oops v1.22.0
