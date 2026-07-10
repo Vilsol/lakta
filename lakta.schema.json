@@ -248,7 +248,37 @@
         "issuers": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "object",
+            "properties": {
+              "algorithms": {
+                "type": "array",
+                "description": "algorithms is a hard allowlist, e.g. [RS256, ES256]; alg:none is rejected",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "audience": {
+                "type": "array",
+                "description": "audience MUST be non-empty; the token aud must intersect it",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "clock_skew": {
+                "type": "string",
+                "description": "clockSkew is capped at maxClockSkew",
+                "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+              },
+              "issuer": {
+                "type": "string",
+                "description": "issuer is matched against the token iss exactly (no prefix/substring)"
+              },
+              "jwks_url": {
+                "type": "string",
+                "description": "jWKSURL is the JWKS endpoint; empty triggers OIDC discovery from Issuer"
+              }
+            },
+            "additionalProperties": false
           }
         },
         "roles_claim": {
@@ -271,7 +301,28 @@
           "type": "object",
           "description": "caches holds config-declared caches. Prefer snake_case names; hyphens",
           "additionalProperties": {
-            "type": "string"
+            "type": "object",
+            "properties": {
+              "max_size": {
+                "type": "integer",
+                "description": "entry-count bound -> otter MaximumSize"
+              },
+              "record_stats": {
+                "type": "boolean",
+                "description": "attach the otel StatsRecorder"
+              },
+              "ttl": {
+                "type": "string",
+                "description": "expire-after-write; 0 = none",
+                "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+              },
+              "ttl_access": {
+                "type": "string",
+                "description": "expire-after-access; 0 = none",
+                "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+              }
+            },
+            "additionalProperties": false
           }
         }
       },
@@ -700,7 +751,39 @@
           "type": "object",
           "description": "policies defines the named policies this module manages. Prefer",
           "additionalProperties": {
-            "type": "string"
+            "type": "object",
+            "properties": {
+              "adaptive_limiter": {
+                "type": "string",
+                "description": "adaptiveLimiter sheds load by self-tuning a concurrency limit"
+              },
+              "bulkhead": {
+                "type": "string",
+                "description": "bulkhead caps concurrency with a hard ceiling nearest the call"
+              },
+              "circuit_breaker": {
+                "type": "string",
+                "description": "circuitBreaker rejects executions while failures exceed a threshold"
+              },
+              "hedge": {
+                "type": "string",
+                "description": "hedge starts redundant attempts after a delay to trim tail latency"
+              },
+              "rate_limit": {
+                "type": "string",
+                "description": "rateLimit bounds the execution rate"
+              },
+              "retry": {
+                "type": "string",
+                "description": "retry retries failed executions"
+              },
+              "timeout": {
+                "type": "string",
+                "description": "timeout bounds each execution attempt. Zero disables it",
+                "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+              }
+            },
+            "additionalProperties": false
           }
         }
       },
@@ -713,7 +796,18 @@
           "type": "object",
           "description": "pools defines the named pools this module manages. Prefer snake_case",
           "additionalProperties": {
-            "type": "string"
+            "type": "object",
+            "properties": {
+              "queue_size": {
+                "type": "integer",
+                "description": "queueSize is the pending-task queue capacity. Nil uses the default"
+              },
+              "workers": {
+                "type": "integer",
+                "description": "workers is the number of concurrent workers. Zero or less uses NumCPU"
+              }
+            },
+            "additionalProperties": false
           }
         }
       },
@@ -726,7 +820,31 @@
           "type": "object",
           "description": "jobs holds config-declared job overlays. Prefer snake_case names;",
           "additionalProperties": {
-            "type": "string"
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean",
+                "description": "enabled uses nil = true; false = never registered. This is the OPPOSITE"
+              },
+              "jitter": {
+                "type": "string",
+                "description": "0 = none",
+                "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+              },
+              "overlap": {
+                "type": "string",
+                "description": "\"\" defaults to OverlapSkip in translation"
+              },
+              "schedule": {
+                "type": "string",
+                "description": "6-field cron (seconds) or \"@every 5m\""
+              },
+              "timezone": {
+                "type": "string",
+                "description": "per-job override of Config.Timezone; \"\" inherits"
+              }
+            },
+            "additionalProperties": false
           }
         },
         "timezone": {

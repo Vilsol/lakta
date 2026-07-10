@@ -15,6 +15,12 @@ codeberg.org/go-pdf/fpdf v0.10.0/go.mod h1:Y0DGRAdZ0OmnZPvjbMp/1bYxmIPxm0ws4tfoP
 git.sr.ht/~sbinet/gg v0.6.0/go.mod h1:uucygbfC9wVPQIfrmwM2et0imr8L7KQWywX0xpFMm94=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.31.0/go.mod h1:P4WPRUkOhJC13W//jWpyfJNDAIpvRbAUIYLX/4jtlE0=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.32.0/go.mod h1:RD2SsorTmYhF6HkTmDw7KmPYQk8OBYwTkuasChwv7R4=
+github.com/Vilsol/lakta/pkg/auth/verifier v0.4.0/go.mod h1:y6zPTGZqQkS8AWDKMmfaYiwuBy1WozkDeZ4tNiDnQ+k=
+github.com/Vilsol/lakta/pkg/errors/fiber v0.4.0/go.mod h1:qHIY8rC9AmIcZd/rk+ocuf+fvvtUkIaYsIT5x0nIfvw=
+github.com/Vilsol/lakta/pkg/errors/grpc v0.4.0/go.mod h1:dsku0JWAYwN4tM8tcdqMMCXslUhOGBNnVJnSLk7+lTI=
+github.com/Vilsol/lakta/pkg/resilience/policy v0.4.0/go.mod h1:v0o57OYq9J+ojniaF+YDbOySREqvaH2KkEhs+FytFcY=
+github.com/Vilsol/lakta/pkg/validation/fiber v0.4.0/go.mod h1:JTPxvWyMrB3RxBaeSSRtBbDaTb0uoKtjJWDWE1ZcwQU=
+github.com/Vilsol/lakta/pkg/workers/pool v0.4.0/go.mod h1:C7xbbEV1KJzX3gcFhWwXrx/d7J0dvOVRY89lpNKNR68=
 github.com/ajstarks/svgo v0.0.0-20211024235047-1546f124cd8b/go.mod h1:1KcenG0jGWcpt8ov532z81sp/kMMUG485J2InIOyADM=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/antlr4-go/antlr/v4 v4.13.0 h1:lxCg3LAv+EUK6t1i0y1V6/SLeUi0eKEKdhQAlS8TVTI=

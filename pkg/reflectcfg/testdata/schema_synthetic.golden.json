@@ -44,6 +44,26 @@
         "enabled": {
           "type": "boolean"
         },
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "host": {
+                "type": "string",
+                "default": "localhost"
+              },
+              "weight": {
+                "type": "integer",
+                "default": "1"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "host"
+            ]
+          }
+        },
         "host": {
           "type": "string",
           "description": "bind host",
@@ -68,6 +88,24 @@
         },
         "ratio": {
           "type": "number"
+        },
+        "routes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "weight": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "host"
+            ]
+          }
         },
         "tags": {
           "type": "object",

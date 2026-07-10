@@ -209,6 +209,22 @@ func processConfig(e Entry, modVersions map[string]string, commentsByPkg map[str
 			continue
 		}
 
+		// Slice/map of same-package structs: recurse into the element type so
+		// its fields are documented and the schema types them. Elements are
+		// not individually env-addressable, so only this parent field keeps
+		// an env var, and the Go-syntax collection blob is dropped in favor
+		// of per-field defaults from the first default-slice element.
+		if elem := collectionElem(f.Type, pkgPath); elem != nil {
+			doc.Fields = append(doc.Fields, FieldDoc{
+				Key:         koanfTag,
+				Type:        formatType(f.Type),
+				EnvVar:      envVarName(doc.ConfigPath, koanfTag),
+				Description: comments.fields[f.Name],
+				Fields:      structFields(elem, collectionElemValue(v.FieldByName(f.Name), elem), comments, "", ""),
+			})
+			continue
+		}
+
 		fd := FieldDoc{
 			Key:         koanfTag,
 			Type:        formatType(f.Type),
@@ -228,6 +244,8 @@ func processConfig(e Entry, modVersions map[string]string, commentsByPkg map[str
 // is the dotted koanf prefix (e.g. "migrations") used to build each sub-field's
 // env var; each returned FieldDoc.Key is the leaf koanf tag so the schema nests
 // it under an object. It recurses for further-nested same-package structs.
+// An empty configPath suppresses env vars for the whole subtree — used for
+// collection elements, which are not individually env-addressable.
 func structFields(st reflect.Type, sv reflect.Value, comments sourceComments, configPath, keyPath string) []FieldDoc {
 	var fields []FieldDoc
 	typeName := st.Name()
@@ -253,18 +271,58 @@ func structFields(st reflect.Type, sv reflect.Value, comments sourceComments, co
 			continue
 		}
 
-		fields = append(fields, FieldDoc{
+		if elem := collectionElem(f.Type, st.PkgPath()); elem != nil {
+			fd := FieldDoc{
+				Key:         koanfTag,
+				Type:        formatType(f.Type),
+				Description: comments.fieldsByType[typeName+"."+f.Name],
+				Fields:      structFields(elem, collectionElemValue(sv.FieldByName(f.Name), elem), comments, "", ""),
+			}
+			if configPath != "" {
+				fd.EnvVar = envVarName(configPath+"."+keyPath, koanfTag)
+			}
+			fields = append(fields, fd)
+			continue
+		}
+
+		fd := FieldDoc{
 			Key:         koanfTag,
 			Type:        formatType(f.Type),
 			Default:     defaultValue(sv.FieldByName(f.Name)),
 			Enum:        f.Tag.Get("enum"),
 			Required:    f.Tag.Get("required") == tagValueTrue,
-			EnvVar:      envVarName(configPath+"."+keyPath, koanfTag),
 			Description: comments.fieldsByType[typeName+"."+f.Name],
-		})
+		}
+		if configPath != "" {
+			fd.EnvVar = envVarName(configPath+"."+keyPath, koanfTag)
+		}
+		fields = append(fields, fd)
 	}
 
 	return fields
+}
+
+// collectionElem returns the element type of a []T or map[K]T field when T is
+// a struct from the same package; nil otherwise. External element types (e.g.
+// []grpc.ServiceDesc) stay opaque rather than recursing into foreign types.
+func collectionElem(t reflect.Type, pkgPath string) reflect.Type {
+	if t.Kind() != reflect.Slice && t.Kind() != reflect.Map {
+		return nil
+	}
+	if e := t.Elem(); e.Kind() == reflect.Struct && e.PkgPath() == pkgPath {
+		return e
+	}
+	return nil
+}
+
+// collectionElemValue picks the value element defaults are derived from: the
+// first element of a non-empty default slice, a zero value otherwise (map
+// iteration order would make map-derived defaults non-deterministic).
+func collectionElemValue(v reflect.Value, elem reflect.Type) reflect.Value {
+	if v.IsValid() && v.Kind() == reflect.Slice && v.Len() > 0 {
+		return v.Index(0)
+	}
+	return reflect.New(elem).Elem()
 }
 
 // defaultValue returns a string representation of a field's value,
@@ -398,7 +456,7 @@ func pkgAlias(pkg string) string {
 func isBuiltin(name string) bool {
 	switch name {
 	case goTypeBool, goTypeString,
-		"int", "int8", "int16", goTypeInt32, "int64",
+		goTypeInt, "int8", "int16", goTypeInt32, "int64",
 		"uint", "uint8", "uint16", "uint32", "uint64",
 		"float32", goTypeFloat64,
 		"complex64", "complex128",

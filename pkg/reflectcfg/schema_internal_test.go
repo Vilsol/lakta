@@ -20,6 +20,7 @@ const (
 	typWidget = "widget"
 	typRaw    = "raw"
 	keyHost   = "host"
+	keyPort   = "port"
 	inPtrInt  = "*int"
 	inMapSS   = "map[string]string"
 	inSliceS  = "[]string"
@@ -38,13 +39,21 @@ func syntheticOutput() Output {
 			Description: "demo widget module",
 			Fields: []FieldDoc{
 				{Key: keyHost, Type: goTypeString, Default: "0.0.0.0", EnvVar: "LAKTA_MODULES__DEMO__WIDGET__<NAME>__HOST", Description: "bind host"},
-				{Key: "port", Type: inPtrInt, EnvVar: "LAKTA_MODULES__DEMO__WIDGET__<NAME>__PORT", Description: "listen port"},
+				{Key: keyPort, Type: inPtrInt, EnvVar: "LAKTA_MODULES__DEMO__WIDGET__<NAME>__PORT", Description: "listen port"},
 				{Key: "timeout", Type: goTypeDuration, Default: "30s", Required: true, EnvVar: "LAKTA_MODULES__DEMO__WIDGET__<NAME>__TIMEOUT"},
 				{Key: "level", Type: goTypeString, Enum: "debug,info,warn", EnvVar: "LAKTA_MODULES__DEMO__WIDGET__<NAME>__LEVEL"},
 				{Key: "tags", Type: inMapSS, EnvVar: "LAKTA_MODULES__DEMO__WIDGET__<NAME>__TAGS"},
 				{Key: "hosts", Type: inSliceS, EnvVar: "LAKTA_MODULES__DEMO__WIDGET__<NAME>__HOSTS"},
 				{Key: "ratio", Type: goTypeFloat64, EnvVar: "LAKTA_MODULES__DEMO__WIDGET__<NAME>__RATIO"},
 				{Key: "enabled", Type: goTypeBool, EnvVar: "LAKTA_MODULES__DEMO__WIDGET__<NAME>__ENABLED"},
+				{Key: "endpoints", Type: "[]widget.EndpointConfig", EnvVar: "LAKTA_MODULES__DEMO__WIDGET__<NAME>__ENDPOINTS", Fields: []FieldDoc{
+					{Key: keyHost, Type: goTypeString, Required: true, Default: "localhost"},
+					{Key: "weight", Type: goTypeInt, Default: "1"},
+				}},
+				{Key: "routes", Type: "map[string]widget.EndpointConfig", EnvVar: "LAKTA_MODULES__DEMO__WIDGET__<NAME>__ROUTES", Fields: []FieldDoc{
+					{Key: keyHost, Type: goTypeString, Required: true},
+					{Key: "weight", Type: goTypeInt},
+				}},
 			},
 			CodeOnly: []CodeOnlyDoc{{Option: "WithLogger", Type: "*slog.Logger", Description: "sets the logger"}},
 		},
@@ -140,7 +149,7 @@ func TestDefSchemaRequiredAndPassthrough(t *testing.T) {
 	// A non-pointer required field joins `required`; a pointer required field does not.
 	def := defSchema(ModuleDoc{Fields: []FieldDoc{
 		{Key: "dsn", Type: goTypeString, Required: true},
-		{Key: "port", Type: inPtrInt, Required: true},
+		{Key: keyPort, Type: inPtrInt, Required: true},
 		{Key: keyHost, Type: goTypeString},
 	}})
 	testza.AssertEqual(t, []string{"dsn"}, def.Required)

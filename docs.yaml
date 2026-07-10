@@ -8,6 +8,22 @@ modules:
       - key: issuers
         type: '[]verifier.IssuerConfig'
         envVar: LAKTA_MODULES__AUTH__VERIFIER__<NAME>__ISSUERS
+        fields:
+          - key: issuer
+            type: string
+            description: issuer is matched against the token iss exactly (no prefix/substring)
+          - key: audience
+            type: '[]string'
+            description: audience MUST be non-empty; the token aud must intersect it
+          - key: jwks_url
+            type: string
+            description: jWKSURL is the JWKS endpoint; empty triggers OIDC discovery from Issuer
+          - key: algorithms
+            type: '[]string'
+            description: algorithms is a hard allowlist, e.g. [RS256, ES256]; alg:none is rejected
+          - key: clock_skew
+            type: time.Duration
+            description: clockSkew is capped at maxClockSkew
       - key: static_key
         type: '*verifier.StaticKey'
         envVar: LAKTA_MODULES__AUTH__VERIFIER__<NAME>__STATIC_KEY
@@ -28,6 +44,19 @@ modules:
         type: map[string]memory.Spec
         envVar: LAKTA_MODULES__CACHE__MEMORY__<NAME>__CACHES
         description: caches holds config-declared caches. Prefer snake_case names; hyphens
+        fields:
+          - key: max_size
+            type: int
+            description: entry-count bound -> otter MaximumSize
+          - key: ttl
+            type: time.Duration
+            description: expire-after-write; 0 = none
+          - key: ttl_access
+            type: time.Duration
+            description: expire-after-access; 0 = none
+          - key: record_stats
+            type: bool
+            description: attach the otel StatsRecorder
     codeOnly:
       - option: WithCache
         type: map[string]memory.Spec
@@ -484,6 +513,28 @@ modules:
         type: map[string]policy.PolicyConfig
         envVar: LAKTA_MODULES__RESILIENCE__POLICY__<NAME>__POLICIES
         description: policies defines the named policies this module manages. Prefer
+        fields:
+          - key: timeout
+            type: time.Duration
+            description: timeout bounds each execution attempt. Zero disables it
+          - key: retry
+            type: '*policy.RetryConfig'
+            description: retry retries failed executions
+          - key: circuit_breaker
+            type: '*policy.BreakerConfig'
+            description: circuitBreaker rejects executions while failures exceed a threshold
+          - key: rate_limit
+            type: '*policy.RateLimitConfig'
+            description: rateLimit bounds the execution rate
+          - key: hedge
+            type: '*policy.HedgeConfig'
+            description: hedge starts redundant attempts after a delay to trim tail latency
+          - key: adaptive_limiter
+            type: '*policy.AdaptiveLimiterConfig'
+            description: adaptiveLimiter sheds load by self-tuning a concurrency limit
+          - key: bulkhead
+            type: '*policy.BulkheadConfig'
+            description: bulkhead caps concurrency with a hard ceiling nearest the call
     codeOnly:
       - option: WithPolicy
         type: map[string][]failsafe.Policy[interface {}]
@@ -498,6 +549,13 @@ modules:
         type: map[string]pool.PoolConfig
         envVar: LAKTA_MODULES__WORKERS__POOL__<NAME>__POOLS
         description: pools defines the named pools this module manages. Prefer snake_case
+        fields:
+          - key: workers
+            type: int
+            description: workers is the number of concurrent workers. Zero or less uses NumCPU
+          - key: queue_size
+            type: '*int'
+            description: queueSize is the pending-task queue capacity. Nil uses the default
     codeOnly:
       - option: WithPool
         type: map[string]pool.PoolConfig
@@ -517,6 +575,22 @@ modules:
         type: map[string]scheduler.JobSpec
         envVar: LAKTA_MODULES__WORKERS__SCHEDULER__<NAME>__JOBS
         description: jobs holds config-declared job overlays. Prefer snake_case names;
+        fields:
+          - key: schedule
+            type: string
+            description: 6-field cron (seconds) or "@every 5m"
+          - key: timezone
+            type: string
+            description: per-job override of Config.Timezone; "" inherits
+          - key: jitter
+            type: time.Duration
+            description: 0 = none
+          - key: overlap
+            type: scheduler.OverlapPolicy
+            description: '"" defaults to OverlapSkip in translation'
+          - key: enabled
+            type: '*bool'
+            description: enabled uses nil = true; false = never registered. This is the OPPOSITE
     codeOnly:
       - option: WithJob
         type: map[string]scheduler.JobSpec

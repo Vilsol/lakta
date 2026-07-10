@@ -35,6 +35,7 @@ const (
 	goTypeDuration = "time.Duration"
 	goTypeBool     = "bool"
 	goTypeString   = "string"
+	goTypeInt      = "int"
 	goTypeInt32    = "int32"
 	goTypeFloat64  = "float64"
 )
@@ -138,24 +139,25 @@ func defSchema(m ModuleDoc) *Schema {
 // fieldSchema is the type-map switch (§5a). It keys off the stringified Type that
 // formatType already produced, so pointer/map/slice detection is prefix-based.
 func fieldSchema(f FieldDoc) *Schema {
-	// Nested struct block: build an object with typed sub-properties.
+	// Documented sub-fields: a nested struct block, or a collection whose
+	// same-package struct elements were recursed into — the []/map[ prefix
+	// decides whether the object node describes the field itself, its items,
+	// or its map values.
 	if len(f.Fields) > 0 {
-		props := map[string]*Schema{}
-		var required []string
-		for _, sub := range f.Fields {
-			props[sub.Key] = fieldSchema(sub)
-			if sub.Required && !strings.HasPrefix(sub.Type, "*") {
-				required = append(required, sub.Key)
-			}
-		}
-		obj := &Schema{Type: jsTypeObject, Properties: props, AdditionalProperties: false}
-		if len(required) > 0 {
-			obj.Required = required
+		obj := objectSchema(f.Fields)
+		var s *Schema
+		switch {
+		case strings.HasPrefix(f.Type, "[]"):
+			s = &Schema{Type: jsTypeArray, Items: obj}
+		case strings.HasPrefix(f.Type, "map["):
+			s = &Schema{Type: jsTypeObject, AdditionalProperties: obj}
+		default:
+			s = obj
 		}
 		if f.Description != "" {
-			obj.Description = f.Description
+			s.Description = f.Description
 		}
-		return obj
+		return s
 	}
 
 	t := strings.TrimPrefix(f.Type, "*") // pointer unwrap; optionality handled in defSchema
@@ -190,6 +192,24 @@ func fieldSchema(f FieldDoc) *Schema {
 	return s
 }
 
+// objectSchema builds the object node for documented struct fields (a nested
+// config block or a collection element type).
+func objectSchema(fields []FieldDoc) *Schema {
+	props := map[string]*Schema{}
+	var required []string
+	for _, sub := range fields {
+		props[sub.Key] = fieldSchema(sub)
+		if sub.Required && !strings.HasPrefix(sub.Type, "*") {
+			required = append(required, sub.Key)
+		}
+	}
+	obj := &Schema{Type: jsTypeObject, Properties: props, AdditionalProperties: false}
+	if len(required) > 0 {
+		obj.Required = required
+	}
+	return obj
+}
+
 // elemSchema recurses into the element type of a map[string]X or []X string.
 func elemSchema(goType string) *Schema {
 	var elem string
@@ -210,7 +230,7 @@ func elemSchema(goType string) *Schema {
 // isIntType classifies the scalar Go integer type names.
 func isIntType(t string) bool {
 	switch t {
-	case "int", "int8", "int16", goTypeInt32, "int64",
+	case goTypeInt, "int8", "int16", goTypeInt32, "int64",
 		"uint", "uint8", "uint16", "uint32", "uint64",
 		"byte", "rune", "uintptr":
 		return true
