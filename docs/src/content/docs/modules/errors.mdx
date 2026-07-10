@@ -1,0 +1,72 @@
+---
+title: Error Handling
+description: Transport-agnostic AppError substrate that renders to problem+json and gRPC status + errdetails.
+---
+
+`pkg/errors` is a transport-agnostic error substrate. You return a single `*AppError` from a handler and it renders identically over HTTP (RFC 9457 `application/problem+json`) and gRPC (`status` + `errdetails`). The renderers live in `pkg/errors/fiber` and `pkg/errors/grpc`; import them aliased (e.g. `errfiber`, `errgrpc`) to avoid clashing with the `fiber` and `grpc` packages.
+
+## Returning rich errors
+
+Construct an error with one of the code constructors, then enrich it with the chainable `With*` builders:
+
+```go compile=skip
+import errpkg "github.com/Vilsol/lakta/pkg/errors"
+
+func (s *Server) GetUser(ctx context.Context, id string) (*User, error) {
+    u, err := s.repo.Find(ctx, id)
+    if err != nil {
+        return nil, errpkg.NotFound("user not found").
+            WithMeta("user_id", id).
+            WithCause(err)
+    }
+    return u, nil
+}
+```
+
+Each constructor seeds a canonical `Code` and its fixed HTTP + gRPC statuses:
+
+| Constructor | Code | HTTP | gRPC |
+|---|---|---|---|
+| `NotFound` | `NOT_FOUND` | 404 | `NotFound` |
+| `InvalidArgument` | `INVALID_ARGUMENT` | 400 | `InvalidArgument` |
+| `Validation` | `VALIDATION` | 400 | `InvalidArgument` |
+| `Unauthenticated` | `UNAUTHENTICATED` | 401 | `Unauthenticated` |
+| `PermissionDenied` | `PERMISSION_DENIED` | 403 | `PermissionDenied` |
+| `AlreadyExists` | `ALREADY_EXISTS` | 409 | `AlreadyExists` |
+| `FailedPrecondition` | `FAILED_PRECONDITION` | 400 | `FailedPrecondition` |
+| `Unavailable` | `UNAVAILABLE` | 503 | `Unavailable` |
+| `Internal` | `INTERNAL` | 500 | `Internal` |
+
+Builders: `WithField(field, desc)` appends a field violation (rendered as `invalid_params` / `errdetails.BadRequest`), `WithMeta(k, v)` attaches metadata (rendered as `errdetails.ErrorInfo.Metadata`), and `WithCause(err)` wraps an origin error surfaced via `Unwrap` but never sent over the wire.
+
+Any non-`AppError` returned from a handler is normalized by `FromError`: an existing `*AppError` passes through, an [oops](https://github.com/samber/oops) error maps its code (falling back to `INTERNAL`) and lifts its context into `Meta`, and anything else becomes an opaque `INTERNAL`.
+
+## HTTP rendering
+
+Wire `errfiber.ErrorHandler` into the fiber module. Every handler error then renders as `application/problem+json` (never `text/html`):
+
+```go compile=skip
+import errfiber "github.com/Vilsol/lakta/pkg/errors/fiber"
+
+fiberserver.NewModule(
+    fiberserver.WithErrorHandler(errfiber.ErrorHandler()),
+)
+```
+
+The body carries `type` (`urn:lakta:error:{code}`), `title`, `status`, `detail`, `code`, and `invalid_params`. Raw framework errors (a `*fiber.Error` 404/405) are mapped to the equivalent `AppError` so they render identically. An `INTERNAL` error renders the opaque detail `"internal error"` — the message and cause are never leaked. The `title` field defaults to `http.StatusText`. `ErrorHandler` accepts variadic `Option` values for future customization.
+
+## gRPC rendering
+
+Add the interceptors to the gRPC server module. They convert a returned error into a `*status.Status` with `errdetails` attached:
+
+```go compile=skip
+import errgrpc "github.com/Vilsol/lakta/pkg/errors/grpc"
+
+grpcserver.NewModule(
+    grpcserver.WithUnaryInterceptor(errgrpc.UnaryServerInterceptor()),
+    grpcserver.WithStreamInterceptor(errgrpc.StreamServerInterceptor()),
+    grpcserver.WithService(&v1.MyService_ServiceDesc, NewServer()),
+)
+```
+
+The status carries the mapped gRPC code and message, plus an `errdetails.ErrorInfo` (`Reason` = the string code, `Metadata` = `Meta`). When the error has field violations, an `errdetails.BadRequest` is attached as well. As with HTTP, an `INTERNAL` error renders the opaque message `"internal error"`.

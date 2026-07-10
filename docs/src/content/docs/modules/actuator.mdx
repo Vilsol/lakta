@@ -1,0 +1,79 @@
+---
+title: Debug Actuator
+description: Spring-Actuator-equivalent debug and introspection surface on a private loopback listener.
+---
+
+import ModuleConfig from '../../../components/ModuleConfig.astro';
+import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
+
+`pkg/debug/actuator` mounts a Spring-Actuator-equivalent introspection surface — modules, startup timing, routes, health, build info, config, pprof, expvar, goroutine dump, DI graph, and live log-level control — on its own private loopback `SyncModule` listener. Every dependency is optional, so an absent source makes its endpoint return `501` rather than fail boot.
+
+## Setup
+
+The module is **disabled by default** and binds to `127.0.0.1:6060`. Enable it via config or `WithEnabled`:
+
+```go compile=skip
+lakta.NewRuntime(
+    config.NewModule(
+        config.WithConfigDirs(".", "./config"),
+        config.WithArgs(os.Args[1:]),
+    ),
+    tint.NewModule(),
+    slog.NewModule(),
+    otel.NewModule(),
+    health.NewModule(),
+    actuator.NewModule(
+        actuator.WithEnabled(true),
+    ),
+)
+```
+
+Sources such as `*lakta.RuntimeInfo`, `*health.Health`, `*koanf.Koanf`, the routes registry, and the slog `LevelController` are resolved from DI during `Init`. Whatever is present is exposed; whatever is missing degrades gracefully.
+
+## Endpoints
+
+All paths are relative to `BasePath` (default `/debug`). Endpoints marked with auth require the `WithAuth` middleware to pass — see [Production hardening](#production-hardening).
+
+| Path | Auth | Description |
+|------|------|-------------|
+| `GET /modules` | | Module metadata: init order, provides/requires, lifecycle, state |
+| `GET /startup` | | Init waterfall with per-module and total durations |
+| `GET /config` | | Config values (redacted); add `?provenance=1` for key origins |
+| `GET /routes` | | Registered routes across all fiber instances |
+| `GET /info` | | Build info: Go version, main module, dependency versions |
+| `GET /health` | | Delegates to the health module handler |
+| `GET /di` | | DI graph; `?format=mermaid` (default) or `?format=dot` |
+| `GET /goroutine` | ✓ | Full goroutine stack dump |
+| `GET /vars` | ✓ | expvar published variables |
+| `GET /pprof/*` | ✓ | Standard net/http/pprof surface (index, profile, trace, symbol) |
+| `POST /loggers` | ✓ | Set the default log level: `debug`, `info`, `warn`, or `error` |
+
+The `/vars`, `/pprof`, and `/loggers` groups can be toggled off entirely via the `endpoints` config block.
+
+## Production hardening
+
+This module exposes sensitive runtime internals, so its defaults are fail-closed:
+
+- **Disabled by default** — `enabled` is `false` until you opt in.
+- **Loopback-bound** — binds `127.0.0.1` by default; localhost-only is not sufficient safety inside a container.
+- **Sensitive endpoints always require auth** — `/goroutine`, `/vars`, `/pprof/*`, and `/loggers` are gated on *every* bind, including loopback. Without `WithAuth`, they reject all requests with `401`.
+- **Non-loopback refuses to start without auth** — binding a public address without `WithAuth` fails boot. Set `allow_insecure: true` to downgrade the refusal to a warning (sensitive endpoints still reject).
+- **Values masked by default** — `show_values: never` renders matched config leaves as `******`. Choose `always` or `when_authorized`, and extend the redaction key set with `redact_patterns`.
+- **pprof duration cap** — a `?seconds=` above 30 on `/pprof/profile` and `/pprof/trace` is rejected to close the unbounded-CPU-profile DoS vector.
+
+```go compile=skip
+actuator.NewModule(
+    actuator.WithEnabled(true),
+    actuator.WithAuth(myJWTMiddleware), // fiber.Handler gating sensitive endpoints
+)
+```
+
+Use `WithMount` to serve the endpoints under an existing fiber router instead of a private listener — an escape hatch that inherits the host router's own middleware and exposure.
+
+## Configuration Reference
+
+<ModuleConfig category="debug" type="actuator" />
+
+### Code-only options
+
+<ModuleCodeOnly category="debug" type="actuator" />

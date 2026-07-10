@@ -1,0 +1,128 @@
+---
+title: Resilience
+description: Named failsafe policy chains with fiber middleware and gRPC interceptor adapters.
+---
+
+import ModuleConfig from '../../../components/ModuleConfig.astro';
+import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
+
+`pkg/resilience/policy` builds named [failsafe-go](https://github.com/failsafe-go/failsafe-go) policy chains and provides a `*policy.Registry` via DI. `pkg/resilience/fiber` and `pkg/resilience/grpc` adapt those named policies into fiber v3 middleware and gRPC interceptors.
+
+Each named policy composes primitives in a fixed order, outermost to innermost: hedge, retry, circuit breaker, rate limit, adaptive limiter, bulkhead, timeout. Policies are static after `Init` — config hot-reload is deliberately unsupported because circuit breakers hold runtime state a reload would silently reset.
+
+## Setup
+
+Add the policy module to your runtime and define policies in config.
+
+```go compile=skip
+lakta.NewRuntime(
+    config.NewModule(
+        config.WithConfigDirs(".", "./config"),
+        config.WithArgs(os.Args[1:]),
+    ),
+    tint.NewModule(),
+    slog.NewModule(),
+    otel.NewModule(),
+    policy.NewModule(),
+)
+```
+
+```yaml
+modules:
+  resilience:
+    policy:
+      default:
+        policies:
+          api:
+            timeout: 2s
+            rate_limit:
+              max: 100
+              period: 1s
+          upstream:
+            retry:
+              max_attempts: 3
+              delay: 50ms
+              max_delay: 1s
+            circuit_breaker:
+              failure_threshold: 5
+              success_threshold: 2
+              delay: 10s
+```
+
+Prefer snake_case policy names — hyphens cannot be overridden via environment variables.
+
+## Running code through a policy
+
+Resolve the `*policy.Registry` from DI and run work through a named policy. `Run` handles `error`-only functions; the free generic `policy.Get` returns a typed result.
+
+```go compile=skip
+reg, err := lakta.Invoke[*policy.Registry](ctx)
+if err != nil {
+    return err
+}
+
+err = reg.Run(ctx, "upstream", func(ctx context.Context) error {
+    return callDownstream(ctx)
+})
+
+user, err := policy.Get(ctx, reg, "upstream", func(ctx context.Context) (*User, error) {
+    return fetchUser(ctx)
+})
+```
+
+The context passed to the callback carries policy-driven cancellation, such as timeouts. Policy and handler errors pass through unwrapped, so callers can match sentinels like `circuitbreaker.ErrOpen`.
+
+## Fiber middleware
+
+`resfiber.New` runs the handler chain through a named policy and maps rejections to HTTP status codes: rate limit to 429, bulkhead/adaptive-limiter overload to 503 with `Retry-After`, open circuit breaker to 503, timeout to 504. Import it aliased to avoid clashing with `gofiber/fiber`.
+
+```go compile=skip
+import resfiber "github.com/Vilsol/lakta/pkg/resilience/fiber"
+
+fiberserver.NewModule(
+    fiberserver.WithRouterCtx(func(ctx context.Context, app *fiber.App) {
+        reg, _ := lakta.Invoke[*policy.Registry](ctx)
+        mw, _ := resfiber.New(reg, "api")
+        app.Use(mw)
+    }),
+)
+```
+
+Retry policies re-run the handler chain, which is rarely safe server-side; prefer `rate_limit`, `circuit_breaker`, and `timeout` policies in middleware.
+
+## gRPC interceptors
+
+`resgrpc` adapts a named policy into unary interceptors and a tap handler, translating overload sentinels to gRPC status codes (`bulkhead.ErrFull`/`adaptivelimiter.ErrExceeded` to `Unavailable`, `ratelimiter.ErrExceeded` to `ResourceExhausted`). Import it aliased to avoid clashing with `google.golang.org/grpc`.
+
+```go compile=skip
+import resgrpc "github.com/Vilsol/lakta/pkg/resilience/grpc"
+
+// Client-side: retry/hedge outbound calls.
+interceptor, err := resgrpc.NewUnaryClientInterceptor(reg, "upstream")
+
+// Server-side: guard handlers, or guard before message allocation.
+serverInterceptor, err := resgrpc.NewUnaryServerInterceptor(reg, "api")
+inHandle, err := resgrpc.NewServerInHandle(reg, "api")
+```
+
+Prefer `NewServerInHandle` over the server interceptor for load limiting — it rejects overloaded requests before gRPC allocates the request message.
+
+## Code-only policies
+
+`WithPolicy` registers a policy chain in code, ordered outermost first. Use it for primitives not expressible in config (such as a fallback), or hand-built prioritized limiters. A config entry with the same name replaces it wholesale.
+
+```go compile=skip
+policy.NewModule(
+    policy.WithPolicy("api",
+        ratelimiter.NewBursty[any](100, time.Second),
+    ),
+)
+```
+
+## Configuration Reference
+
+<ModuleConfig category="resilience" type="policy" />
+
+### Code-only options
+
+<ModuleCodeOnly category="resilience" type="policy" />

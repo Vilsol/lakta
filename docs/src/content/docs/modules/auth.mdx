@@ -1,0 +1,122 @@
+---
+title: Auth (JWT)
+description: Multi-issuer JWT verification with fiber and gRPC guard middleware.
+---
+
+import ModuleConfig from '../../../components/ModuleConfig.astro';
+import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
+
+`pkg/auth/verifier` verifies bearer JWTs against one or more trusted issuers and provides a `*verifier.Registry` into DI. The `pkg/auth/fiber` and `pkg/auth/grpc` adapters turn that registry into guard middleware that stashes a verified `*verifier.Principal` in the request context.
+
+## Setup
+
+Add `verifier.NewModule()` to the runtime. It provides `*verifier.Registry` at `modules.auth.verifier.<instance>`; each configured issuer's JWKS is fetched (or discovered via OIDC) and refreshed in the background.
+
+```go compile=skip
+lakta.NewRuntime(
+    config.NewModule(config.WithConfigDirs(".", "./config"), config.WithArgs(os.Args[1:])),
+    tint.NewModule(),
+    slog.NewModule(),
+    verifier.NewModule(),
+    fiberserver.NewModule(fiberserver.WithRouterCtx(registerRoutes)),
+)
+```
+
+```yaml
+modules:
+  auth:
+    verifier:
+      default:
+        roles_claim: "roles"          # scope_claim defaults to "scope"
+        issuers:
+          - issuer: "https://accounts.example.com"
+            audience: ["my-api"]
+            algorithms: ["RS256"]
+            # jwks_url omitted -> discovered from the issuer's OIDC document
+          - issuer: "https://auth.internal"
+            audience: ["my-api"]
+            jwks_url: "https://auth.internal/.well-known/jwks.json"
+            algorithms: ["ES256"]
+            clock_skew: "30s"
+```
+
+Each issuer's `audience` and `algorithms` must be non-empty; `alg:none` is always rejected and `clock_skew` is capped at 5 minutes.
+
+## Static dev key
+
+`static_key` is an isolated HS256 path for local development. It only loads when `LAKTA_PROFILE` is set to one of its `profiles` (default `dev`, `local`, `test`); otherwise Init fails safe rather than trusting the secret. Never enable it in production.
+
+```yaml
+# under modules.auth.verifier.default:
+static_key:
+  secret: "dev-only-secret"
+  profiles: ["dev", "local"]
+```
+
+## Protecting fiber routes
+
+`WithRouterCtx` gives the router the runtime context, so you can `Invoke` the registry and build the guard middleware. `authfiber.New` verifies the bearer token; compose `RequireScope`, `RequireRole`, `RequireAny`, or `RequireAll` after it. Use `Optional` to allow anonymous requests through.
+
+```go compile=skip
+func registerRoutes(ctx context.Context, app *fiber.App) {
+    reg, err := lakta.Invoke[*verifier.Registry](ctx)
+    if err != nil {
+        panic(err)
+    }
+    authn, err := authfiber.New(reg, config.DefaultInstanceName) // errors only if reg is nil
+    if err != nil {
+        panic(err)
+    }
+
+    items := app.Group("/items", authn)
+    items.Get("/", listItems)
+    items.Post("/", createItem, authfiber.RequireScope("items:write"))
+}
+```
+
+## Protecting gRPC methods
+
+Build an interceptor with `authgrpc.NewUnaryServerInterceptor` and pass it via `grpcserver.WithUnaryInterceptor`. Wrap it in `selector.UnaryServerInterceptor` to skip anonymous methods. Enforce fine-grained access inside handlers with `authgrpc.RequireScope` / `authgrpc.RequireRole`.
+
+```go compile=skip
+// reg is the *verifier.Registry resolved from DI, as in the fiber example.
+interceptor, err := authgrpc.NewUnaryServerInterceptor(reg, config.DefaultInstanceName)
+if err != nil {
+    return err
+}
+
+grpcserver.NewModule(
+    grpcserver.WithService(&v1.MyService_ServiceDesc, NewServer()),
+    grpcserver.WithUnaryInterceptor(interceptor),
+)
+
+func (s *MyServer) DeleteThing(ctx context.Context, req *pb.DeleteThingRequest) (*pb.DeleteThingResponse, error) {
+    if err := authgrpc.RequireScope(ctx, "things:delete"); err != nil {
+        return nil, err
+    }
+    // ...
+}
+```
+
+## Reading the principal
+
+After a token verifies, the adapters stash a `*verifier.Principal`. Retrieve it with `verifier.PrincipalFrom(ctx)` — the same call works from fiber (`c.Context()`) and gRPC handlers.
+
+```go compile=skip
+p, ok := verifier.PrincipalFrom(c.Context())
+if !ok {
+    // anonymous request (only reachable behind Optional)
+}
+// p.Subject, p.Issuer, p.Audience, p.Scopes, p.Roles, p.Claims (raw map), p.Token
+if p.HasRole("admin") {
+    // ...
+}
+```
+
+## Configuration Reference
+
+<ModuleConfig category="auth" type="verifier" />
+
+### Code-only options
+
+<ModuleCodeOnly category="auth" type="verifier" />

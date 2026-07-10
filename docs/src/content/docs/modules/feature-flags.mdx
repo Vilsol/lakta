@@ -1,0 +1,84 @@
+---
+title: Feature Flags
+description: Config-driven feature flags with hot-reload and percentage rollouts, requiring no external service.
+---
+
+import ModuleConfig from '../../../components/ModuleConfig.astro';
+import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
+
+`pkg/features/flags` provides config-driven feature flags via DI. Flags are defined entirely in your config file, read lock-free at runtime, and hot-reloaded when the config changes — no external flag service required.
+
+## Setup
+
+Add the module to your runtime. It provides `*flags.Flags` to the injector.
+
+```go compile=skip
+lakta.NewRuntime(
+    config.NewModule(
+        config.WithConfigDirs(".", "./config"),
+        config.WithArgs(os.Args[1:]),
+    ),
+    tint.NewModule(),
+    slog.NewModule(),
+    otel.NewModule(),
+    flags.NewModule(),
+)
+```
+
+Define flags in config. A scalar is a plain value; the `{value, rollout}` object form gates a boolean by a percentage. Prefer snake_case names — hyphenated names cannot be overridden via environment variables.
+
+```yaml
+modules:
+  features:
+    flags:
+      default:
+        flags:
+          new_dashboard: true
+          max_batch_size: 500
+          checkout_v2:
+            value: true
+            rollout: 25
+```
+
+## Evaluating flags
+
+Invoke `*flags.Flags` from DI and read typed values. Each accessor takes a default returned when the flag is missing or mistyped.
+
+```go compile=skip
+f, err := lakta.Invoke[*flags.Flags](ctx)
+if err != nil {
+    return err
+}
+
+if f.Bool(ctx, "new_dashboard", false) {
+    // ...
+}
+
+size := f.Int(ctx, "max_batch_size", 100)
+```
+
+Typed accessors: `Bool`, `String`, `Int`, `Float`, and `Duration`. Coercion is lenient with strings so environment-variable overrides (which always arrive as strings) still resolve to the right type.
+
+## Percentage rollouts
+
+`BoolFor` gates a boolean flag by its `rollout` percentage. A stable FNV hash of the flag name and the key you pass decides whether the key falls in the enabled bucket, so the same key is consistently in or out. Hashing the flag name too decorrelates rollouts — two 50% flags enable different key sets.
+
+```go compile=skip
+if f.BoolFor(ctx, "checkout_v2", userID, false) {
+    // enabled for ~25% of user IDs, stably
+}
+```
+
+Without a `rollout`, `BoolFor` behaves like `Bool`. Plain `Bool` ignores rollout percentages entirely.
+
+## Hot-reload
+
+The module implements config hot-reload: on a config change it re-parses the flag definitions and swaps the snapshot wholesale, so reads never observe a half-applied reload. If the new definitions fail to parse, the previous snapshot is kept and the error is logged.
+
+## Configuration Reference
+
+<ModuleConfig category="features" type="flags" />
+
+### Code-only options
+
+<ModuleCodeOnly category="features" type="flags" />
