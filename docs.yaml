@@ -349,8 +349,8 @@ modules:
     passthrough:
       targetType: Config
       targetPackage: github.com/gofiber/fiber/v3
-      targetVersion: v3.3.0
-      docsUrl: https://pkg.go.dev/github.com/gofiber/fiber/v3@v3.3.0#Config
+      targetVersion: v3.4.0
+      docsUrl: https://pkg.go.dev/github.com/gofiber/fiber/v3@v3.4.0#Config
     codeOnly:
       - option: WithDefaults
         type: '*fiber.Config'

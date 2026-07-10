@@ -559,7 +559,7 @@
     },
     "http_fiber": {
       "type": "object",
-      "description": "https://pkg.go.dev/github.com/gofiber/fiber/v3@v3.3.0#Config",
+      "description": "https://pkg.go.dev/github.com/gofiber/fiber/v3@v3.4.0#Config",
       "properties": {
         "health_path": {
           "type": "string",
