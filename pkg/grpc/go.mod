@@ -4,9 +4,9 @@ go 1.26.4
 
 require (
 	github.com/MarvinJWendt/testza v0.5.2
-	github.com/Vilsol/lakta v0.2.0
-	github.com/Vilsol/lakta/pkg/health v0.2.0
-	github.com/Vilsol/lakta/pkg/testkit v0.2.0
+	github.com/Vilsol/lakta v0.3.1
+	github.com/Vilsol/lakta/pkg/health v0.3.1
+	github.com/Vilsol/lakta/pkg/testkit v0.3.1
 	github.com/Vilsol/slox v0.1.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
 	github.com/hellofresh/health-go/v5 v5.5.5
