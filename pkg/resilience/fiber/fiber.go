@@ -10,6 +10,8 @@ import (
 
 	"github.com/Vilsol/lakta/pkg/resilience/policy"
 	"github.com/failsafe-go/failsafe-go"
+	"github.com/failsafe-go/failsafe-go/adaptivelimiter"
+	"github.com/failsafe-go/failsafe-go/bulkhead"
 	"github.com/failsafe-go/failsafe-go/circuitbreaker"
 	"github.com/failsafe-go/failsafe-go/ratelimiter"
 	"github.com/failsafe-go/failsafe-go/timeout"
@@ -18,8 +20,8 @@ import (
 )
 
 // New runs the handler chain through the named policy, mapping policy
-// rejections to HTTP status codes: rate limit to 429, open circuit breaker
-// to 503, timeout to 504.
+// rejections to HTTP status codes: rate limit to 429, bulkhead/adaptive-limiter
+// overload to 503 with Retry-After, open circuit breaker to 503, timeout to 504.
 func New(reg *policy.Registry, name string) (fiber.Handler, error) {
 	ex, err := reg.Executor(name)
 	if err != nil {
@@ -34,6 +36,9 @@ func New(reg *policy.Registry, name string) (fiber.Handler, error) {
 		switch {
 		case errors.Is(err, ratelimiter.ErrExceeded):
 			return fiber.NewError(fiber.StatusTooManyRequests, "rate limit exceeded")
+		case errors.Is(err, bulkhead.ErrFull), errors.Is(err, adaptivelimiter.ErrExceeded):
+			c.Set(fiber.HeaderRetryAfter, "1")
+			return fiber.NewError(fiber.StatusServiceUnavailable, "overloaded")
 		case errors.Is(err, circuitbreaker.ErrOpen):
 			return fiber.NewError(fiber.StatusServiceUnavailable, "circuit breaker open")
 		case errors.Is(err, timeout.ErrExceeded):

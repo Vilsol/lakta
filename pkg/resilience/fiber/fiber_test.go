@@ -28,6 +28,7 @@ func newRegistry(t *testing.T, options ...policy.Option) *policy.Registry {
 	return reg
 }
 
+//nolint:unparam // policyName is a helper knob even though current callers all pass "api"
 func newApp(t *testing.T, reg *policy.Registry, policyName string) *fiber.App {
 	t.Helper()
 	middleware, err := resfiber.New(reg, policyName)

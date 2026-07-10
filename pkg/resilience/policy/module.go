@@ -47,12 +47,18 @@ func (m *Module) Init(ctx context.Context) error {
 		}
 		executors[name] = failsafe.With(policies...)
 	}
+	pm := newPolicyMetrics()
 	for name, pc := range m.config.Policies {
-		built, err := pc.Build()
+		built, limiter, err := pc.buildWithMetrics(name, pm)
 		if err != nil {
 			return oops.Wrapf(err, "failed to build resilience policy %q", name)
 		}
 		executors[name] = failsafe.With(built...)
+		if limiter != nil {
+			if err := pm.registerLimiterGauges(name, limiter); err != nil {
+				return oops.Wrapf(err, "failed to register limiter gauges for %q", name)
+			}
+		}
 	}
 
 	m.registry = &Registry{executors: executors}
