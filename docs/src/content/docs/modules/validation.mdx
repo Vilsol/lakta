@@ -1,0 +1,55 @@
+---
+title: Request Validation
+description: Struct and message validation for Fiber and gRPC that fails as a unified VALIDATION AppError.
+---
+
+`pkg/validation/fiber` and `pkg/validation/grpc` add request validation to the HTTP and gRPC transports. Both fail as an `*errors.AppError{Code: VALIDATION}` carrying one field violation per failed field, so the Phase 5 error renderers produce byte-identical violation shapes across transports — `application/problem+json` with `invalid_params` for Fiber, `codes.InvalidArgument` + `errdetails.BadRequest` for gRPC.
+
+Each lives in its own module (import aliased to avoid clashing with `gofiber/fiber` and `google.golang.org/grpc`):
+
+```go compile=skip
+import (
+    valfiber "github.com/Vilsol/lakta/pkg/validation/fiber"
+    valgrpc "github.com/Vilsol/lakta/pkg/validation/grpc"
+)
+```
+
+## Fiber
+
+`valfiber.New` builds a `fiber.StructValidator` backed by [`go-playground/validator/v10`](https://github.com/go-playground/validator). Register it on the Fiber module via `WithStructValidator`; `ctx.Bind().Body(&dto)` then auto-invokes it, and a `validate:` struct-tag failure becomes a `VALIDATION` AppError.
+
+```go compile=skip
+fiberserver.NewModule(
+    fiberserver.WithStructValidator(valfiber.New()),
+)
+```
+
+Field paths in the rendered error are normalized to their json-tag dotted/bracketed form (`user.email`, `items[0].qty`) so they match the gRPC transport exactly.
+
+### Options
+
+| Option | Effect |
+| --- | --- |
+| `valfiber.WithValidate(v *validator.Validate)` | Supply a pre-built validator instance (custom validators, aliases). Defaults to `validator.New()`. |
+| `valfiber.WithTagName(name string)` | Override the rule-tag key. Defaults to `"validate"`. |
+
+## gRPC
+
+`valgrpc.NewValidator` compiles a [`protovalidate`](https://buf.build/go/protovalidate) validator that runs CEL constraints declared in your `.proto` files. Wire the interceptors onto the gRPC server module:
+
+```go compile=skip
+v, err := valgrpc.NewValidator()
+if err != nil {
+    return err
+}
+
+grpcserver.NewModule(
+    grpcserver.WithService(&v1.MyService_ServiceDesc, NewServer()),
+    grpcserver.WithUnaryInterceptor(valgrpc.UnaryServerInterceptor(v)),
+    grpcserver.WithStreamInterceptor(valgrpc.StreamServerInterceptor(v)),
+)
+```
+
+The unary interceptor validates each request before the handler runs; the stream interceptor validates every message received on the stream. Non-proto requests are skipped. Pass an existing `protovalidate.Validator` to `NewValidator` to share compiled constraints across servers.
+
+Violation reasons are normalized to the final segment of the CEL rule id (`string.email` → `email`) so they line up with validator/v10's tag vocabulary on the Fiber side.

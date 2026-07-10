@@ -1,0 +1,85 @@
+---
+title: Event Bus
+description: In-process typed event bus with synchronous and async delivery.
+---
+
+import ModuleConfig from '../../../components/ModuleConfig.astro';
+import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
+
+`pkg/events/bus` provides an in-process typed event bus for communication between modules. The Go type of a published event is its topic: subscribers to `T` receive exactly the events published as `T`. The module registers a `*bus.Bus` in DI and closes it on shutdown, draining queued async events.
+
+## Setup
+
+```go compile=skip
+lakta.NewRuntime(
+    config.NewModule(
+        config.WithConfigDirs(".", "./config"),
+        config.WithArgs(os.Args[1:]),
+    ),
+    tint.NewModule(),
+    slog.NewModule(),
+    otel.NewModule(),
+    bus.NewModule(),
+)
+```
+
+Retrieve the bus from DI with `lakta.Invoke[*bus.Bus](ctx)` wherever you publish or subscribe.
+
+## Defining events
+
+Any Go type can be an event. The concrete type is the topic, so distinct event kinds should be distinct types:
+
+```go compile=skip
+type OrderPlaced struct {
+    OrderID string
+    Total   int
+}
+```
+
+## Publishing
+
+`Publish` delivers an event to every subscriber of its type. Synchronous handler errors are joined into the return value; if a handler panics it is recovered and surfaced as an error.
+
+```go compile=skip
+b, err := lakta.Invoke[*bus.Bus](ctx)
+if err != nil {
+    return err
+}
+
+if err := bus.Publish(ctx, b, OrderPlaced{OrderID: "abc", Total: 100}); err != nil {
+    return err
+}
+```
+
+`Publish` returns `bus.ErrBusClosed` once the bus has been closed during shutdown.
+
+## Subscribing
+
+`Subscribe` runs the handler synchronously in the publisher's goroutine — handler errors flow back to `Publish`. Both `Subscribe` and `SubscribeAsync` return a function that unsubscribes.
+
+```go compile=skip
+unsubscribe := bus.Subscribe(b, func(ctx context.Context, event OrderPlaced) error {
+    slox.Info(ctx, "order placed", slog.String("id", event.OrderID))
+    return nil
+})
+defer unsubscribe()
+```
+
+Use `SubscribeAsync` to run the handler on a dedicated goroutine fed by a bounded FIFO queue. Handler errors are logged rather than returned to publishers. The handler context is detached from the publisher's cancellation but keeps its values (trace IDs, logger, injector):
+
+```go compile=skip
+unsubscribe := bus.SubscribeAsync(b, func(ctx context.Context, event OrderPlaced) error {
+    return sendReceiptEmail(ctx, event.OrderID)
+})
+defer unsubscribe()
+```
+
+When an async subscriber's queue is full, `Publish` blocks until space frees up or the context is done. Unsubscribing an async handler drains its already-queued events first.
+
+## Configuration Reference
+
+<ModuleConfig category="events" type="bus" />
+
+### Code-only options
+
+<ModuleCodeOnly category="events" type="bus" />

@@ -49,6 +49,69 @@ modules:
         dsn: "postgres://user:pass@replica:5432/mydb"
 ```
 
+## Migrations
+
+Schema migrations are driven by [`pressly/goose`](https://github.com/pressly/goose) v3. Embed the `.sql` files and pass the filesystem with `WithMigrations`:
+
+```go compile=skip
+//go:embed migrations/*.sql
+var migrationsFS embed.FS
+
+pgx.NewModule(pgx.WithMigrations(migrationsFS)),
+```
+
+By default migrations do **not** run at startup. Enable the dev-time on-start path with config or `pgx.WithMigrationsRunOnStart(true)`:
+
+```yaml
+modules:
+  db:
+    pgx:
+      default:
+        dsn: "postgres://user:pass@localhost:5432/mydb"
+        migrations:
+          run_on_start: false        # apply pending migrations during StartAsync
+          table: "schema_migrations" # goose history table
+          dir: "migrations"          # sub-path within the embedded FS
+          lock: "advisory"           # "advisory" (replica-safe) or "none"
+          allow_missing: false       # apply out-of-order migrations
+```
+
+For production, apply migrations out-of-band (e.g. an init container or a `migrate` subcommand) via `RunMigrations`, which opens its own pool and runs goose `Up`:
+
+```go compile=skip
+if err := pgx.RunMigrations(ctx, &cfg, migrationsFS); err != nil {
+    return err
+}
+```
+
+The `advisory` lock lets concurrent on-start runs across replicas serialize on a Postgres session advisory lock so each migration applies exactly once. Migrations containing non-transactional DDL (e.g. `CREATE INDEX CONCURRENTLY`) should use `RunMigrations` rather than `run_on_start`.
+
+## Transactions
+
+`Q(ctx)` returns a `Querier` — the active transaction when one is live in `ctx`, otherwise the pool. Repos call it without knowing whether they run inside a transaction:
+
+```go compile=skip
+func (r *Repo) Insert(ctx context.Context, name string) error {
+    _, err := pgx.Q(ctx).Exec(ctx, "INSERT INTO users (name) VALUES ($1)", name)
+    return err
+}
+```
+
+`WithTx` runs a function inside a transaction, committing on success and rolling back on error (or panic):
+
+```go compile=skip
+err := pgx.WithTx(ctx, func(ctx context.Context) error {
+    if err := repo.Insert(ctx, "alice"); err != nil {
+        return err // rolls back
+    }
+    return repo.Insert(ctx, "bob")
+}, pgx.WithIsolation(pgx.Serializable), pgx.WithReadOnly())
+```
+
+Nesting `WithTx` inside a live transaction runs the inner scope in a `SAVEPOINT`; `WithNewTx` forces a fresh top-level transaction on the pool instead. `QNamed(ctx, name)` resolves a named instance.
+
+Each transaction carries a **done flag**: once it commits or rolls back, `Q(ctx)` falls back to the pool rather than handing out the finished transaction. This guards against a goroutine detached inside `WithTx` (which copies the context values under `context.WithoutCancel`) accidentally using a completed transaction — a spawned goroutine correctly gets the pool, never the dead transaction.
+
 ## Configuration Reference
 
 <ModuleConfig category="db" type="pgx" />

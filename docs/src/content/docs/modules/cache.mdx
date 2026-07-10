@@ -1,0 +1,84 @@
+---
+title: In-Memory Cache
+description: In-process cache module backed by otter (W-TinyLFU) with named caches, TTLs, and hot-reload.
+---
+
+import ModuleConfig from '../../../components/ModuleConfig.astro';
+import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
+
+`pkg/cache/memory` provides in-process caches backed by [otter v2](https://github.com/maypok86/otter) (adaptive W-TinyLFU). It registers a `*cache.Registry` in DI; application modules pull typed caches out of it by name.
+
+## Setup
+
+Declare caches by name up front — either in config or in code with `WithCache`. Each cache is sized by a `memory.Spec` (max entry count, TTLs, stats).
+
+```go compile=skip
+lakta.NewRuntime(
+    config.NewModule(
+        config.WithConfigDirs(".", "./config"),
+        config.WithArgs(os.Args[1:]),
+    ),
+    tint.NewModule(),
+    slog.NewModule(),
+    otel.NewModule(),
+    memory.NewModule(
+        memory.WithCache("users", memory.Spec{
+            MaxSize:     10_000,
+            TTL:         5 * time.Minute,
+            RecordStats: true,
+        }),
+    ),
+)
+```
+
+## Using a cache
+
+Resolve the `*cache.Registry` from DI, then bind concrete key/value types with `cache.Named`. The first call for a name fixes its `(K, V)` and builds the underlying cache; later calls with the same name return the same handle.
+
+```go compile=skip
+reg, err := lakta.Invoke[*cache.Registry](ctx)
+if err != nil {
+    return err
+}
+
+users, err := cache.Named[string, *User](reg, "users")
+if err != nil {
+    return err
+}
+
+users.Set("u1", &User{Name: "Ada"})
+u, ok := users.Get("u1")
+```
+
+`GetOrLoad` is dogpile-safe: for a given key the loader runs exactly once across concurrent callers.
+
+```go compile=skip
+u, err := users.GetOrLoad(ctx, "u1", func(ctx context.Context, id string) (*User, error) {
+    return fetchUser(ctx, id)
+})
+```
+
+`cache.Memoize` wraps a cache and loader into a plain lookup function. `reg.Stats()` returns per-cache hit/miss/eviction/size counters, and caches with `RecordStats: true` also export otel metrics.
+
+## Hot-reload
+
+Changing a cache's `max_size` in config resizes the live cache with no entry loss. Changing `ttl`, `ttl_access`, or `record_stats` rebuilds the cache and drops all entries (a warning is logged). Adding or removing a cache name registers or tears down that cache.
+
+## Multi-instance
+
+```go compile=skip
+memory.NewModule(
+    memory.WithName("sessions"),
+    memory.WithCache("tokens", memory.Spec{MaxSize: 50_000, TTLAccess: 30 * time.Minute}),
+),
+```
+
+Prefer snake_case cache names — names with hyphens cannot be overridden via environment variables.
+
+## Configuration Reference
+
+<ModuleConfig category="cache" type="memory" />
+
+### Code-only options
+
+<ModuleCodeOnly category="cache" type="memory" />

@@ -1,0 +1,119 @@
+---
+title: Workers
+description: Background worker pools and a cron-style job scheduler.
+---
+
+import ModuleConfig from '../../../components/ModuleConfig.astro';
+import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
+
+These packages run background work off the request path: `pkg/workers/pool` manages named worker pools for fire-and-forget tasks, and `pkg/workers/scheduler` runs cron- and interval-scheduled jobs.
+
+## Worker pool
+
+`pkg/workers/pool` builds named pools and exposes a `*Registry` via DI. Each pool runs a bounded set of workers fed by a bounded FIFO queue.
+
+### Setup
+
+Register pools in code with `WithPool`, or declare them in config; a config entry replaces a code-registered pool of the same name.
+
+```go compile=skip
+lakta.NewRuntime(
+    config.NewModule(config.WithConfigDirs(".", "./config")),
+    tint.NewModule(),
+    slog.NewModule(),
+    pool.NewModule(
+        pool.WithPool("email", pool.PoolConfig{Workers: 4}),
+    ),
+)
+```
+
+`PoolConfig.Workers` defaults to `runtime.NumCPU()` when zero or less. `QueueSize` is a `*int`: nil uses the default (1024), zero means direct handoff to an idle worker.
+
+### Submitting tasks
+
+Resolve the `*Registry` from DI and look up a pool by name. `Submit` enqueues a fire-and-forget task: its context is detached from the submitter's cancellation but keeps its values, errors are logged, and panics are recovered.
+
+```go compile=skip
+registry, err := lakta.Invoke[*pool.Registry](ctx)
+if err != nil {
+    return err
+}
+p, err := registry.Get("email")
+if err != nil {
+    return err
+}
+err = p.Submit(ctx, func(ctx context.Context) error {
+    return sendEmail(ctx, msg)
+})
+```
+
+To await a result, use the generic `SubmitResult`, which returns a `*Future[T]`. Unlike `Submit`, the task keeps the submitter's live context, so cancellation propagates and a still-queued task is skipped once ctx is cancelled.
+
+```go compile=skip
+future, err := pool.SubmitResult(ctx, p, func(ctx context.Context) (Report, error) {
+    return buildReport(ctx)
+})
+report, err := future.Get(ctx) // blocks until done or ctx is cancelled
+```
+
+On shutdown the module drains every pool; `Submit` returns `pool.ErrPoolClosed` afterwards.
+
+### Configuration Reference
+
+<ModuleConfig category="workers" type="pool" />
+
+#### Code-only options
+
+<ModuleCodeOnly category="workers" type="pool" />
+
+## Scheduler
+
+`pkg/workers/scheduler` provides an `AsyncModule` that wraps go-co-op/gocron and exposes a `*Scheduler` via DI. Handlers are always code-owned; config overlays the remaining fields by job name.
+
+### Setup
+
+Register jobs with `WithJob(name, schedule, handler)`. The schedule is a 6-field cron expression (with seconds) or an `@every` interval such as `@every 5m`.
+
+```go compile=skip
+scheduler.NewModule(
+    scheduler.WithTimezone("UTC"),
+    scheduler.WithJob("cleanup", "0 0 * * * *", func(ctx context.Context) error {
+        return purgeExpired(ctx)
+    }),
+    scheduler.WithJob("heartbeat", "@every 30s", ping),
+),
+```
+
+Config may override a job's `schedule`, `timezone`, `jitter`, `overlap`, and `enabled` fields by name; the code-owned handler always persists, including across hot-reload. A job is registered unless a config entry explicitly sets `enabled: false`.
+
+### Overlap policy
+
+`JobSpec.Overlap` controls what happens when a previous run is still in flight at the next fire:
+
+- `scheduler.OverlapSkip` (default) — drop the overlapping run
+- `scheduler.OverlapQueue` — serialize: run after the current one finishes
+- `scheduler.OverlapAllow` — allow runs to overlap
+
+### Introspection and manual runs
+
+Resolve the `*Scheduler` from DI to register jobs during a module's own `Init`, run a job out of schedule, or inspect state.
+
+```go compile=skip
+sched, err := lakta.Invoke[*scheduler.Scheduler](ctx)
+if err != nil {
+    return err
+}
+_ = sched.RunNow("cleanup")          // fire once, out of schedule
+next, _ := sched.NextRun("cleanup")  // next scheduled fire
+jobs := sched.Jobs()                 // []JobInfo snapshot, sorted by name
+```
+
+Each run is wrapped with optional jitter, an OpenTelemetry span, panic recovery, and structured logging. On shutdown the scheduler blocks until in-flight jobs finish, bounded by the shutdown timeout.
+
+### Configuration Reference
+
+<ModuleConfig category="workers" type="scheduler" />
+
+#### Code-only options
+
+<ModuleCodeOnly category="workers" type="scheduler" />

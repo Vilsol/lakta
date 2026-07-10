@@ -1,0 +1,74 @@
+---
+title: Connect-RPC Server
+description: Connect-RPC server serving Connect, gRPC-Web, and gRPC on a single port.
+---
+
+import ModuleConfig from '../../../components/ModuleConfig.astro';
+import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
+
+`pkg/http/connect` runs a Connect-RPC server as a `SyncModule`. One `net/http` handler serves Connect, gRPC-Web, and gRPC on a single port — cleartext HTTP/2 (h2c) lets gRPC clients connect without TLS.
+
+## Setup
+
+Register services with `WithService`. The registrar runs during `Init` (when the injector is in context) and receives the shared interceptor chain to pass into the Connect constructor.
+
+```go compile=skip
+lakta.NewRuntime(
+    config.NewModule(
+        config.WithConfigDirs(".", "./config"),
+        config.WithArgs(os.Args[1:]),
+    ),
+    tint.NewModule(),
+    slog.NewModule(),
+    otel.NewModule(),
+    connect.NewModule(
+        connect.WithService(func(ctx context.Context, opts []connectrpc.HandlerOption) (string, http.Handler) {
+            return greetv1connect.NewGreetServiceHandler(NewServer(), opts...)
+        }),
+    ),
+)
+```
+
+## Registering services
+
+`WithService` is the recommended path: it defers handler construction to `Init` so you can resolve dependencies with `lakta.Invoke[T](ctx)`, and it injects the built-in interceptor chain into your handler.
+
+For a pre-built handler that already carries its own options, use `WithHandler(path, handler)`. Note the shared interceptor chain is **not** applied to handlers registered this way — the handler is mounted as-is.
+
+## Interceptors
+
+The following interceptors are applied automatically (outer to inner):
+
+- **OpenTelemetry** — trace propagation (when otel is enabled)
+- **Logging** — structured request/response logging via slox
+- **Recovery** — converts panics to Connect errors
+- **Errors** — error normalization
+- **Validation** — request validation
+
+Append your own with `WithInterceptors(...)`; they run after the built-in chain.
+
+## Transport security
+
+By default the server listens in plaintext with h2c enabled (`WithH2C`), so gRPC clients connect without TLS. Configure file-path based TLS to serve HTTP/2-over-TLS instead — when TLS is set, h2c is ignored.
+
+## Multi-instance
+
+```go compile=skip
+connect.NewModule(
+    connect.WithName("internal"),
+    connect.WithService(internalRegistrar),
+),
+connect.NewModule(
+    connect.WithName("public"),
+    connect.WithPort(9090),
+    connect.WithService(publicRegistrar),
+),
+```
+
+## Configuration Reference
+
+<ModuleConfig category="http" type="connect" />
+
+### Code-only options
+
+<ModuleCodeOnly category="http" type="connect" />
