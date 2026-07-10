@@ -190,7 +190,7 @@ done
 proto_status=0
 if command -v buf >/dev/null 2>&1; then
   echo "== proto lint + breaking =="
-  ( cd examples/microservices/proto && buf lint && buf breaking --against "$(git rev-parse --git-common-dir)#branch=main,subdir=examples/microservices/proto" ) || proto_status=$?
+  ( cd examples/microservices/proto && buf lint && buf breaking --against "$(git rev-parse --git-common-dir)#branch=origin/main,subdir=examples/microservices/proto" ) || proto_status=$?
 else
   echo "   (buf absent: skipping proto-lint/proto-breaking)"
 fi
@@ -217,7 +217,7 @@ dir = "{{ config_root }}/examples/microservices/proto"
 description = "Check proto for wire-breaking changes against main"
 # git-common-dir resolves the real repo .git in both normal checkouts and git worktrees
 # (a worktree's .git is a gitfile buf cannot clone directly).
-run = 'buf breaking --against "$(git rev-parse --git-common-dir)#branch=main,subdir=examples/microservices/proto"'
+run = 'buf breaking --against "$(git rev-parse --git-common-dir)#branch=origin/main,subdir=examples/microservices/proto"'
 
 [tasks.migrate]
 dir = "{{ config_root }}/examples/microservices"
