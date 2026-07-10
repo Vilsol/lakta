@@ -279,6 +279,50 @@ modules:
         type: '[]health.Config'
         description: adds a health check to be registered on initialization (code-only)
   - category: http
+    type: connect
+    package: github.com/Vilsol/lakta/pkg/http/connect
+    configPath: modules.http.connect.<name>
+    description: represents configuration for the Connect-RPC server [Module]. One
+    fields:
+      - key: host
+        type: string
+        default: 0.0.0.0
+        envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__HOST
+        description: host specifies the address for the server to bind to
+      - key: port
+        type: uint16
+        default: "8080"
+        envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__PORT
+        description: port represents the port number on which the server listens
+      - key: h2c
+        type: bool
+        default: "true"
+        envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__H2C
+        description: h2C enables cleartext HTTP/2 (h2c) so gRPC clients work without TLS. When
+      - key: read_timeout
+        type: time.Duration
+        envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__READ_TIMEOUT
+        description: readTimeout bounds reading the entire request incl. body (maps to
+      - key: read_header_timeout
+        type: time.Duration
+        default: 10s
+        envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__READ_HEADER_TIMEOUT
+        description: readHeaderTimeout bounds reading request headers (maps to
+      - key: tls
+        type: config.TLS
+        envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__TLS
+        description: tLS configures file-path based transport security. When unset the server
+    codeOnly:
+      - option: WithHandler
+        type: map[string]http.Handler
+        description: registers a pre-built (path, handler) pair directly; spreads a
+      - option: WithService
+        type: '[]connect.ServiceRegistrar'
+        description: 'is the recommended registrar: it defers handler construction to Init'
+      - option: WithInterceptors
+        type: '[]connect.Interceptor'
+        description: appends extra connect interceptors to the built-in chain
+  - category: http
     type: fiber
     package: github.com/Vilsol/lakta/pkg/http/fiber
     configPath: modules.http.fiber.<name>

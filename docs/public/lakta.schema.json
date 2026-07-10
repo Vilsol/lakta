@@ -130,6 +130,15 @@
         "http": {
           "type": "object",
           "properties": {
+            "connect": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/http_connect"
+                }
+              },
+              "additionalProperties": false
+            },
             "fiber": {
               "type": "object",
               "patternProperties": {
@@ -508,6 +517,42 @@
         "component_version": {
           "type": "string",
           "description": "componentVersion represents the version of the component"
+        }
+      },
+      "additionalProperties": false
+    },
+    "http_connect": {
+      "type": "object",
+      "properties": {
+        "h2c": {
+          "type": "boolean",
+          "description": "h2C enables cleartext HTTP/2 (h2c) so gRPC clients work without TLS. When",
+          "default": "true"
+        },
+        "host": {
+          "type": "string",
+          "description": "host specifies the address for the server to bind to",
+          "default": "0.0.0.0"
+        },
+        "port": {
+          "type": "integer",
+          "description": "port represents the port number on which the server listens",
+          "default": "8080"
+        },
+        "read_header_timeout": {
+          "type": "string",
+          "description": "readHeaderTimeout bounds reading request headers (maps to",
+          "default": "10s",
+          "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+        },
+        "read_timeout": {
+          "type": "string",
+          "description": "readTimeout bounds reading the entire request incl. body (maps to",
+          "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+        },
+        "tls": {
+          "type": "string",
+          "description": "tLS configures file-path based transport security. When unset the server"
         }
       },
       "additionalProperties": false

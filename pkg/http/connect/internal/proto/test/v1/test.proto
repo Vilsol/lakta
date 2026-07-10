@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package test.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/Vilsol/lakta/pkg/http/connect/internal/gen/test/v1;testv1";
+
+// EchoService is an unconstrained service exercised by the flagship
+// three-protocol, h2c, drain, and DI tests.
+service EchoService {
+  rpc Echo(EchoRequest) returns (EchoResponse);
+}
+
+message EchoRequest {
+  string message = 1;
+}
+
+message EchoResponse {
+  string message = 1;
+}
+
+// ValidateService carries a protovalidate CEL constraint so the validation
+// parity test can assert byte-identical errdetails.BadRequest across transports.
+service ValidateService {
+  rpc Check(CheckRequest) returns (CheckResponse);
+}
+
+message CheckRequest {
+  string email = 1 [(buf.validate.field).string.email = true];
+}
+
+message CheckResponse {}

@@ -12,6 +12,7 @@ import (
 	pkg_grpc_client "github.com/Vilsol/lakta/pkg/grpc/client"
 	pkg_grpc_server "github.com/Vilsol/lakta/pkg/grpc/server"
 	pkg_health "github.com/Vilsol/lakta/pkg/health"
+	pkg_http_connect "github.com/Vilsol/lakta/pkg/http/connect"
 	pkg_http_fiber "github.com/Vilsol/lakta/pkg/http/fiber"
 	pkg_logging_slog "github.com/Vilsol/lakta/pkg/logging/slog"
 	pkg_logging_tint "github.com/Vilsol/lakta/pkg/logging/tint"
@@ -32,6 +33,7 @@ var defaultConfigs = []any{
 	pkg_grpc_client.NewDefaultConfig(),
 	pkg_grpc_server.NewDefaultConfig(),
 	pkg_health.NewDefaultConfig(),
+	pkg_http_connect.NewDefaultConfig(),
 	pkg_http_fiber.NewDefaultConfig(),
 	pkg_logging_slog.NewDefaultConfig(),
 	pkg_logging_tint.NewDefaultConfig(),

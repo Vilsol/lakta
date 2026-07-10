@@ -17,6 +17,7 @@ use (
 	./pkg/features/flags
 	./pkg/grpc
 	./pkg/health
+	./pkg/http/connect
 	./pkg/http/fiber
 	./pkg/logging/slog
 	./pkg/logging/tint

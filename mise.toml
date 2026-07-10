@@ -2,7 +2,10 @@
 go = "1.26.5"
 golangci-lint = "2.12.2"
 zig = "0.16.0"            # `zig cc` supplies the C linker the race detector needs (no system gcc required)
+buf = "1.71.0"           # proto lint/breaking/gen; local plugins only, no BSR at generate time
 "go:github.com/bokwoon95/wgo" = "latest"
+"go:google.golang.org/protobuf/cmd/protoc-gen-go" = "1.36.11"          # pinned (not latest) so dev and CI agree byte-for-byte
+"go:connectrpc.com/connect/cmd/protoc-gen-connect-go" = "1.20.0"       # pinned (not latest) so dev and CI agree byte-for-byte
 
 [tasks.dev]
 dir = "{{ config_root }}"
@@ -121,7 +124,30 @@ for d in $mods; do
     *) ( cd "$d" && golangci-lint run ) && ( cd "$d" && go run golang.org/x/vuln/cmd/govulncheck@latest ./... ) ;;
   esac
 done
+if command -v buf >/dev/null 2>&1; then
+  echo "== proto lint + breaking =="
+  ( cd examples/microservices/proto && buf lint && buf breaking --against "$(git rev-parse --git-common-dir)#branch=main,subdir=examples/microservices/proto" )
+else
+  echo "   (buf absent: skipping proto-lint/proto-breaking)"
+fi
 """
+
+[tasks.proto-gen]
+dir = "{{ config_root }}/examples/microservices/proto"
+description = "Generate Go + Connect stubs from proto (offline, local plugins)"
+run = "buf generate"
+
+[tasks.proto-lint]
+dir = "{{ config_root }}/examples/microservices/proto"
+description = "Lint proto files (STANDARD ruleset)"
+run = "buf lint"
+
+[tasks.proto-breaking]
+dir = "{{ config_root }}/examples/microservices/proto"
+description = "Check proto for wire-breaking changes against main"
+# git-common-dir resolves the real repo .git in both normal checkouts and git worktrees
+# (a worktree's .git is a gitfile buf cannot clone directly).
+run = 'buf breaking --against "$(git rev-parse --git-common-dir)#branch=main,subdir=examples/microservices/proto"'
 
 [tasks.migrate]
 dir = "{{ config_root }}/examples/microservices"
