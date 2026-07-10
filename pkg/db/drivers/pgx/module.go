@@ -87,6 +87,16 @@ func (m *Module) StartAsync(ctx context.Context) error {
 	m.instance = conn
 	m.stdInstance = stdlib.OpenDBFromPool(m.instance)
 
+	// Run migrations before health registration so an unmigrated schema never
+	// reports ready. The advisory session locker makes this replica-safe:
+	// concurrent instances serialize on a Postgres advisory lock and apply each
+	// migration exactly once.
+	if m.config.Migrations.RunOnStart && m.config.migrationsFS != nil {
+		if err := runMigrations(ctx, &m.config, m.stdInstance, m.config.migrationsFS); err != nil {
+			return err
+		}
+	}
+
 	lakta.ProvideValue(ctx, m.instance)
 	lakta.ProvideValue(ctx, m.stdInstance)
 

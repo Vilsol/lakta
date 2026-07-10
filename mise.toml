@@ -122,3 +122,8 @@ for d in $mods; do
   esac
 done
 """
+
+[tasks.migrate]
+dir = "{{ config_root }}/examples/microservices"
+description = "Run DB migrations out-of-band (init-container / prod path) for the data service"
+run = "go run ./data migrate"

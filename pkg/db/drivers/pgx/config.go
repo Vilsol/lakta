@@ -1,6 +1,8 @@
 package pgx
 
 import (
+	"database/sql"
+	"io/fs"
 	"strconv"
 	"strings"
 	"time"
@@ -11,11 +13,28 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/tracelog"
 	"github.com/knadh/koanf/v2"
+	"github.com/pressly/goose/v3"
+	"github.com/pressly/goose/v3/lock"
 	"github.com/samber/oops"
 )
 
 const (
 	defaultMaxOpenConns = 10
+)
+
+const (
+	// lockAdvisory selects goose's Postgres advisory session locker, making
+	// concurrent on-start runs across replicas serialize on a single lock so
+	// each migration applies exactly once.
+	lockAdvisory = "advisory"
+
+	// defaultMigrationsTable is the history table goose records applied
+	// versions in (overriding goose's own "goose_db_version" default).
+	defaultMigrationsTable = "schema_migrations"
+
+	// defaultMigrationsDir is the sub-path within the embedded FS holding the
+	// .sql migration files (matches the //go:embed migrations/*.sql idiom).
+	defaultMigrationsDir = "migrations"
 )
 
 const (
@@ -57,8 +76,39 @@ type Config struct {
 	// StatementTimeout sets the per-statement timeout (Postgres statement_timeout). Zero disables it.
 	StatementTimeout time.Duration `koanf:"statement_timeout"`
 
+	// Migrations configures goose-driven schema migrations for this instance.
+	Migrations MigrationsConfig `koanf:"migrations"`
+
 	// logLevelParsed stores the parsed representation of the LogLevel field.
 	logLevelParsed tracelog.LogLevel `koanf:"-"`
+
+	// migrationsFS is the embedded migration set; set via WithMigrations. It is
+	// code-only (an fs.FS cannot come from YAML), so it never reaches koanf.
+	migrationsFS fs.FS `code_only:"WithMigrations" koanf:"-"`
+}
+
+// MigrationsConfig configures goose-driven schema migrations for this instance.
+//
+// RunOnStart defaults to false: production applies migrations out-of-band from
+// an init-container/job via RunMigrations, keeping on-start migration a dev
+// convenience. See RunMigrations for the non-transactional wedge risk.
+type MigrationsConfig struct {
+	// RunOnStart applies pending migrations during StartAsync. Default false —
+	// the init-container/out-of-band path is the prod-safe path.
+	RunOnStart bool `koanf:"run_on_start"`
+
+	// Table is the migration history table name.
+	Table string `koanf:"table"`
+
+	// Dir is the sub-path within the embedded FS that holds the .sql files.
+	Dir string `koanf:"dir"`
+
+	// Lock selects the on-start locking strategy: "advisory" uses a Postgres
+	// session advisory lock (replica-safe), "none" disables locking.
+	Lock string `enum:"advisory,none" koanf:"lock"`
+
+	// AllowMissing applies out-of-order (missing) migrations instead of erroring.
+	AllowMissing bool `koanf:"allow_missing"`
 }
 
 // NewDefaultConfig returns default configuration.
@@ -74,6 +124,13 @@ func NewDefaultConfig() Config {
 		MaxConnIdleTime:   defaultMaxConnIdleTime,
 		HealthCheckPeriod: defaultHealthCheckPeriod,
 		StatementTimeout:  defaultStatementTimeout,
+		Migrations: MigrationsConfig{
+			RunOnStart:   false,
+			Table:        defaultMigrationsTable,
+			Dir:          defaultMigrationsDir,
+			Lock:         lockAdvisory,
+			AllowMissing: false,
+		},
 	}
 }
 
@@ -219,4 +276,59 @@ func WithHealthCheckPeriod(d time.Duration) Option {
 // WithStatementTimeout sets the Postgres statement_timeout. Zero disables it.
 func WithStatementTimeout(d time.Duration) Option {
 	return func(m *Config) { m.StatementTimeout = d }
+}
+
+// WithMigrations sets the embedded migration filesystem (code-only; not from
+// YAML). The FS root is expected to contain the Dir sub-path (default
+// "migrations"), matching the //go:embed migrations/*.sql idiom.
+func WithMigrations(fsys fs.FS) Option {
+	return func(m *Config) { m.migrationsFS = fsys }
+}
+
+// WithMigrationsRunOnStart overrides Migrations.RunOnStart in code.
+func WithMigrationsRunOnStart(v bool) Option {
+	return func(m *Config) { m.Migrations.RunOnStart = v }
+}
+
+// GooseProvider builds a goose provider over db + fsys with the configured
+// table, advisory session locker, and out-of-order toggle. It is the single
+// migration code path shared by StartAsync and RunMigrations. Returns
+// (nil, nil) when fsys is nil (no WithMigrations) so callers skip cleanly.
+func (c *Config) GooseProvider(db *sql.DB, fsys fs.FS) (*goose.Provider, error) {
+	if fsys == nil {
+		return nil, nil
+	}
+
+	if c.Migrations.Dir != "" && c.Migrations.Dir != "." {
+		sub, err := fs.Sub(fsys, c.Migrations.Dir)
+		if err != nil {
+			return nil, oops.Wrapf(err, "failed to open migrations dir %q in embedded FS", c.Migrations.Dir)
+		}
+		fsys = sub
+	}
+
+	var opts []goose.ProviderOption
+
+	if c.Migrations.Lock == lockAdvisory {
+		locker, err := lock.NewPostgresSessionLocker()
+		if err != nil {
+			return nil, oops.Wrapf(err, "failed to create postgres session locker")
+		}
+		opts = append(opts, goose.WithSessionLocker(locker))
+	}
+
+	if c.Migrations.Table != "" {
+		opts = append(opts, goose.WithTableName(c.Migrations.Table))
+	}
+
+	if c.Migrations.AllowMissing {
+		opts = append(opts, goose.WithAllowOutofOrder(true))
+	}
+
+	provider, err := goose.NewProvider(goose.DialectPostgres, db, fsys, opts...)
+	if err != nil {
+		return nil, oops.Wrapf(err, "failed to build goose provider")
+	}
+
+	return provider, nil
 }

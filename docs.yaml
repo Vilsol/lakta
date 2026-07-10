@@ -63,6 +63,34 @@ modules:
         default: 30s
         envVar: LAKTA_MODULES__DB__PGX__<NAME>__STATEMENT_TIMEOUT
         description: statementTimeout sets the per-statement timeout (Postgres statement_timeout). Zero disables it
+      - key: migrations
+        type: pgx.MigrationsConfig
+        description: migrations configures goose-driven schema migrations for this instance
+        fields:
+          - key: run_on_start
+            type: bool
+            envVar: LAKTA_MODULES__DB__PGX__<NAME>__MIGRATIONS__RUN_ON_START
+            description: runOnStart applies pending migrations during StartAsync. Default false —
+          - key: table
+            type: string
+            default: schema_migrations
+            envVar: LAKTA_MODULES__DB__PGX__<NAME>__MIGRATIONS__TABLE
+            description: table is the migration history table name
+          - key: dir
+            type: string
+            default: migrations
+            envVar: LAKTA_MODULES__DB__PGX__<NAME>__MIGRATIONS__DIR
+            description: dir is the sub-path within the embedded FS that holds the .sql files
+          - key: lock
+            type: string
+            default: advisory
+            enum: advisory,none
+            envVar: LAKTA_MODULES__DB__PGX__<NAME>__MIGRATIONS__LOCK
+            description: 'lock selects the on-start locking strategy: "advisory" uses a Postgres'
+          - key: allow_missing
+            type: bool
+            envVar: LAKTA_MODULES__DB__PGX__<NAME>__MIGRATIONS__ALLOW_MISSING
+            description: allowMissing applies out-of-order (missing) migrations instead of erroring
   - category: debug
     type: actuator
     package: github.com/Vilsol/lakta/pkg/debug/actuator
@@ -100,9 +128,24 @@ modules:
         description: redactPatterns extends (does not replace) the default key-redaction set
       - key: endpoints
         type: actuator.EndpointToggles
-        default: '{true true true true}'
-        envVar: LAKTA_MODULES__DEBUG__ACTUATOR__<NAME>__ENDPOINTS
         description: endpoints toggles optional endpoint groups. All default true
+        fields:
+          - key: pprof
+            type: bool
+            default: "true"
+            envVar: LAKTA_MODULES__DEBUG__ACTUATOR__<NAME>__ENDPOINTS__PPROF
+          - key: expvar
+            type: bool
+            default: "true"
+            envVar: LAKTA_MODULES__DEBUG__ACTUATOR__<NAME>__ENDPOINTS__EXPVAR
+          - key: ui
+            type: bool
+            default: "true"
+            envVar: LAKTA_MODULES__DEBUG__ACTUATOR__<NAME>__ENDPOINTS__UI
+          - key: loggers
+            type: bool
+            default: "true"
+            envVar: LAKTA_MODULES__DEBUG__ACTUATOR__<NAME>__ENDPOINTS__LOGGERS
       - key: allow_insecure
         type: bool
         envVar: LAKTA_MODULES__DEBUG__ACTUATOR__<NAME>__ALLOW_INSECURE

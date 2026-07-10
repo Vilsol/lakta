@@ -278,6 +278,39 @@
           "description": "maxOpenConns specifies the maximum number of open connections to the database. It maps to the \"max_open_conns\" configuration",
           "default": "10"
         },
+        "migrations": {
+          "type": "object",
+          "description": "migrations configures goose-driven schema migrations for this instance",
+          "properties": {
+            "allow_missing": {
+              "type": "boolean",
+              "description": "allowMissing applies out-of-order (missing) migrations instead of erroring"
+            },
+            "dir": {
+              "type": "string",
+              "description": "dir is the sub-path within the embedded FS that holds the .sql files",
+              "default": "migrations"
+            },
+            "lock": {
+              "description": "lock selects the on-start locking strategy: \"advisory\" uses a Postgres",
+              "default": "advisory",
+              "enum": [
+                "advisory",
+                "none"
+              ]
+            },
+            "run_on_start": {
+              "type": "boolean",
+              "description": "runOnStart applies pending migrations during StartAsync. Default false —"
+            },
+            "table": {
+              "type": "string",
+              "description": "table is the migration history table name",
+              "default": "schema_migrations"
+            }
+          },
+          "additionalProperties": false
+        },
         "min_conns": {
           "type": "integer",
           "description": "minConns is the minimum number of idle connections kept in the pool"
@@ -311,9 +344,27 @@
           "description": "enabled gates the whole module; when false Init/Start are no-ops. Default false"
         },
         "endpoints": {
-          "type": "string",
+          "type": "object",
           "description": "endpoints toggles optional endpoint groups. All default true",
-          "default": "{true true true true}"
+          "properties": {
+            "expvar": {
+              "type": "boolean",
+              "default": "true"
+            },
+            "loggers": {
+              "type": "boolean",
+              "default": "true"
+            },
+            "pprof": {
+              "type": "boolean",
+              "default": "true"
+            },
+            "ui": {
+              "type": "boolean",
+              "default": "true"
+            }
+          },
+          "additionalProperties": false
         },
         "host": {
           "type": "string",

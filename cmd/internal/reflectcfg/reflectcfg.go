@@ -23,6 +23,8 @@ import (
 const (
 	yamlIndent = 2
 	modulePath = "github.com/Vilsol/lakta"
+	// tagValueTrue is the "true" literal used by the code_only and required tags.
+	tagValueTrue = "true"
 )
 
 // Output is the root doc tree.
@@ -50,8 +52,11 @@ type FieldDoc struct {
 	Default     string `yaml:"default,omitempty"`
 	Enum        string `yaml:"enum,omitempty"`
 	Required    bool   `yaml:"required,omitempty"`
-	EnvVar      string `yaml:"envVar"`
+	EnvVar      string `yaml:"envVar,omitempty"`
 	Description string `yaml:"description,omitempty"`
+	// Fields holds the sub-fields of a nested struct config block (e.g.
+	// migrations); empty for scalar fields.
+	Fields []FieldDoc `yaml:"fields,omitempty"`
 }
 
 // PassthroughDoc captures a Passthrough[T] field's target for the docs URL.
@@ -128,7 +133,7 @@ func processConfig(cfg any, modVersions map[string]string) ModuleDoc {
 		if koanfTag == "-" {
 			if codeOnlyTag != "" {
 				option := codeOnlyTag
-				if option == "true" {
+				if option == tagValueTrue {
 					option = f.Name
 				}
 				doc.CodeOnly = append(doc.CodeOnly, CodeOnlyDoc{
@@ -145,12 +150,25 @@ func processConfig(cfg any, modVersions map[string]string) ModuleDoc {
 			continue
 		}
 
+		// Nested struct config block (same package, e.g. migrations): recurse
+		// so each sub-field is documented under a nested `fields` tree with
+		// dot-notation env vars, instead of an opaque struct blob.
+		if f.Type.Kind() == reflect.Struct && f.Type.PkgPath() == pkgPath {
+			doc.Fields = append(doc.Fields, FieldDoc{
+				Key:         koanfTag,
+				Type:        formatType(f.Type),
+				Description: comments.fields[f.Name],
+				Fields:      structFields(f.Type, v.FieldByName(f.Name), comments, doc.ConfigPath, koanfTag),
+			})
+			continue
+		}
+
 		fd := FieldDoc{
 			Key:         koanfTag,
 			Type:        formatType(f.Type),
 			Default:     defaultValue(v.FieldByName(f.Name)),
 			Enum:        f.Tag.Get("enum"),
-			Required:    f.Tag.Get("required") == "true",
+			Required:    f.Tag.Get("required") == tagValueTrue,
 			EnvVar:      envVarName(doc.ConfigPath, koanfTag),
 			Description: comments.fields[f.Name],
 		}
@@ -158,6 +176,49 @@ func processConfig(cfg any, modVersions map[string]string) ModuleDoc {
 	}
 
 	return doc
+}
+
+// structFields documents the sub-fields of a nested struct config block. keyPath
+// is the dotted koanf prefix (e.g. "migrations") used to build each sub-field's
+// env var; each returned FieldDoc.Key is the leaf koanf tag so the schema nests
+// it under an object. It recurses for further-nested same-package structs.
+func structFields(st reflect.Type, sv reflect.Value, comments sourceComments, configPath, keyPath string) []FieldDoc {
+	var fields []FieldDoc
+	typeName := st.Name()
+
+	for f := range st.Fields() {
+		if !f.IsExported() {
+			continue
+		}
+		koanfTag := f.Tag.Get("koanf")
+		if koanfTag == "" || koanfTag == "-" {
+			continue
+		}
+
+		fullKey := keyPath + "." + koanfTag
+
+		if f.Type.Kind() == reflect.Struct && f.Type.PkgPath() == st.PkgPath() {
+			fields = append(fields, FieldDoc{
+				Key:         koanfTag,
+				Type:        formatType(f.Type),
+				Description: comments.fieldsByType[typeName+"."+f.Name],
+				Fields:      structFields(f.Type, sv.FieldByName(f.Name), comments, configPath, fullKey),
+			})
+			continue
+		}
+
+		fields = append(fields, FieldDoc{
+			Key:         koanfTag,
+			Type:        formatType(f.Type),
+			Default:     defaultValue(sv.FieldByName(f.Name)),
+			Enum:        f.Tag.Get("enum"),
+			Required:    f.Tag.Get("required") == tagValueTrue,
+			EnvVar:      envVarName(configPath+"."+keyPath, koanfTag),
+			Description: comments.fieldsByType[typeName+"."+f.Name],
+		})
+	}
+
+	return fields
 }
 
 // defaultValue returns a string representation of a field's value,
@@ -294,15 +355,19 @@ func isBuiltin(name string) bool {
 type sourceComments struct {
 	structDoc string
 	fields    map[string]string
-	funcs     map[string]string
+	// fieldsByType keys comments by "TypeName.FieldName" so nested config
+	// structs (documented via recursion) resolve their own field docs.
+	fieldsByType map[string]string
+	funcs        map[string]string
 }
 
 // extractComments parses the Go source for a package and extracts doc comments
 // from the Config struct (type + fields) and WithXxx option functions.
 func extractComments(pkgPath string) sourceComments {
 	sc := sourceComments{
-		fields: make(map[string]string),
-		funcs:  make(map[string]string),
+		fields:       make(map[string]string),
+		fieldsByType: make(map[string]string),
+		funcs:        make(map[string]string),
 	}
 
 	// Resolve package path to filesystem directory
@@ -339,9 +404,12 @@ func extractStructComments(decl *ast.GenDecl, sc *sourceComments) {
 	if decl.Tok != token.TYPE {
 		return
 	}
+	if sc.fieldsByType == nil {
+		sc.fieldsByType = make(map[string]string)
+	}
 	for _, spec := range decl.Specs {
 		ts, ok := spec.(*ast.TypeSpec)
-		if !ok || ts.Name.Name != "Config" {
+		if !ok {
 			continue
 		}
 		st, ok := ts.Type.(*ast.StructType)
@@ -349,7 +417,8 @@ func extractStructComments(decl *ast.GenDecl, sc *sourceComments) {
 			continue
 		}
 
-		if decl.Doc != nil {
+		isConfig := ts.Name.Name == "Config"
+		if isConfig && decl.Doc != nil {
 			sc.structDoc = cleanComment(decl.Doc.Text())
 		}
 
@@ -359,11 +428,18 @@ func extractStructComments(decl *ast.GenDecl, sc *sourceComments) {
 			}
 			name := field.Names[0].Name
 			// Prefer doc comment (above), fall back to inline comment
+			var comment string
 			switch {
 			case field.Doc != nil:
-				sc.fields[name] = cleanComment(field.Doc.Text())
+				comment = cleanComment(field.Doc.Text())
 			case field.Comment != nil:
-				sc.fields[name] = cleanComment(field.Comment.Text())
+				comment = cleanComment(field.Comment.Text())
+			default:
+				continue
+			}
+			sc.fieldsByType[ts.Name.Name+"."+name] = comment
+			if isConfig {
+				sc.fields[name] = comment
 			}
 		}
 	}

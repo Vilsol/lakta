@@ -138,6 +138,26 @@ func defSchema(m ModuleDoc) *Schema {
 // fieldSchema is the type-map switch (§5a). It keys off the stringified Type that
 // formatType already produced, so pointer/map/slice detection is prefix-based.
 func fieldSchema(f FieldDoc) *Schema {
+	// Nested struct block: build an object with typed sub-properties.
+	if len(f.Fields) > 0 {
+		props := map[string]*Schema{}
+		var required []string
+		for _, sub := range f.Fields {
+			props[sub.Key] = fieldSchema(sub)
+			if sub.Required && !strings.HasPrefix(sub.Type, "*") {
+				required = append(required, sub.Key)
+			}
+		}
+		obj := &Schema{Type: jsTypeObject, Properties: props, AdditionalProperties: false}
+		if len(required) > 0 {
+			obj.Required = required
+		}
+		if f.Description != "" {
+			obj.Description = f.Description
+		}
+		return obj
+	}
+
 	t := strings.TrimPrefix(f.Type, "*") // pointer unwrap; optionality handled in defSchema
 
 	var s *Schema
