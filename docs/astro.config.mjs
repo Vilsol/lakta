@@ -77,6 +77,7 @@ export default defineConfig({
 						{ label: 'Config Passthrough', slug: 'guides/config-passthrough' },
 						{ label: 'Context-aware Logging', slug: 'guides/context-logging' },
 						{ label: 'Testing with testkit', slug: 'guides/testing' },
+						{ label: 'Generating Config Docs', slug: 'guides/config-docgen' },
 						{ label: 'Microservices Example', slug: 'guides/microservices-example' },
 					],
 				},
