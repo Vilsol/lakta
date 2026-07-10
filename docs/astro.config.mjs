@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightLinksValidator from 'starlight-links-validator';
+import starlightLlmsTxt from 'starlight-llms-txt';
 import tailwindcss from '@tailwindcss/vite';
 import yaml from 'js-yaml';
 
@@ -38,7 +39,15 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'Lakta',
-			plugins: [starlightLinksValidator()],
+			plugins: [
+				starlightLinksValidator(),
+				starlightLlmsTxt({
+					projectName: 'Lakta',
+					description: 'An opinionated Go microservice framework: modules, dependency injection, and lifecycle management.',
+				}),
+			],
+			editLink: { baseUrl: 'https://github.com/Vilsol/lakta/edit/main/docs/' },
+			lastUpdated: true,
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/Vilsol/lakta' }],
 			sidebar: [
 				{
