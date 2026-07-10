@@ -6,6 +6,7 @@ buf = "1.71.0"           # proto lint/breaking/gen; local plugins only, no BSR a
 "go:github.com/bokwoon95/wgo" = "latest"
 "go:google.golang.org/protobuf/cmd/protoc-gen-go" = "1.36.11"          # pinned (not latest) so dev and CI agree byte-for-byte
 "go:connectrpc.com/connect/cmd/protoc-gen-connect-go" = "1.20.0"       # pinned (not latest) so dev and CI agree byte-for-byte
+"go:golang.org/x/vuln/cmd/govulncheck" = "1.6.0"                       # pinned + installed once; ci-all reuses the binary instead of `go run ...@latest` per module
 
 [tasks.dev]
 dir = "{{ config_root }}"
@@ -111,25 +112,81 @@ echo "isolation OK"
 
 [tasks.ci-all]
 dir = "{{ config_root }}"
-description = "Build, test, race, lint, vuln-check every workspace module"
+description = "Build, test, race, lint, vuln-check every workspace module (parallel across cores)"
 env = { CGO_ENABLED = "1", CC = "zig cc", CXX = "zig c++" }
 run = """
-set -e
+set -uo pipefail
+# mise runs task scripts under errexit; disable it so a failing xargs pipeline does
+# not abort before the log-replay + proto steps run (we exit non-zero explicitly at
+# the end). The per-module worker subshells keep their own `set -e`.
+set +e
+
+# Persistent, per-(worktree,module) golangci-lint caches under the shared .git
+# common dir: kept out of the working tree (never committed); the per-worktree
+# subdir avoids the cross-worktree stale-path contamination the default cache
+# suffers (phantom findings referencing other worktrees' paths). Each module gets
+# its own cache dir so the parallel workers don't race a shared cache.
+gitcommon=$(cd "$(git rev-parse --git-common-dir)" && pwd)
+lintcache="$gitcommon/golangci-lint-cache/$(basename "$PWD")"
+export lintcache
+
 mods=$(go work edit -json | python3 -c 'import json,sys;[print(u["DiskPath"]) for u in json.load(sys.stdin)["Use"]]')
+
+logdir=$(mktemp -d)
+trap 'rm -rf "$logdir"' EXIT
+export logdir
+
+# One worker = full check suite for one module. Output is captured to a per-module
+# logfile so parallel workers never interleave; only a one-line PASS/FAIL marker
+# streams live to stderr. Exit status propagates so xargs can fail the whole task.
+# golangci-lint takes a GLOBAL lock and aborts on a concurrent instance, so we pass
+# --allow-parallel-runners (safe here: each run has its own per-module cache dir).
+check_module() {
+  d="$1"
+  key="$(printf '%s' "$d" | tr '/.' '__')"
+  log="$logdir/$key.log"
+  (
+    set -e
+    cd "$d"
+    go build ./...
+    go test ./...
+    go test -race ./...
+    case "$d" in
+      ./examples/*) echo "   (demo module: skipping lint/govulncheck)" ;;
+      *) GOLANGCI_LINT_CACHE="$lintcache/$key" golangci-lint run --allow-parallel-runners; govulncheck ./... ;;
+    esac
+  ) >"$log" 2>&1
+  status=$?
+  if [ "$status" -eq 0 ]; then printf 'PASS  %s\n' "$d" >&2; else printf 'FAIL  %s\n' "$d" >&2; fi
+  return "$status"
+}
+export -f check_module
+
+# xargs -P fans out across all cores; it exits non-zero if ANY worker failed,
+# which is our fail-fast overall exit-code signal.
+printf '%s\n' $mods | xargs -P "$(nproc)" -I {} bash -c 'check_module "$@"' _ {}
+mod_status=$?
+
+# Replay captured logs in deterministic workspace order (full build/test/lint/vuln
+# output for every module, exactly as the sequential version printed inline).
 for d in $mods; do
   echo "== $d =="
-  ( cd "$d" && go build ./... && go test ./... && go test -race ./... )
-  case "$d" in
-    ./examples/*) echo "   (demo module: skipping lint/govulncheck)" ;;
-    *) ( cd "$d" && golangci-lint run ) && ( cd "$d" && go run golang.org/x/vuln/cmd/govulncheck@latest ./... ) ;;
-  esac
+  cat "$logdir/$(printf '%s' "$d" | tr '/.' '__').log"
 done
+
+proto_status=0
 if command -v buf >/dev/null 2>&1; then
   echo "== proto lint + breaking =="
-  ( cd examples/microservices/proto && buf lint && buf breaking --against "$(git rev-parse --git-common-dir)#branch=main,subdir=examples/microservices/proto" )
+  ( cd examples/microservices/proto && buf lint && buf breaking --against "$(git rev-parse --git-common-dir)#branch=main,subdir=examples/microservices/proto" ) || proto_status=$?
 else
   echo "   (buf absent: skipping proto-lint/proto-breaking)"
 fi
+
+if [ "$mod_status" -ne 0 ] || [ "$proto_status" -ne 0 ]; then
+  echo "ci-all FAILED (module checks exit=$mod_status, proto exit=$proto_status)" >&2
+  exit 1
+fi
+echo "ci-all OK"
 """
 
 [tasks.proto-gen]
