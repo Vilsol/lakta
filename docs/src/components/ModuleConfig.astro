@@ -42,14 +42,46 @@ function splitEnvVar(envVar: string): { text: string; placeholder: boolean }[] {
 	if (last < envVar.length) parts.push({ text: envVar.slice(last), placeholder: false });
 	return parts;
 }
+
+interface FieldDoc {
+	key: string;
+	type: string;
+	default?: string;
+	enum?: string;
+	required?: boolean;
+	envVar?: string;
+	description?: string;
+	fields?: FieldDoc[];
+}
+
+// Nested struct blocks (e.g. pgx `migrations`) carry sub-fields instead of an
+// envVar. Flatten them to dotted koanf keys, keeping a group row so the block's
+// own description still renders.
+type Row = (FieldDoc & { group?: false }) | { group: true; key: string; description?: string };
+
+function flattenFields(fields: FieldDoc[], prefix = ''): Row[] {
+	return fields.flatMap((f): Row[] =>
+		f.fields?.length
+			? [{ group: true, key: prefix + f.key, description: f.description }, ...flattenFields(f.fields, prefix + f.key + '.')]
+			: [{ ...f, key: prefix + f.key }],
+	);
+}
+
+const rows = flattenFields(mod.fields ?? []);
+const passthroughGuide = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/guides/config-passthrough/`;
 ---
 
 <section>
 	<p>Config path: <code>{mod.configPath}</code></p>
 
-	{mod.fields.length > 0 && (
+	{rows.length > 0 && (
 		<div class="field-list">
-			{mod.fields.map((f) => (
+			{rows.map((f) => (f.group ? (
+				<div class="field-group">
+					<code>{f.key}</code>
+					{f.description && <span class="group-description">{f.description}</span>}
+				</div>
+			) : (
 				<div class="field-card">
 					<div class="field-header">
 						<span class="field-key">
@@ -81,19 +113,19 @@ function splitEnvVar(envVar: string): { text: string; placeholder: boolean }[] {
 					<div class="field-env">
 						<span class="env-label">env</span>
 						<code class="env-var">
-							{splitEnvVar(f.envVar).map((seg) =>
+							{splitEnvVar(f.envVar ?? '').map((seg) =>
 								seg.placeholder
 									? <span class="env-placeholder">{seg.text}</span>
 									: seg.text
 							)}
 						</code>
-						<button class="copy-btn" data-copy={f.envVar} title="Copy env var">
+						<button class="copy-btn" data-copy={f.envVar ?? ''} title="Copy env var">
 							<svg class="icon-copy" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
 							<svg class="icon-check" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
 						</button>
 					</div>
 				</div>
-			))}
+			)))}
 		</div>
 	)}
 
@@ -103,7 +135,7 @@ function splitEnvVar(envVar: string): { text: string; placeholder: boolean }[] {
 			<a href={mod.passthrough.docsUrl} target="_blank" rel="noopener noreferrer">
 				<code>{mod.passthrough.targetPackage} {mod.passthrough.targetType}</code>
 			</a>{' '}
-			via <code>mapstructure</code>. See <a href="/guides/config-passthrough">Config Passthrough</a> for details.
+			via <code>mapstructure</code>. See <a href={passthroughGuide}>Config Passthrough</a> for details.
 		</p>
 	)}
 </section>
@@ -121,6 +153,25 @@ function splitEnvVar(envVar: string): { text: string; placeholder: boolean }[] {
 		border-radius: 6px;
 		padding: 0.75rem 1rem;
 		background: var(--sl-color-black);
+	}
+
+	.field-group {
+		display: flex;
+		align-items: baseline;
+		gap: 0.75rem;
+		margin-top: 0.5rem;
+		padding: 0.35rem 0.25rem 0.1rem;
+		border-bottom: 1px solid var(--sl-color-gray-5);
+	}
+
+	.field-group > code {
+		font-size: 0.95rem;
+		font-weight: 600;
+	}
+
+	.group-description {
+		font-size: 0.85em;
+		color: var(--sl-color-gray-3);
 	}
 
 	.field-header {

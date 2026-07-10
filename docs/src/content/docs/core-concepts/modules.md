@@ -78,7 +78,7 @@ func (m *MyModule) Dependencies() (required, optional []reflect.Type) {
 
 **Required** deps that have no registered provider cause a startup error before any `Init` fires. **Optional** deps are silently skipped if unavailable.
 
-Together, `Provider` and `Dependent` let the runtime topologically sort modules — you don't need to pass them to `NewRuntime` in any particular order. See [Module Lifecycle](/getting-started/lifecycle) for details.
+Together, `Provider` and `Dependent` let the runtime topologically sort modules — you don't need to pass them to `NewRuntime` in any particular order. See [Module Lifecycle](/lakta/getting-started/lifecycle/) for details.
 
 ## Configurable
 
@@ -103,7 +103,7 @@ type NamedModule interface {
 }
 ```
 
-Embed `lakta.NamedBase` and call `NewNamedBase(name)` for a ready-made implementation. See [Multi-instance Modules](/core-concepts/multi-instance).
+Embed `lakta.NamedBase` and call `NewNamedBase(name)` for a ready-made implementation. See [Multi-instance Modules](/lakta/core-concepts/multi-instance/).
 
 ## SyncCtx
 

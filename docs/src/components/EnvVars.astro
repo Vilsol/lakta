@@ -3,7 +3,8 @@ import docs from 'virtual:lakta-docs';
 
 interface Field {
 	key: string;
-	envVar: string;
+	envVar?: string;
+	fields?: Field[];
 }
 
 interface Module {
@@ -25,6 +26,14 @@ function envVar(raw: string): string {
 	return raw.replace('<NAME>', 'DEFAULT');
 }
 
+// Nested struct blocks (e.g. pgx `migrations`) have no envVar of their own;
+// flatten to dotted keys so only leaf fields (which do) produce rows.
+function flattenFields(fields: Field[], prefix = ''): Field[] {
+	return fields.flatMap((f) =>
+		f.fields?.length ? flattenFields(f.fields, prefix + f.key + '.') : [{ ...f, key: prefix + f.key }],
+	);
+}
+
 const modules = (docs.modules as Module[])
 	.filter((m) => (m.fields ?? []).length > 0)
 	.slice()
@@ -42,10 +51,10 @@ const modules = (docs.modules as Module[])
 				</tr>
 			</thead>
 			<tbody>
-				{(mod.fields ?? []).map((f) => (
+				{flattenFields(mod.fields ?? []).map((f) => (
 					<tr>
 						<td><code>{configKey(mod.configPath, f.key)}</code></td>
-						<td><code>{envVar(f.envVar)}</code></td>
+						<td><code>{envVar(f.envVar ?? '')}</code></td>
 					</tr>
 				))}
 			</tbody>
