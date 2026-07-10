@@ -23,6 +23,7 @@ require (
 	atomicgo.dev/keyboard v0.2.10 // indirect
 	atomicgo.dev/schedule v0.1.0 // indirect
 	github.com/Vilsol/lakta v0.0.6 // indirect
+	github.com/Vilsol/lakta/pkg/reflectcfg v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/slox v0.1.0 // indirect
 	github.com/andybalholm/brotli v1.2.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
@@ -139,3 +140,5 @@ replace (
 	github.com/Vilsol/lakta/pkg/testkit => ../pkg/testkit
 	github.com/Vilsol/lakta/pkg/workflows/temporal => ../pkg/workflows/temporal
 )
+
+replace github.com/Vilsol/lakta/pkg/reflectcfg => ../pkg/reflectcfg

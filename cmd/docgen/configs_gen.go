@@ -3,6 +3,8 @@
 package main
 
 import (
+	"github.com/Vilsol/lakta/pkg/reflectcfg"
+
 	pkg_auth_verifier "github.com/Vilsol/lakta/pkg/auth/verifier"
 	pkg_cache_memory "github.com/Vilsol/lakta/pkg/cache/memory"
 	pkg_db_drivers_pgx "github.com/Vilsol/lakta/pkg/db/drivers/pgx"
@@ -23,23 +25,23 @@ import (
 	pkg_workflows_temporal "github.com/Vilsol/lakta/pkg/workflows/temporal"
 )
 
-var defaultConfigs = []any{
-	pkg_auth_verifier.NewDefaultConfig(),
-	pkg_cache_memory.NewDefaultConfig(),
-	pkg_db_drivers_pgx.NewDefaultConfig(),
-	pkg_debug_actuator.NewDefaultConfig(),
-	pkg_events_bus.NewDefaultConfig(),
-	pkg_features_flags.NewDefaultConfig(),
-	pkg_grpc_client.NewDefaultConfig(),
-	pkg_grpc_server.NewDefaultConfig(),
-	pkg_health.NewDefaultConfig(),
-	pkg_http_connect.NewDefaultConfig(),
-	pkg_http_fiber.NewDefaultConfig(),
-	pkg_logging_slog.NewDefaultConfig(),
-	pkg_logging_tint.NewDefaultConfig(),
-	pkg_otel.NewDefaultConfig(),
-	pkg_resilience_policy.NewDefaultConfig(),
-	pkg_workers_pool.NewDefaultConfig(),
-	pkg_workers_scheduler.NewDefaultConfig(),
-	pkg_workflows_temporal.NewDefaultConfig(),
+var defaultEntries = []reflectcfg.Entry{
+	reflectcfg.FromModule(pkg_auth_verifier.NewModule(), pkg_auth_verifier.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_cache_memory.NewModule(), pkg_cache_memory.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_db_drivers_pgx.NewModule(), pkg_db_drivers_pgx.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_debug_actuator.NewModule(), pkg_debug_actuator.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_events_bus.NewModule(), pkg_events_bus.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_features_flags.NewModule(), pkg_features_flags.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_grpc_client.NewModule(), pkg_grpc_client.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_grpc_server.NewModule(), pkg_grpc_server.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_health.NewModule(), pkg_health.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_http_connect.NewModule(), pkg_http_connect.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_http_fiber.NewModule(), pkg_http_fiber.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_logging_slog.NewModule(), pkg_logging_slog.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_logging_tint.NewModule(), pkg_logging_tint.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_otel.NewModule(), pkg_otel.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_resilience_policy.NewModule(), pkg_resilience_policy.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_workers_pool.NewModule(), pkg_workers_pool.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_workers_scheduler.NewModule(), pkg_workers_scheduler.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_workflows_temporal.NewModule(), pkg_workflows_temporal.NewDefaultConfig()),
 }

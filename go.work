@@ -22,6 +22,7 @@ use (
 	./pkg/logging/slog
 	./pkg/logging/tint
 	./pkg/otel
+	./pkg/reflectcfg
 	./pkg/resilience/fiber
 	./pkg/resilience/grpc
 	./pkg/resilience/policy
