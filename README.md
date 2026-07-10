@@ -1,4 +1,9 @@
-# lakta
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/src/assets/lakta-lockup-dark.svg">
+    <img src="docs/src/assets/lakta-lockup.svg" alt="lakta" width="380">
+  </picture>
+</p>
 
 An opinionated golang microservice framework.
 
@@ -36,3 +41,9 @@ dependencies, run `go work sync`. CI runs every module via `mise run ci-all`.
 | Testing              | testza        | `github.com/MarvinJWendt/testza`     |
 | Error Handling       | oops          | `github.com/samber/oops`             |
 | Goroutine Management | conc          | `github.com/sourcegraph/conc`        |
+
+## Credits
+
+The Lakta gopher is based on the Go gopher, designed by [Renee French](https://reneefrench.blogspot.com/)
+([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)). Wordmark set in
+[Outfit](https://github.com/Outfitio/Outfit-Fonts) ([SIL OFL](https://openfontlicense.org/)).
