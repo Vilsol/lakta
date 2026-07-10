@@ -62,6 +62,11 @@ type Config struct {
 	// errfiber.ErrorHandler here to render handler errors as problem+json.
 	ErrorHandler *fiber.ErrorHandler `code_only:"WithErrorHandler" koanf:"-"`
 
+	// StructValidator sets the fiber.Config-level struct validator (code-only).
+	// Wire a valfiber.New() here; ctx.Bind().Body(&dto) then auto-invokes it and a
+	// failure renders as problem+json via the ErrorHandler.
+	StructValidator fiber.StructValidator `code_only:"WithStructValidator" koanf:"-"`
+
 	// Routers defines a list of Router functions to configure routes for a Fiber application.
 	Routers []Router `code_only:"WithRouter" koanf:"-"`
 
@@ -119,6 +124,9 @@ func (c *Config) ToFiberConfig() fiber.Config {
 	}
 	if c.ErrorHandler != nil {
 		cfg.ErrorHandler = *c.ErrorHandler
+	}
+	if c.StructValidator != nil {
+		cfg.StructValidator = c.StructValidator
 	}
 	if cfg.ReadTimeout == 0 {
 		cfg.ReadTimeout = defaultReadTimeout
@@ -181,6 +189,12 @@ func WithTLSConfig(cfg *tls.Config) Option {
 // WithErrorHandler sets the fiber.Config-level error handler (code-only).
 func WithErrorHandler(h fiber.ErrorHandler) Option {
 	return func(m *Config) { m.ErrorHandler = &h }
+}
+
+// WithStructValidator sets the fiber.Config-level struct validator (code-only).
+// ctx.Bind().Body(&dto) then auto-invokes it.
+func WithStructValidator(v fiber.StructValidator) Option {
+	return func(m *Config) { m.StructValidator = v }
 }
 
 // ResolveTLS returns the effective *tls.Config: explicit TLSConfig wins,
