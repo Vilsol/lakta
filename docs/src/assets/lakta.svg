@@ -1,4 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
-  <title>Lakta</title>
-  <path fill="#d97706" d="M2.5 5.5 L14 5.5 C18.5 5.2 21.8 6 23 7.5 C21.2 9.4 17.6 10 14.6 9.8 L13.8 9.8 L13.4 12.8 L16.8 16.8 L17.2 18.2 L17.2 20.5 L4.8 20.5 L4.8 18.2 L5.2 16.8 L8.6 12.8 L8.2 9.8 L2.5 9.8 Z"/>
+	<title>Lakta</title>
+	<circle cx="8.6" cy="1.4" r="1.15" fill="#00ADD8"/>
+	<circle cx="15.4" cy="1.4" r="1.15" fill="#00ADD8"/>
+	<circle cx="8.6" cy="1.45" r="0.55" fill="#7fd8ec"/>
+	<circle cx="15.4" cy="1.45" r="0.55" fill="#7fd8ec"/>
+	<path d="M6.8 5.5 a5.2 5.2 0 0 1 10.4 0 Z" fill="#00ADD8"/>
+	<circle cx="9.85" cy="3.7" r="1.35" fill="#fffdf7"/>
+	<circle cx="14.15" cy="3.7" r="1.35" fill="#fffdf7"/>
+	<circle cx="10.35" cy="3.95" r="0.52" fill="#231f20"/>
+	<circle cx="13.65" cy="3.95" r="0.52" fill="#231f20"/>
+	<circle cx="10.5" cy="3.78" r="0.2" fill="#ffffff"/>
+	<circle cx="13.8" cy="3.78" r="0.2" fill="#ffffff"/>
+	<ellipse cx="12" cy="5.5" rx="1.5" ry="1.05" fill="#F6D2A6"/>
+	<ellipse cx="12" cy="5.0" rx="0.72" ry="0.5" fill="#5B4632"/>
+	<path fill="#d97706" d="M2.5 5.5 L14 5.5 C18.5 5.2 21.8 6 23 7.5 C21.2 9.4 17.6 10 14.6 9.8 L13.8 9.8 L13.4 12.8 L16.8 16.8 L17.2 18.2 L17.2 20.5 L4.8 20.5 L4.8 18.2 L5.2 16.8 L8.6 12.8 L8.2 9.8 L2.5 9.8 Z"/>
+	<g fill="#F6D2A6">
+		<rect x="8.0" y="4.95" width="2.3" height="1.7" rx="0.85"/>
+		<rect x="13.7" y="4.95" width="2.3" height="1.7" rx="0.85"/>
+	</g>
+	<g stroke="#d9b184" stroke-width="0.22" stroke-linecap="round">
+		<path d="M8.77 5.2 v1.2"/><path d="M9.53 5.2 v1.2"/>
+		<path d="M14.47 5.2 v1.2"/><path d="M15.23 5.2 v1.2"/>
+	</g>
 </svg>
