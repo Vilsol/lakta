@@ -15,6 +15,10 @@ jobs:
 
       - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4
 
+      # PR checkouts are single-ref; buf breaking needs the origin/main baseline.
+      - name: Fetch main as proto-breaking baseline
+        run: git fetch origin main
+
       - name: Build, test, lint, vuln (all modules)
         run: mise run ci-all
 
