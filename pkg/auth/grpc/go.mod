@@ -4,9 +4,9 @@ go 1.26.4
 
 require (
 	github.com/MarvinJWendt/testza v0.5.2
-	github.com/Vilsol/lakta v0.3.1
-	github.com/Vilsol/lakta/pkg/auth/verifier v0.0.0-20260710170601-696ed8a015c7
-	github.com/Vilsol/lakta/pkg/testkit v0.3.1
+	github.com/Vilsol/lakta v0.4.0
+	github.com/Vilsol/lakta/pkg/auth/verifier v0.4.0
+	github.com/Vilsol/lakta/pkg/testkit v0.4.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
 	github.com/knadh/koanf/providers/confmap v1.0.0
 	github.com/knadh/koanf/v2 v2.3.5
