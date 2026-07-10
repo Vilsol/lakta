@@ -51,6 +51,69 @@ func main() {
 
 To include dependency versions in passthrough docs links, pass `reflectcfg.ParseGoMod()` output as the second argument to `Reflect`.
 
+## What you get
+
+Given a module whose `ConfigPath()` is `modules.custom.widget.<instance>` and this config struct:
+
+```go
+// Config configures the widget module.
+type Config struct {
+	// Host is the bind address.
+	Host string `koanf:"host"`
+	// Port is the listen port.
+	Port int `koanf:"port" required:"true"`
+	Name string `koanf:"-"`
+}
+
+func NewDefaultConfig() Config {
+	return Config{Host: "0.0.0.0", Port: 8080, Name: "default"}
+}
+```
+
+`Reflect` + `EncodeYAML` produce:
+
+```yaml
+modules:
+  - category: custom
+    type: widget
+    package: example.com/myservice/pkg/widget
+    configPath: modules.custom.widget.<name>
+    description: configures the widget module
+    fields:
+      - key: host
+        type: string
+        default: 0.0.0.0
+        envVar: LAKTA_MODULES__CUSTOM__WIDGET__<NAME>__HOST
+        description: host is the bind address
+      - key: port
+        type: int
+        default: "8080"
+        required: true
+        envVar: LAKTA_MODULES__CUSTOM__WIDGET__<NAME>__PORT
+        description: port is the listen port
+```
+
+`EncodeSchema` emits the same information as a Draft 2020-12 JSON Schema: one `$defs` entry per module type, `required` for non-pointer `required:"true"` fields, enum values from `enum` tags, a duration pattern for `time.Duration` fields, and `additionalProperties: false` everywhere except `Passthrough` blocks.
+
+Also captured, when present:
+
+- **Nested structs** (same-package struct fields with a `koanf` tag) become nested `fields` trees with dot-notation env vars.
+- **Code-only options** (`koanf:"-"` fields tagged `code_only`) are listed under `codeOnly` with the matching `WithXxx` option's doc comment — and excluded from the schema.
+- **Passthrough blocks** (`config.Passthrough[T]`) record the target type, package, and a pkg.go.dev link when versions are supplied via `ParseGoMod`.
+
+## API surface
+
+| Symbol | Purpose |
+|---|---|
+| `FromModule(mod, cfg) Entry` | Pair a module's `ConfigPath()` with its default config value |
+| `Entry{Path, Config}` | Explicit form; empty or non-canonical `Path` falls back to package-path inference |
+| `Reflect(entries, modVersions) Output` | Build the doc tree; `modVersions` (from `ParseGoMod`) is optional |
+| `EncodeYAML(w, out)` | Emit the doc tree as YAML |
+| `EncodeSchema(w, out, id)` / `BuildSchema(out, id)` | Emit / build a Draft 2020-12 JSON Schema with the given `$id` |
+| `ParseGoMod()` | Collect dependency versions from `go.work`/`go.mod` for passthrough doc links |
+
+`Config` values may be passed by value or as pointers.
+
 ## Keeping it in sync
 
 Two conventions make the output drift-proof:
