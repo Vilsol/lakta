@@ -84,7 +84,14 @@ dir = "{{ config_root }}"
 description = "Core deps match the golden allowlist; integrations carry no sibling heavy deps"
 run = """
 set -e
-GOWORK=off go list -m all | awk '{print $1}' | LC_ALL=C sort > "${TMPDIR:-/tmp}/lakta-core-deps.now"
+# go list output goes to a file first: in a `cmd | awk | sort` pipeline the shell
+# only sees sort's exit status, so a go failure (e.g. missing go.sum entry) would
+# silently produce an empty list and misreport as 100 lines of "drift".
+raw="${TMPDIR:-/tmp}/lakta-core-deps.raw"
+if ! GOWORK=off go list -m all > "$raw"; then
+  echo "verify-isolation: 'go list -m all' failed (see error above); not a dependency drift."; exit 1
+fi
+awk '{print $1}' "$raw" | LC_ALL=C sort > "${TMPDIR:-/tmp}/lakta-core-deps.now"
 if ! diff -u core-deps.golden "${TMPDIR:-/tmp}/lakta-core-deps.now"; then
   echo "CORE DEPS DRIFT: a dependency entered/left core. If intentional, regenerate core-deps.golden and review the diff."; exit 1
 fi
@@ -94,7 +101,10 @@ fi
 # so they show up in the module graph without ever being imported. We assert that a
 # module never COMPILES another integration's unambiguous signature library.
 check() { # dir, forbidden-import-path-regex
-  if ( cd "$1" && GOWORK=off go list -deps ./... ) | grep -Eq "$2"; then
+  deps=$( cd "$1" && GOWORK=off go list -deps ./... ) || {
+    echo "verify-isolation: 'go list -deps' failed in $1 (see error above); the isolation check cannot run."; exit 1
+  }
+  if printf '%s\\n' "$deps" | grep -Eq "$2"; then
     echo "ISOLATION FAIL: $1 compiles $2"; exit 1
   fi
 }
@@ -114,6 +124,9 @@ echo "isolation OK"
 dir = "{{ config_root }}"
 description = "Build, test, race, lint, vuln-check every workspace module (parallel across cores)"
 env = { CGO_ENABLED = "1", CC = "zig cc", CXX = "zig c++" }
+# The script needs bash (pipefail, export -f); mise's default `sh` is dash on
+# Ubuntu runners, which rejects `set -o pipefail`.
+shell = "bash -c"
 run = """
 set -uo pipefail
 # mise runs task scripts under errexit; disable it so a failing xargs pipeline does
