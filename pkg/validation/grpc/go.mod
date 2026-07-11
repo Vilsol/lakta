@@ -13,7 +13,7 @@ require (
 	github.com/Vilsol/lakta v0.4.1
 	github.com/Vilsol/lakta/pkg/errors/grpc v0.4.1
 	github.com/Vilsol/lakta/pkg/validation/fiber v0.4.1
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800
 	google.golang.org/grpc v1.82.0
 	google.golang.org/protobuf v1.36.11
 )
@@ -24,7 +24,6 @@ require (
 	atomicgo.dev/keyboard v0.2.10 // indirect
 	atomicgo.dev/schedule v0.1.0 // indirect
 	cel.dev/expr v0.25.1 // indirect
-	github.com/Vilsol/lakta/pkg/errors/fiber v0.4.1 // indirect
 	github.com/andybalholm/brotli v1.2.2 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
