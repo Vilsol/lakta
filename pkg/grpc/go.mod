@@ -4,10 +4,10 @@ go 1.26.4
 
 require (
 	github.com/MarvinJWendt/testza v0.5.2
-	github.com/Vilsol/lakta v0.4.0
-	github.com/Vilsol/lakta/pkg/errors/grpc v0.4.0
-	github.com/Vilsol/lakta/pkg/health v0.4.0
-	github.com/Vilsol/lakta/pkg/testkit v0.4.0
+	github.com/Vilsol/lakta v0.4.1
+	github.com/Vilsol/lakta/pkg/errors/grpc v0.4.1
+	github.com/Vilsol/lakta/pkg/health v0.4.1
+	github.com/Vilsol/lakta/pkg/testkit v0.4.1
 	github.com/Vilsol/slox v0.1.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
 	github.com/hellofresh/health-go/v5 v5.5.5
@@ -17,7 +17,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0
 	go.opentelemetry.io/otel/trace v1.44.0
 	golang.org/x/sync v0.21.0
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800
 	google.golang.org/grpc v1.82.0
 )
 

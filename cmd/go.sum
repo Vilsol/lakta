@@ -30,8 +30,8 @@ github.com/Vilsol/lakta/pkg/cache/memory v0.3.1 h1:YJc5D4xEqXCJJxPBkFD8I0coOXxhl
 github.com/Vilsol/lakta/pkg/cache/memory v0.3.1/go.mod h1:9B1wYPCQF7IP3VSHGwrXQ9Lvw4EhbvSzv9xUoJ1lNOY=
 github.com/Vilsol/lakta/pkg/debug/actuator v0.3.1 h1:zj6ZSb022bn3gq2avLzutxEYE4hbJyAPIhM7tNsxH8c=
 github.com/Vilsol/lakta/pkg/debug/actuator v0.3.1/go.mod h1:TafKE6t8u55EbKHGDY0c819UEvNJpU4gZGA77VqWoMU=
-github.com/Vilsol/lakta/pkg/errors/grpc v0.3.1 h1:yenSbxgs2Q1UprRypJ80rgvKMbFOutkBGOPLVwgaZXY=
-github.com/Vilsol/lakta/pkg/errors/grpc v0.3.1/go.mod h1:xK57gqsF62Hhktx8UB1XMPFdx4v0/5MI7y/ZEBrNQiY=
+github.com/Vilsol/lakta/pkg/errors/grpc v0.4.1 h1:ZeV82oR8OorpWm9fc9KEvSuERZZlkNWF8+qIR3SdkIQ=
+github.com/Vilsol/lakta/pkg/errors/grpc v0.4.1/go.mod h1:/ApE6fbB1IJZkqia32qMhsxwHav2MZwTHU9aH1jZNSM=
 github.com/Vilsol/lakta/pkg/events v0.3.1 h1:HLWLZirL6foCfWgEFoL3/+Ka6QImM8dZ17sRmwuTm80=
 github.com/Vilsol/lakta/pkg/events v0.3.1/go.mod h1:GUNwPkZZ4gVV22XDL6dMF8qLd4PceHRbsEZSLd2WEls=
 github.com/Vilsol/lakta/pkg/features/flags v0.3.1 h1:fIfP+0zkXjXKNt0ph3IfauIDyHZzr7or+SoVkcVut7Y=
@@ -40,8 +40,8 @@ github.com/Vilsol/lakta/pkg/http/connect v0.0.0-20260710170601-696ed8a015c7 h1:S
 github.com/Vilsol/lakta/pkg/http/connect v0.0.0-20260710170601-696ed8a015c7/go.mod h1:ZQUUH0tLI1BVngOWWhbWfLd2S8EAHFCfAOrmpN6jhh4=
 github.com/Vilsol/lakta/pkg/resilience/policy v0.3.1 h1:VJZM70gKmWqb4teMX3HQtNIhfAzn/enEqeLaCZBSN1Q=
 github.com/Vilsol/lakta/pkg/resilience/policy v0.3.1/go.mod h1:7ZS8/SUXNdgAYz84V4EoWGrrH4MxMi81yArX9/RdAZI=
-github.com/Vilsol/lakta/pkg/workers/pool v0.3.1 h1:w5JbyVQNKzfl5j8y0INgdmkbKf2FCX6O1HglE+25FzA=
-github.com/Vilsol/lakta/pkg/workers/pool v0.3.1/go.mod h1:DYv1txErmPZkxBWMX2tWJamWkJOR70acpUKnnxeRuTM=
+github.com/Vilsol/lakta/pkg/workers/pool v0.4.1 h1:ZzLqETfCcU/0PEA7HZgL10L4SZURJrEYxZTnlAZGRN8=
+github.com/Vilsol/lakta/pkg/workers/pool v0.4.1/go.mod h1:2dpx6fHra6C2lXOSnqPFDe0eWA/dFriwVdDhs/pwu6Q=
 github.com/Vilsol/lakta/pkg/workers/scheduler v0.3.1 h1:UWqPq/vKApnEz8z7kbuQoZxd3+Cw5nPMU70g+cp84ss=
 github.com/Vilsol/lakta/pkg/workers/scheduler v0.3.1/go.mod h1:rHe0oAf/wrI707WJtS9c6z2EZ1WzKQ4/u9fjmqFZW9c=
 github.com/Vilsol/slox v0.1.0 h1:oppc4Q6Bym47mbeGIxO+uKaxHbzGNMWn9BQxRMHKKcE=

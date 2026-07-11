@@ -10,10 +10,10 @@ github.com/MarvinJWendt/testza v0.5.2 h1:53KDo64C1z/h/d/stCYCPY69bt/OSwjq5KpFNwi
 github.com/MarvinJWendt/testza v0.5.2/go.mod h1:xu53QFE5sCdjtMCKk8YMQ2MnymimEctc4n3EjyIYvEY=
 github.com/Masterminds/squirrel v1.5.4 h1:uUcX/aBc8O7Fg9kaISIUsHXdKuqehiXAMQTYX8afzqM=
 github.com/Masterminds/squirrel v1.5.4/go.mod h1:NNaOrjSoIDfDA40n7sr2tPNZRfjzjA400rg+riTZj10=
-github.com/Vilsol/lakta v0.3.1 h1:IUEY2UibTHV6xnV3bKd8R/bB/8NEv3L/M7t06isnLzI=
-github.com/Vilsol/lakta v0.3.1/go.mod h1:AlVzl6bgClEKnOgwaI/gezesOmNJhMizloEKZVMXEr8=
-github.com/Vilsol/lakta/pkg/testkit v0.3.1 h1:8xz7lfW9qys8rVUcsW4i/l4qjuXXnnZVqPD+WV3GEew=
-github.com/Vilsol/lakta/pkg/testkit v0.3.1/go.mod h1:ovTfAW0b9TpwOnZjUQpfIMlX36a5ZT7WS0VsNxDyoeE=
+github.com/Vilsol/lakta v0.4.1 h1:FR6G5/Z40v/kgQKdfHLGSYEvhjSpTke9LX/W4jGJwPk=
+github.com/Vilsol/lakta v0.4.1/go.mod h1:X4+1l/duUm/pkpVmpn5mBvKjo6kZhilrijgKwWk9Vek=
+github.com/Vilsol/lakta/pkg/testkit v0.4.1 h1:j51REJOQteasjIzuLaS+2ZZ1k1WIWh1ch7YYonu4zpc=
+github.com/Vilsol/lakta/pkg/testkit v0.4.1/go.mod h1:Bgi4dg3n6z+qsGX4HambhgY8obgWTIOs2enrSjnF7iY=
 github.com/Vilsol/slox v0.1.0 h1:oppc4Q6Bym47mbeGIxO+uKaxHbzGNMWn9BQxRMHKKcE=
 github.com/Vilsol/slox v0.1.0/go.mod h1:UrkiCYCauzAFx23xq4AdvxllP78nVfCUqJ74Op1/KWw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
