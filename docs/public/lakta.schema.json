@@ -275,7 +275,7 @@
               },
               "jwks_url": {
                 "type": "string",
-                "description": "jWKSURL is the JWKS endpoint; empty triggers OIDC discovery from Issuer"
+                "description": "JWKSURL is the JWKS endpoint; empty triggers OIDC discovery from Issuer"
               }
             },
             "additionalProperties": false
@@ -289,7 +289,22 @@
           "default": "scope"
         },
         "static_key": {
-          "type": "string"
+          "type": "object",
+          "properties": {
+            "algorithm": {
+              "type": "string"
+            },
+            "profiles": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "secret": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -333,7 +348,7 @@
       "properties": {
         "dsn": {
           "type": "string",
-          "description": "dSN is the database connection string used to configure the database connection"
+          "description": "DSN is the database connection string used to configure the database connection"
         },
         "health_check": {
           "type": "boolean",
@@ -372,7 +387,7 @@
         "max_open_conns": {
           "type": "integer",
           "description": "maxOpenConns specifies the maximum number of open connections to the database. It maps to the \"max_open_conns\" configuration",
-          "default": "10"
+          "default": 10
         },
         "migrations": {
           "type": "object",
@@ -445,19 +460,19 @@
           "properties": {
             "expvar": {
               "type": "boolean",
-              "default": "true"
+              "default": true
             },
             "loggers": {
               "type": "boolean",
-              "default": "true"
+              "default": true
             },
             "pprof": {
               "type": "boolean",
-              "default": "true"
+              "default": true
             },
             "ui": {
               "type": "boolean",
-              "default": "true"
+              "default": true
             }
           },
           "additionalProperties": false
@@ -470,7 +485,7 @@
         "port": {
           "type": "integer",
           "description": "port to bind. Default 6060",
-          "default": "6060"
+          "default": 6060
         },
         "redact_patterns": {
           "type": "array",
@@ -497,7 +512,7 @@
         "buffer_size": {
           "type": "integer",
           "description": "bufferSize is the queue capacity for each async subscription",
-          "default": "1024"
+          "default": 1024
         }
       },
       "additionalProperties": false
@@ -529,7 +544,7 @@
         },
         "tls": {
           "type": "string",
-          "description": "tLS configures file-path based transport security (client cert for mutual"
+          "description": "TLS configures file-path based transport security (client cert for mutual"
         }
       },
       "additionalProperties": false
@@ -549,11 +564,11 @@
         "port": {
           "type": "integer",
           "description": "port represents the port number on which the GRPC server listens",
-          "default": "50051"
+          "default": 50051
         },
         "tls": {
           "type": "string",
-          "description": "tLS configures file-path based transport security. When unset the server"
+          "description": "TLS configures file-path based transport security. When unset the server"
         }
       },
       "additionalProperties": false
@@ -578,7 +593,7 @@
         "h2c": {
           "type": "boolean",
           "description": "h2C enables cleartext HTTP/2 (h2c) so gRPC clients work without TLS. When",
-          "default": "true"
+          "default": true
         },
         "host": {
           "type": "string",
@@ -588,7 +603,7 @@
         "port": {
           "type": "integer",
           "description": "port represents the port number on which the server listens",
-          "default": "8080"
+          "default": 8080
         },
         "read_header_timeout": {
           "type": "string",
@@ -603,7 +618,7 @@
         },
         "tls": {
           "type": "string",
-          "description": "tLS configures file-path based transport security. When unset the server"
+          "description": "TLS configures file-path based transport security. When unset the server"
         }
       },
       "additionalProperties": false
@@ -624,11 +639,11 @@
         "port": {
           "type": "integer",
           "description": "port specifies the port number the server listens on",
-          "default": "8080"
+          "default": 8080
         },
         "tls": {
           "type": "string",
-          "description": "tLS configures file-path based transport security. When unset the server"
+          "description": "TLS configures file-path based transport security. When unset the server"
         }
       },
       "additionalProperties": true
@@ -639,7 +654,7 @@
         "global_default": {
           "type": "boolean",
           "description": "globalDefault indicates whether the logger should be set as the default globally",
-          "default": "true"
+          "default": true
         },
         "level": {
           "type": "string",
@@ -673,7 +688,7 @@
         "enabled": {
           "type": "boolean",
           "description": "enabled controls whether OTEL is set up. When false, noop providers are registered",
-          "default": "true"
+          "default": true
         },
         "endpoint": {
           "type": "string",
@@ -718,7 +733,7 @@
         "sample_rate": {
           "type": "number",
           "description": "sampleRate sets the trace sampling ratio. 1.0 = always sample, 0.0 = never sample",
-          "default": "1"
+          "default": 1
         },
         "service_name": {
           "type": "string",
@@ -736,7 +751,11 @@
         "signals": {
           "type": "array",
           "description": "signals lists which telemetry signals to enable: \"traces\", \"metrics\", \"logs\"",
-          "default": "[traces metrics logs]",
+          "default": [
+            "traces",
+            "metrics",
+            "logs"
+          ],
           "items": {
             "type": "string"
           }
@@ -754,28 +773,146 @@
             "type": "object",
             "properties": {
               "adaptive_limiter": {
-                "type": "string",
-                "description": "adaptiveLimiter sheds load by self-tuning a concurrency limit"
+                "type": "object",
+                "description": "adaptiveLimiter sheds load by self-tuning a concurrency limit",
+                "properties": {
+                  "initial": {
+                    "type": "integer",
+                    "description": "initial is the starting limit; Min <= Initial <= Max"
+                  },
+                  "max": {
+                    "type": "integer",
+                    "description": "max is the maximum concurrency limit; must be >= 1"
+                  },
+                  "max_wait": {
+                    "type": "string",
+                    "description": "maxWait is how long to wait for a permit before rejecting. Zero rejects",
+                    "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+                  },
+                  "min": {
+                    "type": "integer",
+                    "description": "min is the minimum concurrency limit"
+                  },
+                  "queueing": {
+                    "type": "object",
+                    "description": "queueing enables absorbing short spikes before rejecting. Nil disables it",
+                    "properties": {
+                      "initial_factor": {
+                        "type": "number",
+                        "description": "initialFactor is the queue depth (times the limit) before rejections"
+                      },
+                      "max_factor": {
+                        "type": "number",
+                        "description": "maxFactor is the queue depth (times the limit) at which all excess is"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
               },
               "bulkhead": {
-                "type": "string",
-                "description": "bulkhead caps concurrency with a hard ceiling nearest the call"
+                "type": "object",
+                "description": "bulkhead caps concurrency with a hard ceiling nearest the call",
+                "properties": {
+                  "max_concurrent": {
+                    "type": "integer",
+                    "description": "maxConcurrent is the hard concurrency ceiling; must be >= 1"
+                  },
+                  "max_wait": {
+                    "type": "string",
+                    "description": "maxWait is how long to wait for a slot before rejecting. Zero rejects",
+                    "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+                  }
+                },
+                "additionalProperties": false
               },
               "circuit_breaker": {
-                "type": "string",
-                "description": "circuitBreaker rejects executions while failures exceed a threshold"
+                "type": "object",
+                "description": "circuitBreaker rejects executions while failures exceed a threshold",
+                "properties": {
+                  "delay": {
+                    "type": "string",
+                    "description": "delay is how long the breaker stays open before half-opening",
+                    "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+                  },
+                  "failure_threshold": {
+                    "type": "integer",
+                    "description": "failureThreshold is the number of failures that opens the breaker"
+                  },
+                  "success_threshold": {
+                    "type": "integer",
+                    "description": "successThreshold is the number of half-open successes that close it"
+                  }
+                },
+                "additionalProperties": false
               },
               "hedge": {
-                "type": "string",
-                "description": "hedge starts redundant attempts after a delay to trim tail latency"
+                "type": "object",
+                "description": "hedge starts redundant attempts after a delay to trim tail latency",
+                "properties": {
+                  "delay": {
+                    "type": "string",
+                    "description": "delay before starting a hedged attempt. Required (> 0)",
+                    "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+                  },
+                  "max_hedges": {
+                    "type": "integer",
+                    "description": "maxHedges is the max number of hedged attempts. 0 = library default (1)"
+                  }
+                },
+                "additionalProperties": false
               },
               "rate_limit": {
-                "type": "string",
-                "description": "rateLimit bounds the execution rate"
+                "type": "object",
+                "description": "rateLimit bounds the execution rate",
+                "properties": {
+                  "bursty": {
+                    "type": "boolean",
+                    "description": "bursty allows Max executions at once instead of smoothing them"
+                  },
+                  "max": {
+                    "type": "integer",
+                    "description": "max is the number of executions allowed per period"
+                  },
+                  "max_wait": {
+                    "type": "string",
+                    "description": "maxWait is how long an execution may wait for a permit before being",
+                    "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+                  },
+                  "period": {
+                    "type": "string",
+                    "description": "period is the window Max applies to. Defaults to one second",
+                    "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+                  }
+                },
+                "additionalProperties": false
               },
               "retry": {
-                "type": "string",
-                "description": "retry retries failed executions"
+                "type": "object",
+                "description": "retry retries failed executions",
+                "properties": {
+                  "delay": {
+                    "type": "string",
+                    "description": "delay is the base delay between attempts. Zero means immediate retry",
+                    "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+                  },
+                  "jitter": {
+                    "type": "string",
+                    "description": "jitter randomizes each delay by up to this duration",
+                    "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+                  },
+                  "max_attempts": {
+                    "type": "integer",
+                    "description": "maxAttempts is the total number of attempts, including the first"
+                  },
+                  "max_delay": {
+                    "type": "string",
+                    "description": "maxDelay caps exponential backoff; requires Delay. Zero keeps the",
+                    "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+                  }
+                },
+                "additionalProperties": false
               },
               "timeout": {
                 "type": "string",

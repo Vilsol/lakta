@@ -17,7 +17,7 @@ modules:
             description: audience MUST be non-empty; the token aud must intersect it
           - key: jwks_url
             type: string
-            description: jWKSURL is the JWKS endpoint; empty triggers OIDC discovery from Issuer
+            description: JWKSURL is the JWKS endpoint; empty triggers OIDC discovery from Issuer
           - key: algorithms
             type: '[]string'
             description: algorithms is a hard allowlist, e.g. [RS256, ES256]; alg:none is rejected
@@ -26,7 +26,16 @@ modules:
             description: clockSkew is capped at maxClockSkew
       - key: static_key
         type: '*verifier.StaticKey'
-        envVar: LAKTA_MODULES__AUTH__VERIFIER__<NAME>__STATIC_KEY
+        fields:
+          - key: algorithm
+            type: string
+            envVar: LAKTA_MODULES__AUTH__VERIFIER__<NAME>__STATIC_KEY__ALGORITHM
+          - key: secret
+            type: string
+            envVar: LAKTA_MODULES__AUTH__VERIFIER__<NAME>__STATIC_KEY__SECRET
+          - key: profiles
+            type: '[]string'
+            envVar: LAKTA_MODULES__AUTH__VERIFIER__<NAME>__STATIC_KEY__PROFILES
       - key: scope_claim
         type: string
         default: scope
@@ -71,7 +80,7 @@ modules:
         type: string
         required: true
         envVar: LAKTA_MODULES__DB__PGX__<NAME>__DSN
-        description: dSN is the database connection string used to configure the database connection
+        description: DSN is the database connection string used to configure the database connection
       - key: max_open_conns
         type: int32
         default: "10"
@@ -244,7 +253,7 @@ modules:
       - key: tls
         type: config.TLS
         envVar: LAKTA_MODULES__GRPC__CLIENT__<NAME>__TLS
-        description: tLS configures file-path based transport security (client cert for mutual
+        description: TLS configures file-path based transport security (client cert for mutual
     codeOnly:
       - option: WithCredentials
         type: credentials.TransportCredentials
@@ -275,7 +284,7 @@ modules:
       - key: tls
         type: config.TLS
         envVar: LAKTA_MODULES__GRPC__SERVER__<NAME>__TLS
-        description: tLS configures file-path based transport security. When unset the server
+        description: TLS configures file-path based transport security. When unset the server
     codeOnly:
       - option: WithService
         type: map[*grpc.ServiceDesc]any
@@ -340,7 +349,7 @@ modules:
       - key: tls
         type: config.TLS
         envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__TLS
-        description: tLS configures file-path based transport security. When unset the server
+        description: TLS configures file-path based transport security. When unset the server
     codeOnly:
       - option: WithHandler
         type: map[string]http.Handler
@@ -374,7 +383,7 @@ modules:
       - key: tls
         type: config.TLS
         envVar: LAKTA_MODULES__HTTP__FIBER__<NAME>__TLS
-        description: tLS configures file-path based transport security. When unset the server
+        description: TLS configures file-path based transport security. When unset the server
     passthrough:
       targetType: Config
       targetPackage: github.com/gofiber/fiber/v3
@@ -500,7 +509,7 @@ modules:
         description: required makes telemetry setup failures fatal. When false (default), setup
       - key: signals
         type: '[]string'
-        default: '[traces metrics logs]'
+        default: '["traces","metrics","logs"]'
         envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__SIGNALS
         description: 'signals lists which telemetry signals to enable: "traces", "metrics", "logs"'
   - category: resilience
@@ -520,21 +529,94 @@ modules:
           - key: retry
             type: '*policy.RetryConfig'
             description: retry retries failed executions
+            fields:
+              - key: max_attempts
+                type: int
+                description: maxAttempts is the total number of attempts, including the first
+              - key: delay
+                type: time.Duration
+                description: delay is the base delay between attempts. Zero means immediate retry
+              - key: max_delay
+                type: time.Duration
+                description: maxDelay caps exponential backoff; requires Delay. Zero keeps the
+              - key: jitter
+                type: time.Duration
+                description: jitter randomizes each delay by up to this duration
           - key: circuit_breaker
             type: '*policy.BreakerConfig'
             description: circuitBreaker rejects executions while failures exceed a threshold
+            fields:
+              - key: failure_threshold
+                type: int
+                description: failureThreshold is the number of failures that opens the breaker
+              - key: success_threshold
+                type: int
+                description: successThreshold is the number of half-open successes that close it
+              - key: delay
+                type: time.Duration
+                description: delay is how long the breaker stays open before half-opening
           - key: rate_limit
             type: '*policy.RateLimitConfig'
             description: rateLimit bounds the execution rate
+            fields:
+              - key: max
+                type: int
+                description: max is the number of executions allowed per period
+              - key: period
+                type: time.Duration
+                description: period is the window Max applies to. Defaults to one second
+              - key: bursty
+                type: bool
+                description: bursty allows Max executions at once instead of smoothing them
+              - key: max_wait
+                type: time.Duration
+                description: maxWait is how long an execution may wait for a permit before being
           - key: hedge
             type: '*policy.HedgeConfig'
             description: hedge starts redundant attempts after a delay to trim tail latency
+            fields:
+              - key: delay
+                type: time.Duration
+                description: delay before starting a hedged attempt. Required (> 0)
+              - key: max_hedges
+                type: int
+                description: maxHedges is the max number of hedged attempts. 0 = library default (1)
           - key: adaptive_limiter
             type: '*policy.AdaptiveLimiterConfig'
             description: adaptiveLimiter sheds load by self-tuning a concurrency limit
+            fields:
+              - key: min
+                type: uint
+                description: min is the minimum concurrency limit
+              - key: max
+                type: uint
+                description: max is the maximum concurrency limit; must be >= 1
+              - key: initial
+                type: uint
+                description: initial is the starting limit; Min <= Initial <= Max
+              - key: max_wait
+                type: time.Duration
+                description: maxWait is how long to wait for a permit before rejecting. Zero rejects
+              - key: queueing
+                type: '*policy.QueueingConfig'
+                description: queueing enables absorbing short spikes before rejecting. Nil disables it
+                fields:
+                  - key: initial_factor
+                    type: float64
+                    description: initialFactor is the queue depth (times the limit) before rejections
+                  - key: max_factor
+                    type: float64
+                    description: maxFactor is the queue depth (times the limit) at which all excess is
           - key: bulkhead
             type: '*policy.BulkheadConfig'
             description: bulkhead caps concurrency with a hard ceiling nearest the call
+            fields:
+              - key: max_concurrent
+                type: uint
+                description: maxConcurrent is the hard concurrency ceiling; must be >= 1
+              - key: max_wait
+                type: time.Duration
+                description: maxWait is how long to wait for a slot before rejecting. Zero rejects
     codeOnly:
       - option: WithPolicy
         type: map[string][]failsafe.Policy[interface {}]
