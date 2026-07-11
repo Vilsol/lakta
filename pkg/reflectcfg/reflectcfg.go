@@ -652,8 +652,9 @@ func cleanComment(s string) string {
 			s = s[idx+1:]
 		}
 	}
-	// Lowercase first letter, trim trailing period
-	if len(s) > 0 && s[0] >= 'A' && s[0] <= 'Z' {
+	// Lowercase first letter, trim trailing period. An uppercase second
+	// letter marks an acronym-leading comment (JWKS, TTL) — leave it alone.
+	if len(s) > 0 && s[0] >= 'A' && s[0] <= 'Z' && !(len(s) > 1 && s[1] >= 'A' && s[1] <= 'Z') {
 		s = strings.ToLower(s[:1]) + s[1:]
 	}
 	s = strings.TrimRight(s, ".")
