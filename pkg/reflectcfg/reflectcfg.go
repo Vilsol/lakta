@@ -7,6 +7,7 @@ package reflectcfg
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -354,11 +355,41 @@ func collectionElemValue(v reflect.Value, elem reflect.Type) reflect.Value {
 
 // defaultValue returns a string representation of a field's value,
 // or empty string if the value is the zero value for its type.
+// Slices and maps of plain scalars render as JSON (valid in YAML configs
+// too); other compound values are omitted rather than rendered as Go syntax.
 func defaultValue(v reflect.Value) string {
 	if !v.IsValid() || v.IsZero() {
 		return ""
 	}
+	if k := v.Kind(); k == reflect.Slice || k == reflect.Map {
+		if !plainScalar(v.Type().Elem()) {
+			return ""
+		}
+		b, err := json.Marshal(v.Interface())
+		if err != nil {
+			return ""
+		}
+		return string(b)
+	}
 	return fmt.Sprintf("%v", v.Interface())
+}
+
+// plainScalar reports whether a collection element renders faithfully via
+// JSON: an unnamed basic type. Named types are excluded — time.Duration
+// would marshal as nanoseconds, not "30s".
+func plainScalar(t reflect.Type) bool {
+	if t.PkgPath() != "" {
+		return false
+	}
+	switch t.Kind() {
+	case reflect.Bool, reflect.String,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		return true
+	default:
+		return false
+	}
 }
 
 // envVarName builds the environment variable name for a config field.
@@ -654,7 +685,7 @@ func cleanComment(s string) string {
 	}
 	// Lowercase first letter, trim trailing period. An uppercase second
 	// letter marks an acronym-leading comment (JWKS, TTL) — leave it alone.
-	if len(s) > 0 && s[0] >= 'A' && s[0] <= 'Z' && !(len(s) > 1 && s[1] >= 'A' && s[1] <= 'Z') {
+	if len(s) > 0 && s[0] >= 'A' && s[0] <= 'Z' && (len(s) <= 1 || s[1] < 'A' || s[1] > 'Z') {
 		s = strings.ToLower(s[:1]) + s[1:]
 	}
 	s = strings.TrimRight(s, ".")
