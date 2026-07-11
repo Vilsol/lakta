@@ -15,6 +15,24 @@ jobs:
 
       - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4
 
+      # Go module + build cache (cached test results live in the build cache,
+      # so unchanged packages skip their tests too) and the govulncheck DB.
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+            ~/.cache/go/vulndb
+          key: ${{ runner.os }}-go-ci-${{ hashFiles('**/go.sum', 'go.work.sum') }}
+          restore-keys: ${{ runner.os }}-go-ci-
+
+      # ci-all keeps per-module lint caches under <git-common-dir>/golangci-lint-cache.
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .git/golangci-lint-cache
+          key: ${{ runner.os }}-lint-${{ hashFiles('**/go.sum', '.golangci.yaml') }}
+          restore-keys: ${{ runner.os }}-lint-
+
       # PR checkouts are single-ref; buf breaking needs the origin/main baseline.
       - name: Fetch main as proto-breaking baseline
         run: git fetch origin main
@@ -57,6 +75,16 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4
+
+      # Separate key from the ci job: integration builds carry different tags,
+      # so sharing a key would let one job's save shadow the other's contents.
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-integration-${{ hashFiles('**/go.sum', 'go.work.sum') }}
+          restore-keys: ${{ runner.os }}-go-integration-
 
       # pgx uses testcontainers (Docker-in-runner); db/sql uses the postgres
       # service above; temporal self-downloads a dev server via the integration tag.
