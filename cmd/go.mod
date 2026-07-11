@@ -11,14 +11,14 @@ require (
 	github.com/Vilsol/lakta/pkg/events v0.3.1
 	github.com/Vilsol/lakta/pkg/features/flags v0.3.1
 	github.com/Vilsol/lakta/pkg/grpc v0.0.0-00010101000000-000000000000
-	github.com/Vilsol/lakta/pkg/health v0.3.1
+	github.com/Vilsol/lakta/pkg/health v0.4.1
 	github.com/Vilsol/lakta/pkg/http/connect v0.0.0-20260710170601-696ed8a015c7
 	github.com/Vilsol/lakta/pkg/http/fiber v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/lakta/pkg/logging/slog v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/lakta/pkg/logging/tint v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/lakta/pkg/otel v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/lakta/pkg/resilience/policy v0.3.1
-	github.com/Vilsol/lakta/pkg/workers/pool v0.3.1
+	github.com/Vilsol/lakta/pkg/workers/pool v0.4.1
 	github.com/Vilsol/lakta/pkg/workers/scheduler v0.3.1
 	github.com/Vilsol/lakta/pkg/workflows/temporal v0.0.0-00010101000000-000000000000
 	golang.org/x/mod v0.37.0
@@ -30,7 +30,6 @@ require (
 	cel.dev/expr v0.25.1 // indirect
 	connectrpc.com/connect v1.20.0 // indirect
 	connectrpc.com/otelconnect v0.9.0 // indirect
-	github.com/Vilsol/lakta/pkg/errors/grpc v0.3.1 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
 	github.com/coreos/go-oidc/v3 v3.11.0 // indirect
@@ -66,7 +65,7 @@ require (
 	atomicgo.dev/cursor v0.2.0 // indirect
 	atomicgo.dev/keyboard v0.2.10 // indirect
 	atomicgo.dev/schedule v0.1.0 // indirect
-	github.com/Vilsol/lakta v0.3.1 // indirect
+	github.com/Vilsol/lakta v0.4.1 // indirect
 	github.com/Vilsol/lakta/pkg/reflectcfg v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/slox v0.1.0 // indirect
 	github.com/andybalholm/brotli v1.2.1 // indirect
