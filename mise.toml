@@ -180,12 +180,7 @@ check_module() {
     go test -race ./...
     case "$d" in
       ./examples/*) echo "   (demo module: skipping lint/govulncheck)" ;;
-      *)
-        GOLANGCI_LINT_CACHE="$lintcache/$key" golangci-lint run --allow-parallel-runners
-        # ci-min sets LAKTA_SKIP_VULN: vulns surface with time, not code
-        # changes, so the local gate skips the per-module network fetch.
-        if [ "${LAKTA_SKIP_VULN:-0}" != "1" ]; then govulncheck ./...; fi
-        ;;
+      *) GOLANGCI_LINT_CACHE="$lintcache/$key" golangci-lint run --allow-parallel-runners; govulncheck ./... ;;
     esac
   ) >"$log" 2>&1
   status=$?
@@ -221,11 +216,41 @@ fi
 echo "ci-all OK"
 """
 
+# Fast local gate. Structured differently from ci-all on purpose: three
+# single invocations across the whole workspace instead of 29 per-module
+# workers — one go scheduler beats 29 competing ones, and lint analyzes
+# shared deps once. No govulncheck (vulns drift with time, not code) and no
+# separate `go build` (go test compiles every package, test-less ones too).
+# Both go's and golangci-lint's bare ./... are module-scoped even under
+# go.work, hence the explicit per-module /... patterns.
 [tasks.ci-min]
 dir = "{{ config_root }}"
-description = "ci-all without govulncheck — local gate (vulns drift with time, not code changes)"
-env = { LAKTA_SKIP_VULN = "1" }
-run = "mise run ci-all"
+description = "Fast local gate: single-invocation test, race, lint + proto checks (no govulncheck)"
+shell = "bash -c"
+run = """
+set -euo pipefail
+
+pats=$(go work edit -json | python3 -c 'import json,sys;[print(u["DiskPath"]+"/...") for u in json.load(sys.stdin)["Use"]]')
+lintpats=$(printf '%s\\n' $pats | grep -v '^\\./examples')
+
+echo "== test =="
+go test $pats
+
+# Only -race needs the C linker; scoping the zig env here keeps the plain
+# test cache shared with everyday `go test` runs (CGO_ENABLED keys the cache).
+echo "== race =="
+CGO_ENABLED=1 CC="zig cc" CXX="zig c++" go test -race $pats
+
+echo "== lint =="
+gitcommon=$(cd "$(git rev-parse --git-common-dir)" && pwd)
+GOLANGCI_LINT_CACHE="$gitcommon/golangci-lint-cache/$(basename "$PWD")-min" golangci-lint run $lintpats
+
+if command -v buf >/dev/null 2>&1; then
+  echo "== proto =="
+  ( cd examples/microservices/proto && buf lint && buf breaking --against "$gitcommon#branch=origin/main,subdir=examples/microservices/proto" )
+fi
+echo "ci-min OK"
+"""
 
 [tasks.proto-gen]
 dir = "{{ config_root }}/examples/microservices/proto"
