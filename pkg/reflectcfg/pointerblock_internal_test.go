@@ -7,6 +7,8 @@ import (
 	"github.com/MarvinJWendt/testza"
 )
 
+const keyAttempts = "attempts"
+
 type pointerRetryCfg struct {
 	Attempts int           `koanf:"attempts" required:"true"`
 	Delay    time.Duration `koanf:"delay"`
@@ -40,7 +42,7 @@ func TestProcessConfigPointerStructBlock(t *testing.T) {
 	testza.AssertEqual(t, 2, len(retry.Fields))
 
 	attempts := retry.Fields[0]
-	testza.AssertEqual(t, "attempts", attempts.Key)
+	testza.AssertEqual(t, keyAttempts, attempts.Key)
 	testza.AssertTrue(t, attempts.Required)
 	// defaults come from the pointed-to default value
 	testza.AssertEqual(t, "3", attempts.Default)
@@ -90,17 +92,17 @@ func TestFieldSchemaPointerStructBlock(t *testing.T) {
 	t.Parallel()
 
 	s := fieldSchema(FieldDoc{Type: "*policy.RetryConfig", Fields: []FieldDoc{
-		{Key: "attempts", Type: goTypeInt, Required: true},
+		{Key: keyAttempts, Type: goTypeInt, Required: true},
 		{Key: "delay", Type: goTypeDuration},
 	}})
 	testza.AssertEqual(t, jsTypeObject, s.Type)
-	testza.AssertEqual(t, jsTypeInteger, s.Properties["attempts"].Type)
-	testza.AssertEqual(t, []string{"attempts"}, s.Required)
+	testza.AssertEqual(t, jsTypeInteger, s.Properties[keyAttempts].Type)
+	testza.AssertEqual(t, []string{keyAttempts}, s.Required)
 	testza.AssertEqual(t, false, s.AdditionalProperties)
 
 	// a required pointer block stays exempt from the parent's required list
 	def := defSchema(ModuleDoc{Fields: []FieldDoc{
-		{Key: "retry", Type: "*policy.RetryConfig", Required: true, Fields: []FieldDoc{{Key: "attempts", Type: goTypeInt}}},
+		{Key: "retry", Type: "*policy.RetryConfig", Required: true, Fields: []FieldDoc{{Key: keyAttempts, Type: goTypeInt}}},
 	}})
 	testza.AssertEqual(t, 0, len(def.Required))
 }
