@@ -55,7 +55,7 @@
               },
               "weight": {
                 "type": "integer",
-                "default": "1"
+                "default": 1
               }
             },
             "additionalProperties": false,

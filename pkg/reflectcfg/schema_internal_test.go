@@ -195,3 +195,19 @@ func TestBuildSchemaShape(t *testing.T) {
 	_, ok = s.Defs["demo_raw"]
 	testza.AssertTrue(t, ok)
 }
+
+func TestFieldSchemaTypedDefaults(t *testing.T) {
+	t.Parallel()
+
+	// defaults are emitted as their JSON Schema type, not strings
+	testza.AssertEqual(t, any(int64(9090)), fieldSchema(FieldDoc{Type: goTypeInt, Default: "9090"}).Default)
+	testza.AssertEqual(t, any(true), fieldSchema(FieldDoc{Type: goTypeBool, Default: "true"}).Default)
+	testza.AssertEqual(t, any(0.5), fieldSchema(FieldDoc{Type: goTypeFloat64, Default: "0.5"}).Default)
+	testza.AssertEqual(t, any("x"), fieldSchema(FieldDoc{Type: goTypeString, Default: "x"}).Default)
+	// duration fields are string-typed in the schema, so the default stays "30s"
+	testza.AssertEqual(t, any("30s"), fieldSchema(FieldDoc{Type: goTypeDuration, Default: "30s"}).Default)
+	// JSON-rendered collection defaults parse into real arrays
+	testza.AssertEqual(t, any([]any{"a", "b"}), fieldSchema(FieldDoc{Type: inSliceS, Default: `["a","b"]`}).Default)
+	// unparseable values fall back to the raw string rather than being dropped
+	testza.AssertEqual(t, any("abc"), fieldSchema(FieldDoc{Type: goTypeInt, Default: "abc"}).Default)
+}
