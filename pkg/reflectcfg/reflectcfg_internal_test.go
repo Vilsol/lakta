@@ -94,6 +94,7 @@ func TestIsBuiltin(t *testing.T) {
 	testza.AssertTrue(t, isBuiltin("string"))
 	testza.AssertTrue(t, isBuiltin("int"))
 	testza.AssertTrue(t, isBuiltin("error"))
+	testza.AssertTrue(t, isBuiltin("uintptr"))
 	testza.AssertFalse(t, isBuiltin("Config"))
 	testza.AssertFalse(t, isBuiltin("Duration"))
 }

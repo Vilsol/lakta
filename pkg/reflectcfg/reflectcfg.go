@@ -514,14 +514,10 @@ func pkgAlias(pkg string) string {
 func isBuiltin(name string) bool {
 	switch name {
 	case goTypeBool, goTypeString,
-		goTypeInt, "int8", "int16", goTypeInt32, "int64",
-		"uint", "uint8", "uint16", "uint32", "uint64",
-		"float32", goTypeFloat64,
-		"complex64", "complex128",
-		"byte", "rune", "error":
+		"complex64", "complex128", "error":
 		return true
 	}
-	return false
+	return isIntType(name) || isFloatType(name)
 }
 
 type sourceComments struct {
