@@ -20,11 +20,25 @@ wgo -file '\.go$' go build -tags dev -o ./tmp/dev-$svc ./examples/microservices/
 wgo -postpone -file "./tmp/dev-$svc" ./tmp/dev-$svc
 '''
 
+# golangci-lint's bare `./...` is module-scoped even under go.work, so linting
+# from the root silently skips every pkg/* module. Passing each module's /...
+# pattern explicitly makes one invocation cover the whole workspace (typecheck
+# resolves via go.work). Examples are demo modules, excluded like in ci-all.
 [tasks.lint]
-run = "golangci-lint run"
+dir = "{{ config_root }}"
+description = "Lint every workspace module in one golangci-lint invocation"
+shell = "bash -c"
+run = """
+golangci-lint run $(go work edit -json | python3 -c 'import json,sys;[print(u["DiskPath"]+"/...") for u in json.load(sys.stdin)["Use"] if not u["DiskPath"].startswith("./examples")]')
+"""
 
 [tasks.format]
-run = "golangci-lint run --fix"
+dir = "{{ config_root }}"
+description = "Auto-fix lint findings across every workspace module"
+shell = "bash -c"
+run = """
+golangci-lint run --fix $(go work edit -json | python3 -c 'import json,sys;[print(u["DiskPath"]+"/...") for u in json.load(sys.stdin)["Use"] if not u["DiskPath"].startswith("./examples")]')
+"""
 
 [tasks.test]
 run = "go test ./..."
