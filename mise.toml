@@ -166,7 +166,12 @@ check_module() {
     go test -race ./...
     case "$d" in
       ./examples/*) echo "   (demo module: skipping lint/govulncheck)" ;;
-      *) GOLANGCI_LINT_CACHE="$lintcache/$key" golangci-lint run --allow-parallel-runners; govulncheck ./... ;;
+      *)
+        GOLANGCI_LINT_CACHE="$lintcache/$key" golangci-lint run --allow-parallel-runners
+        # ci-min sets LAKTA_SKIP_VULN: vulns surface with time, not code
+        # changes, so the local gate skips the per-module network fetch.
+        if [ "${LAKTA_SKIP_VULN:-0}" != "1" ]; then govulncheck ./...; fi
+        ;;
     esac
   ) >"$log" 2>&1
   status=$?
@@ -201,6 +206,12 @@ if [ "$mod_status" -ne 0 ] || [ "$proto_status" -ne 0 ]; then
 fi
 echo "ci-all OK"
 """
+
+[tasks.ci-min]
+dir = "{{ config_root }}"
+description = "ci-all without govulncheck — local gate (vulns drift with time, not code changes)"
+env = { LAKTA_SKIP_VULN = "1" }
+run = "mise run ci-all"
 
 [tasks.proto-gen]
 dir = "{{ config_root }}/examples/microservices/proto"
