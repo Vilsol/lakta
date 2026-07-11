@@ -93,12 +93,12 @@ modules:
         description: port is the listen port
 ```
 
-`EncodeSchema` emits the same information as a Draft 2020-12 JSON Schema: one `$defs` entry per module type, `required` for non-pointer `required:"true"` fields, enum values from `enum` tags, a duration pattern for `time.Duration` fields, and `additionalProperties: false` everywhere except `Passthrough` blocks.
+`EncodeSchema` emits the same information as a Draft 2020-12 JSON Schema: one `$defs` entry per module type, `required` for non-pointer `required:"true"` fields, enum values from `enum` tags, a duration pattern for `time.Duration` fields, and `additionalProperties: false` everywhere except `Passthrough` blocks. Defaults are emitted as their JSON type (`9090`, not `"9090"`); slice/map defaults of plain scalars render as JSON arrays/objects.
 
 Also captured, when present:
 
-- **Nested structs** (same-package struct fields with a `koanf` tag) become nested `fields` trees with dot-notation env vars.
-- **Slices and maps of structs** (`[]T` / `map[string]T` where `T` is a same-package struct) document the element's fields under `fields`, and the schema types them as `items` / `additionalProperties` objects. Element fields carry no env vars (collection elements aren't individually env-addressable — only the parent field keeps one), and their defaults come from the first element of the default slice (maps document zero defaults). External element types stay opaque.
+- **Nested structs** (same-package struct fields with a `koanf` tag, plain or `*T` pointer — the idiom for optional blocks) become nested `fields` trees with dot-notation env vars. Pointer blocks document zero defaults when the default value is nil.
+- **Slices and maps of structs** (`[]T` / `map[string]T` where `T` is a same-package struct or `*T` pointer to one) document the element's fields under `fields`, and the schema types them as `items` / `additionalProperties` objects. Element fields carry no env vars (collection elements aren't individually env-addressable — only the parent field keeps one), and their defaults come from the first element of the default slice (maps document zero defaults). External element types stay opaque.
 - **Code-only options** (`koanf:"-"` fields tagged `code_only`) are listed under `codeOnly` with the matching `WithXxx` option's doc comment — and excluded from the schema.
 - **Passthrough blocks** (`config.Passthrough[T]`) record the target type, package, and a pkg.go.dev link when versions are supplied via `ParseGoMod`.
 
