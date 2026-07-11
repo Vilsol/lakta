@@ -196,15 +196,16 @@ func processConfig(e Entry, modVersions map[string]string, commentsByPkg map[str
 			continue
 		}
 
-		// Nested struct config block (same package, e.g. migrations): recurse
-		// so each sub-field is documented under a nested `fields` tree with
+		// Nested struct config block (same package, e.g. migrations), plain
+		// or behind a pointer (the idiom for optional blocks): recurse so
+		// each sub-field is documented under a nested `fields` tree with
 		// dot-notation env vars, instead of an opaque struct blob.
-		if f.Type.Kind() == reflect.Struct && f.Type.PkgPath() == pkgPath {
+		if bt := blockStruct(f.Type, pkgPath); bt != nil {
 			doc.Fields = append(doc.Fields, FieldDoc{
 				Key:         koanfTag,
 				Type:        formatType(f.Type),
 				Description: comments.fields[f.Name],
-				Fields:      structFields(f.Type, v.FieldByName(f.Name), comments, doc.ConfigPath, koanfTag),
+				Fields:      structFields(bt, blockValue(v.FieldByName(f.Name), bt), comments, doc.ConfigPath, koanfTag),
 			})
 			continue
 		}
@@ -261,12 +262,12 @@ func structFields(st reflect.Type, sv reflect.Value, comments sourceComments, co
 
 		fullKey := keyPath + "." + koanfTag
 
-		if f.Type.Kind() == reflect.Struct && f.Type.PkgPath() == st.PkgPath() {
+		if bt := blockStruct(f.Type, st.PkgPath()); bt != nil {
 			fields = append(fields, FieldDoc{
 				Key:         koanfTag,
 				Type:        formatType(f.Type),
 				Description: comments.fieldsByType[typeName+"."+f.Name],
-				Fields:      structFields(f.Type, sv.FieldByName(f.Name), comments, configPath, fullKey),
+				Fields:      structFields(bt, blockValue(sv.FieldByName(f.Name), bt), comments, configPath, fullKey),
 			})
 			continue
 		}
@@ -302,17 +303,43 @@ func structFields(st reflect.Type, sv reflect.Value, comments sourceComments, co
 	return fields
 }
 
+// blockStruct returns the same-package struct type of a nested config block
+// field — the struct itself or its pointer target (the idiom for optional
+// blocks); nil otherwise. External types stay opaque rather than recursing
+// into foreign packages.
+func blockStruct(t reflect.Type, pkgPath string) reflect.Type {
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if t.Kind() == reflect.Struct && t.PkgPath() == pkgPath {
+		return t
+	}
+	return nil
+}
+
+// blockValue dereferences a block field's default value; a nil pointer (or
+// invalid value) yields a zero value so recursion documents zero defaults.
+func blockValue(v reflect.Value, bt reflect.Type) reflect.Value {
+	if v.IsValid() && v.Kind() == reflect.Pointer {
+		if v.IsNil() {
+			return reflect.New(bt).Elem()
+		}
+		return v.Elem()
+	}
+	if !v.IsValid() {
+		return reflect.New(bt).Elem()
+	}
+	return v
+}
+
 // collectionElem returns the element type of a []T or map[K]T field when T is
-// a struct from the same package; nil otherwise. External element types (e.g.
-// []grpc.ServiceDesc) stay opaque rather than recursing into foreign types.
+// a struct (or pointer to one) from the same package; nil otherwise. External
+// element types (e.g. []grpc.ServiceDesc) stay opaque.
 func collectionElem(t reflect.Type, pkgPath string) reflect.Type {
 	if t.Kind() != reflect.Slice && t.Kind() != reflect.Map {
 		return nil
 	}
-	if e := t.Elem(); e.Kind() == reflect.Struct && e.PkgPath() == pkgPath {
-		return e
-	}
-	return nil
+	return blockStruct(t.Elem(), pkgPath)
 }
 
 // collectionElemValue picks the value element defaults are derived from: the
@@ -320,7 +347,7 @@ func collectionElem(t reflect.Type, pkgPath string) reflect.Type {
 // iteration order would make map-derived defaults non-deterministic).
 func collectionElemValue(v reflect.Value, elem reflect.Type) reflect.Value {
 	if v.IsValid() && v.Kind() == reflect.Slice && v.Len() > 0 {
-		return v.Index(0)
+		return blockValue(v.Index(0), elem)
 	}
 	return reflect.New(elem).Elem()
 }
