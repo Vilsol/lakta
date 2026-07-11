@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/MarvinJWendt/testza"
 )
@@ -119,6 +120,15 @@ func TestDefaultValue(t *testing.T) {
 	testza.AssertEqual(t, "50051", defaultValue(reflect.ValueOf(50051)))
 	testza.AssertEqual(t, "0.0.0.0", defaultValue(reflect.ValueOf("0.0.0.0")))
 	testza.AssertEqual(t, "true", defaultValue(reflect.ValueOf(true)))
+	testza.AssertEqual(t, "5s", defaultValue(reflect.ValueOf(5*time.Second)))
+
+	// slices/maps of plain scalars render as JSON, not Go syntax ([a b])
+	testza.AssertEqual(t, `["a","b"]`, defaultValue(reflect.ValueOf([]string{"a", "b"})))
+	testza.AssertEqual(t, `{"a":1,"b":2}`, defaultValue(reflect.ValueOf(map[string]int{"b": 2, "a": 1})))
+	// named element types (time.Duration would render as nanoseconds) and
+	// struct elements are omitted rather than rendered unfaithfully
+	testza.AssertEqual(t, "", defaultValue(reflect.ValueOf([]time.Duration{time.Second})))
+	testza.AssertEqual(t, "", defaultValue(reflect.ValueOf([]struct{ X int }{{1}})))
 }
 
 func TestCleanComment(t *testing.T) {

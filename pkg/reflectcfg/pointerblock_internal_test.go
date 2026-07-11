@@ -22,7 +22,7 @@ type pointerElemCfg struct {
 }
 
 type pointerCollectionCfg struct {
-	Policies []pointerElemCfg  `koanf:"policies"`
+	Policies []pointerElemCfg   `koanf:"policies"`
 	Backup   []*pointerRetryCfg `koanf:"backup"`
 }
 
