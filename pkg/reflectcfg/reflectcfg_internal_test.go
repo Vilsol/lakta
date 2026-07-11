@@ -132,6 +132,9 @@ func TestCleanComment(t *testing.T) {
 	testza.AssertEqual(t, "first line", cleanComment("first line\nsecond line"))
 	// prefix that is not With/Config is preserved
 	testza.AssertEqual(t, "host to bind", cleanComment("host to bind"))
+	// acronym-leading comments keep their casing (no "jWKSURL" mangling)
+	testza.AssertEqual(t, "JWKSURL is the JWKS endpoint", cleanComment("JWKSURL is the JWKS endpoint."))
+	testza.AssertEqual(t, "TTL bounds entry lifetime", cleanComment("TTL bounds entry lifetime."))
 }
 
 func TestExtractStructComments(t *testing.T) {
