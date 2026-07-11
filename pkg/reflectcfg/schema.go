@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -49,7 +50,7 @@ type Schema struct {
 	Ref                  string             `json:"$ref,omitempty"`
 	Type                 string             `json:"type,omitempty"`
 	Description          string             `json:"description,omitempty"`
-	Default              string             `json:"default,omitempty"`
+	Default              any                `json:"default,omitempty"`
 	Pattern              string             `json:"pattern,omitempty"`
 	Enum                 []string           `json:"enum,omitempty"`
 	Properties           map[string]*Schema `json:"properties,omitempty"`
@@ -183,13 +184,40 @@ func fieldSchema(f FieldDoc) *Schema {
 	}
 
 	if f.Default != "" {
-		s.Default = f.Default
+		s.Default = typedDefault(s.Type, f.Default)
 	}
 	if f.Description != "" {
 		s.Description = f.Description
 	}
 
 	return s
+}
+
+// typedDefault converts the doc tree's string default to the schema node's
+// JSON type, so editors surface `9090` rather than `"9090"`. Unparseable
+// values keep the raw string.
+func typedDefault(jsType, raw string) any {
+	switch jsType {
+	case jsTypeInteger:
+		if n, err := strconv.ParseInt(raw, 10, 64); err == nil {
+			return n
+		}
+	case jsTypeNumber:
+		if fl, err := strconv.ParseFloat(raw, 64); err == nil {
+			return fl
+		}
+	case jsTypeBoolean:
+		if b, err := strconv.ParseBool(raw); err == nil {
+			return b
+		}
+	case jsTypeArray, jsTypeObject:
+		// scalar-collection defaults are JSON-rendered by defaultValue
+		var v any
+		if err := json.Unmarshal([]byte(raw), &v); err == nil {
+			return v
+		}
+	}
+	return raw
 }
 
 // objectSchema builds the object node for documented struct fields (a nested
