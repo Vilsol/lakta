@@ -2,7 +2,7 @@
 go = "1.26.5"
 golangci-lint = "2.12.2"
 zig = "0.16.0"            # `zig cc` supplies the C linker the race detector needs (no system gcc required)
-buf = "1.71.0"           # proto lint/breaking/gen; local plugins only, no BSR at generate time
+buf = "1.72.0"           # proto lint/breaking/gen; local plugins only, no BSR at generate time
 "go:github.com/bokwoon95/wgo" = "latest"
 "go:google.golang.org/protobuf/cmd/protoc-gen-go" = "1.36.11"          # pinned (not latest) so dev and CI agree byte-for-byte
 "go:connectrpc.com/connect/cmd/protoc-gen-connect-go" = "1.20.0"       # pinned (not latest) so dev and CI agree byte-for-byte
