@@ -12,8 +12,8 @@ require (
 	github.com/knadh/koanf/providers/file v1.2.1
 	github.com/knadh/koanf/providers/posflag v1.0.1
 	github.com/knadh/koanf/v2 v2.3.5
-	github.com/samber/do/v2 v2.0.0
-	github.com/samber/oops v1.22.0
+	github.com/samber/do/v2 v2.1.0
+	github.com/samber/oops v1.23.0
 	github.com/sourcegraph/conc v0.3.0
 	github.com/spf13/pflag v1.0.10
 	go.opentelemetry.io/otel v1.44.0 // indirect
@@ -62,5 +62,5 @@ require (
 require (
 	github.com/Vilsol/lakta/pkg/testkit v0.4.1
 	github.com/knadh/koanf/providers/env/v2 v2.0.0
-	google.golang.org/grpc v1.82.0
+	google.golang.org/grpc v1.82.1
 )

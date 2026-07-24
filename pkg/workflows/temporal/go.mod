@@ -8,11 +8,11 @@ require (
 	github.com/Vilsol/lakta/pkg/testkit v0.4.1
 	github.com/Vilsol/slox v0.1.0
 	github.com/knadh/koanf/v2 v2.3.5
-	github.com/samber/oops v1.22.0
+	github.com/samber/oops v1.23.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0
-	go.temporal.io/sdk v1.45.0
-	go.temporal.io/sdk/contrib/opentelemetry v0.7.0
-	google.golang.org/grpc v1.82.0
+	go.temporal.io/sdk v1.46.0
+	go.temporal.io/sdk/contrib/opentelemetry v0.8.1
+	google.golang.org/grpc v1.82.1
 )
 
 require (
