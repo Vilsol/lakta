@@ -12,13 +12,13 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
 	github.com/hellofresh/health-go/v5 v5.5.5
 	github.com/knadh/koanf/v2 v2.3.5
-	github.com/samber/do/v2 v2.0.0
-	github.com/samber/oops v1.22.0
+	github.com/samber/do/v2 v2.1.0
+	github.com/samber/oops v1.23.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0
 	go.opentelemetry.io/otel/trace v1.44.0
-	golang.org/x/sync v0.21.0
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800
-	google.golang.org/grpc v1.82.0
+	golang.org/x/sync v0.22.0
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260723215102-3fe39f3c1018
+	google.golang.org/grpc v1.82.1
 )
 
 require (
