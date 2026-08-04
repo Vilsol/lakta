@@ -9,8 +9,8 @@ require (
 	github.com/Vilsol/slox v0.1.0
 	github.com/knadh/koanf/providers/confmap v1.0.0
 	github.com/knadh/koanf/v2 v2.3.5
-	github.com/samber/do/v2 v2.0.0
-	github.com/samber/oops v1.22.0
+	github.com/samber/do/v2 v2.1.0
+	github.com/samber/oops v1.23.0
 	github.com/sourcegraph/conc v0.3.0
 )
 

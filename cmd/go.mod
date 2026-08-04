@@ -4,24 +4,24 @@ go 1.26.4
 
 require (
 	github.com/MarvinJWendt/testza v0.5.2
-	github.com/Vilsol/lakta/pkg/auth/verifier v0.0.0-20260710170601-696ed8a015c7
-	github.com/Vilsol/lakta/pkg/cache/memory v0.3.1
+	github.com/Vilsol/lakta/pkg/auth/verifier v0.4.1
+	github.com/Vilsol/lakta/pkg/cache/memory v0.4.1
 	github.com/Vilsol/lakta/pkg/db/drivers/pgx v0.0.0-00010101000000-000000000000
-	github.com/Vilsol/lakta/pkg/debug/actuator v0.3.1
-	github.com/Vilsol/lakta/pkg/events v0.3.1
-	github.com/Vilsol/lakta/pkg/features/flags v0.3.1
+	github.com/Vilsol/lakta/pkg/debug/actuator v0.4.1
+	github.com/Vilsol/lakta/pkg/events v0.4.1
+	github.com/Vilsol/lakta/pkg/features/flags v0.4.1
 	github.com/Vilsol/lakta/pkg/grpc v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/lakta/pkg/health v0.4.1
-	github.com/Vilsol/lakta/pkg/http/connect v0.0.0-20260710170601-696ed8a015c7
+	github.com/Vilsol/lakta/pkg/http/connect v0.4.1
 	github.com/Vilsol/lakta/pkg/http/fiber v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/lakta/pkg/logging/slog v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/lakta/pkg/logging/tint v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/lakta/pkg/otel v0.0.0-00010101000000-000000000000
-	github.com/Vilsol/lakta/pkg/resilience/policy v0.3.1
+	github.com/Vilsol/lakta/pkg/resilience/policy v0.4.1
 	github.com/Vilsol/lakta/pkg/workers/pool v0.4.1
-	github.com/Vilsol/lakta/pkg/workers/scheduler v0.3.1
+	github.com/Vilsol/lakta/pkg/workers/scheduler v0.4.1
 	github.com/Vilsol/lakta/pkg/workflows/temporal v0.0.0-00010101000000-000000000000
-	golang.org/x/mod v0.37.0
+	golang.org/x/mod v0.38.0
 )
 
 require (
