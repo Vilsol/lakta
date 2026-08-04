@@ -6,8 +6,8 @@ require (
 	github.com/MarvinJWendt/testza v0.5.2
 	github.com/Vilsol/lakta v0.4.1
 	github.com/knadh/koanf/v2 v2.3.5
-	github.com/samber/do/v2 v2.0.0
-	github.com/samber/oops v1.22.0
+	github.com/samber/do/v2 v2.1.0
+	github.com/samber/oops v1.23.0
 )
 
 require (
