@@ -6,12 +6,12 @@ require (
 	github.com/MarvinJWendt/testza v0.5.2
 	github.com/Vilsol/slox v0.1.0
 	github.com/fsnotify/fsnotify v1.10.1
-	github.com/knadh/koanf/parsers/json v1.0.0
-	github.com/knadh/koanf/parsers/toml/v2 v2.2.1
-	github.com/knadh/koanf/parsers/yaml v1.1.0
+	github.com/knadh/koanf/parsers/json v1.0.1
+	github.com/knadh/koanf/parsers/toml/v2 v2.2.2
+	github.com/knadh/koanf/parsers/yaml v1.1.1
 	github.com/knadh/koanf/providers/file v1.2.1
-	github.com/knadh/koanf/providers/posflag v1.0.1
-	github.com/knadh/koanf/v2 v2.3.5
+	github.com/knadh/koanf/providers/posflag v1.0.2
+	github.com/knadh/koanf/v2 v2.3.6
 	github.com/samber/do/v2 v2.1.0
 	github.com/samber/oops v1.23.0
 	github.com/sourcegraph/conc v0.3.0
@@ -61,6 +61,6 @@ require (
 
 require (
 	github.com/Vilsol/lakta/pkg/testkit v0.4.1
-	github.com/knadh/koanf/providers/env/v2 v2.0.0
+	github.com/knadh/koanf/providers/env/v2 v2.0.1
 	google.golang.org/grpc v1.83.0
 )

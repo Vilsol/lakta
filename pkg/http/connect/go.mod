@@ -3,22 +3,22 @@ module github.com/Vilsol/lakta/pkg/http/connect
 go 1.26.4
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1
-	buf.build/go/protovalidate v1.2.0
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260709200747-435963d16310.1
+	buf.build/go/protovalidate v1.3.0
 	connectrpc.com/connect v1.20.0
 	connectrpc.com/otelconnect v0.9.0
 	github.com/MarvinJWendt/testza v0.5.2
 	github.com/Vilsol/lakta v0.4.1
 	github.com/Vilsol/lakta/pkg/testkit v0.4.1
 	github.com/Vilsol/slox v0.1.0
-	github.com/knadh/koanf/v2 v2.3.5
+	github.com/knadh/koanf/v2 v2.3.6
 	github.com/samber/do/v2 v2.1.0
 	github.com/samber/oops v1.23.0
-	golang.org/x/net v0.57.0
+	golang.org/x/net v0.58.0
 	golang.org/x/sync v0.22.0
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260810153831-ec0a7760b754
 	google.golang.org/grpc v1.83.0
-	google.golang.org/protobuf v1.36.11
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
