@@ -11,7 +11,7 @@ require (
 	github.com/MarvinJWendt/testza v0.5.2
 	github.com/Vilsol/lakta v0.4.1
 	github.com/Vilsol/lakta/pkg/errors/fiber v0.4.1
-	github.com/gofiber/fiber/v3 v3.4.0
+	github.com/gofiber/fiber/v3 v3.5.0
 )
 
 require (

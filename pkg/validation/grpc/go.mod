@@ -5,17 +5,17 @@ go 1.26.4
 // Sibling modules (github.com/Vilsol/lakta core, google.golang.org/grpc) resolve
 // via go.work until the next tag; buf.build/go/protovalidate is promoted to a
 // direct, module-scoped dependency here so it stays out of the root module graph.
-require buf.build/go/protovalidate v1.2.0
+require buf.build/go/protovalidate v1.3.0
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260709200747-435963d16310.1
 	github.com/MarvinJWendt/testza v0.5.2
 	github.com/Vilsol/lakta v0.4.1
 	github.com/Vilsol/lakta/pkg/errors/grpc v0.4.1
 	github.com/Vilsol/lakta/pkg/validation/fiber v0.4.1
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260810153831-ec0a7760b754
 	google.golang.org/grpc v1.83.0
-	google.golang.org/protobuf v1.36.11
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
