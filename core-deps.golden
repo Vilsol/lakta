@@ -3,6 +3,7 @@ atomicgo.dev/cursor
 atomicgo.dev/keyboard
 atomicgo.dev/schedule
 cel.dev/expr
+cloud.google.com/go/auth
 cloud.google.com/go/compute/metadata
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp
 github.com/MarvinJWendt/testza
@@ -19,6 +20,7 @@ github.com/envoyproxy/go-control-plane
 github.com/envoyproxy/go-control-plane/envoy
 github.com/envoyproxy/go-control-plane/ratelimit
 github.com/envoyproxy/protoc-gen-validate
+github.com/felixge/httpsnoop
 github.com/fsnotify/fsnotify
 github.com/go-jose/go-jose/v4
 github.com/go-logr/logr
@@ -27,7 +29,10 @@ github.com/go-viper/mapstructure/v2
 github.com/golang/glog
 github.com/golang/protobuf
 github.com/google/go-cmp
+github.com/google/s2a-go
 github.com/google/uuid
+github.com/googleapis/enterprise-certificate-proxy
+github.com/googleapis/gax-go/v2
 github.com/gookit/assert
 github.com/gookit/color
 github.com/klauspost/cpuid/v2
@@ -69,6 +74,7 @@ github.com/xo/terminfo
 github.com/yuin/goldmark
 go.opentelemetry.io/auto/sdk
 go.opentelemetry.io/contrib/detectors/gcp
+go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
 go.opentelemetry.io/otel
 go.opentelemetry.io/otel/metric
 go.opentelemetry.io/otel/sdk

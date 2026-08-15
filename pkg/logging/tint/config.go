@@ -56,7 +56,7 @@ func (c *Config) TintOptions() *tint.Options {
 
 // NewHandler creates a new tint handler with config values applied.
 func (c *Config) NewHandler() slog.Handler {
-	return tint.NewHandler(c.Writer, c.TintOptions())
+	return tint.NewTextHandler(c.Writer, c.TintOptions())
 }
 
 // Option configures the Module.
