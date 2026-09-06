@@ -7,12 +7,12 @@ require (
 	github.com/Vilsol/lakta v0.4.1
 	github.com/Vilsol/lakta/pkg/auth/verifier v0.4.1
 	github.com/Vilsol/lakta/pkg/testkit v0.4.1
-	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
-	github.com/knadh/koanf/providers/confmap v1.0.0
-	github.com/knadh/koanf/v2 v2.3.5
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.4
+	github.com/knadh/koanf/providers/confmap v1.0.1
+	github.com/knadh/koanf/v2 v2.3.6
 	github.com/lestrrat-go/jwx/v3 v3.2.0
-	github.com/samber/oops v1.23.0
-	google.golang.org/grpc v1.83.0
+	github.com/samber/oops v1.23.1
+	google.golang.org/grpc v1.83.2
 )
 
 require (

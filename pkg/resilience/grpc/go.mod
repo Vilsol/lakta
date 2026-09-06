@@ -7,10 +7,10 @@ require (
 	github.com/Vilsol/lakta v0.4.1
 	github.com/Vilsol/lakta/pkg/resilience/policy v0.4.1
 	github.com/Vilsol/lakta/pkg/testkit v0.4.1
-	github.com/failsafe-go/failsafe-go v0.9.6
+	github.com/failsafe-go/failsafe-go v0.9.7
 	github.com/samber/do/v2 v2.1.0
-	github.com/samber/oops v1.23.0
-	google.golang.org/grpc v1.83.0
+	github.com/samber/oops v1.23.1
+	google.golang.org/grpc v1.83.2
 )
 
 require (
