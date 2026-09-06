@@ -5,13 +5,13 @@ go 1.26.4
 // Sibling modules (github.com/Vilsol/lakta core, gofiber/fiber/v3) resolve via
 // go.work until the next tag; only the module-scoped validator/v10 is required
 // here so it stays out of the root module graph.
-require github.com/go-playground/validator/v10 v10.30.3
+require github.com/go-playground/validator/v10 v10.30.4
 
 require (
 	github.com/MarvinJWendt/testza v0.5.2
 	github.com/Vilsol/lakta v0.4.1
 	github.com/Vilsol/lakta/pkg/errors/fiber v0.4.1
-	github.com/gofiber/fiber/v3 v3.4.0
+	github.com/gofiber/fiber/v3 v3.5.0
 )
 
 require (

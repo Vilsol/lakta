@@ -9,12 +9,12 @@ require (
 	github.com/Vilsol/lakta/pkg/testkit v0.4.1
 	github.com/Vilsol/slox v0.1.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
-	github.com/gofiber/contrib/v3/otel v1.2.2
-	github.com/gofiber/fiber/v3 v3.4.0
+	github.com/gofiber/contrib/v3/otel v1.2.4
+	github.com/gofiber/fiber/v3 v3.5.0
 	github.com/hellofresh/health-go/v5 v5.5.5
-	github.com/knadh/koanf/v2 v2.3.5
-	github.com/samber/oops v1.23.0
-	go.opentelemetry.io/otel/trace v1.45.0
+	github.com/knadh/koanf/v2 v2.3.6
+	github.com/samber/oops v1.23.1
+	go.opentelemetry.io/otel/trace v1.46.0
 	golang.org/x/sync v0.22.0
 )
 
