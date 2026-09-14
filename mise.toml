@@ -1,6 +1,6 @@
 [tools]
 go = "1.26.6"
-golangci-lint = "2.12.2"
+golangci-lint = "2.13.2"
 zig = "0.16.0"            # `zig cc` supplies the C linker the race detector needs (no system gcc required)
 buf = "1.72.0"           # proto lint/breaking/gen; local plugins only, no BSR at generate time
 "go:github.com/bokwoon95/wgo" = "latest"
