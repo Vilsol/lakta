@@ -1,0 +1,52 @@
+name: Vulnerabilities
+
+# Kept out of the CI gate on purpose: govulncheck's verdict changes when a new
+# advisory is published, not when code changes, so gating every PR on it
+# turned each advisory into a red main and red PRs for unrelated work.
+# Instead: scan main nightly (a failed scheduled run notifies), scan any change
+# that actually moves dependencies, and let Renovate's OSV alerts open the fix.
+on:
+  schedule:
+    - cron: "30 3 * * *" # nightly, after the 02:00 Renovate run
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "**/go.mod"
+      - "**/go.sum"
+      - "go.work"
+      - "go.work.sum"
+      - "mise.toml"
+  pull_request:
+    paths:
+      - "**/go.mod"
+      - "**/go.sum"
+      - "go.work"
+      - "go.work.sum"
+      - "mise.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  govulncheck:
+    runs-on: ubuntu-latest
+    # On PRs this is informational: findings show in the log, but an advisory
+    # that already affects main must not block (or stall Renovate automerge on)
+    # unrelated PRs. Nightly and main-push runs still fail loudly.
+    continue-on-error: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
+
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go/vulndb
+          key: ${{ runner.os }}-go-vuln-${{ hashFiles('**/go.sum', 'go.work.sum') }}
+          restore-keys: ${{ runner.os }}-go-vuln-
+
+      - name: govulncheck (all modules)
+        run: mise run vuln-all

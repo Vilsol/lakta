@@ -9,30 +9,46 @@
     "gomodUpdateImportPaths"
   ],
   "automerge": true,
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "description": "Security fixes land as their own ungrouped PR, immediately, targeting the lowest fixed version rather than latest (which may still be affected)",
+    "groupName": null,
+    "schedule": [],
+    "prCreation": "immediate",
+    "automerge": true,
+    "labels": [
+      "security"
+    ]
+  },
   "packageRules": [
     {
-      "description": "Group non-major Go updates across the root and examples modules into a single PR",
+      "description": "Group only low-risk Go updates (patch + pseudo-version digests) into one PR; minors get their own PRs so one breaking bump cannot stall every other update",
       "matchManagers": [
         "gomod"
       ],
       "matchUpdateTypes": [
-        "minor",
         "patch",
         "digest"
       ],
-      "groupName": "go module dependencies"
+      "groupName": "go module patch dependencies"
     },
     {
-      "description": "Regenerate core-deps.golden only on branches that change Go modules; write atomically and never commit an empty file",
+      "description": "Regenerate files that embed dependency versions on branches that change Go modules: core-deps.golden (module graph) and the docgen outputs (docs.yaml + JSON Schema carry targetVersion/docsUrl of upstream config types). Writes are atomic and never leave an empty file.",
       "matchManagers": [
         "gomod"
       ],
       "postUpgradeTasks": {
         "commands": [
-          "GOWORK=off go list -m all | awk '{print $1}' | LC_ALL=C sort > core-deps.golden.tmp && test -s core-deps.golden.tmp && mv core-deps.golden.tmp core-deps.golden"
+          "GOWORK=off go list -m all | awk '{print $1}' | LC_ALL=C sort > core-deps.golden.tmp && test -s core-deps.golden.tmp && mv core-deps.golden.tmp core-deps.golden",
+          "go generate ./cmd/docgen && go run ./cmd/docgen > docs.yaml.tmp && test -s docs.yaml.tmp && mv docs.yaml.tmp docs.yaml",
+          "go run ./cmd/docgen -format=schema > lakta.schema.json.tmp && test -s lakta.schema.json.tmp && mv lakta.schema.json.tmp lakta.schema.json && cp lakta.schema.json docs/public/lakta.schema.json"
         ],
         "fileFilters": [
-          "core-deps.golden"
+          "core-deps.golden",
+          "docs.yaml",
+          "cmd/docgen/configs_gen.go",
+          "lakta.schema.json",
+          "docs/public/lakta.schema.json"
         ],
         "executionMode": "branch"
       }

@@ -6,7 +6,7 @@ buf = "1.73.0"           # proto lint/breaking/gen; local plugins only, no BSR a
 "go:github.com/bokwoon95/wgo" = "latest"
 "go:google.golang.org/protobuf/cmd/protoc-gen-go" = "1.36.12"          # pinned (not latest) so dev and CI agree byte-for-byte
 "go:connectrpc.com/connect/cmd/protoc-gen-connect-go" = "1.20.0"       # pinned (not latest) so dev and CI agree byte-for-byte
-"go:golang.org/x/vuln/cmd/govulncheck" = "1.6.0"                       # pinned + installed once; ci-all reuses the binary instead of `go run ...@latest` per module
+"go:golang.org/x/vuln/cmd/govulncheck" = "1.6.0"                       # pinned + installed once; vuln-all reuses the binary instead of `go run ...@latest` per module
 
 [tasks.dev]
 dir = "{{ config_root }}"
@@ -61,6 +61,25 @@ set -e
 
 [tasks.govulncheck]
 run = "go run golang.org/x/vuln/cmd/govulncheck@latest ./..."
+
+# Deliberately NOT part of ci-all: govulncheck's verdict depends on the advisory
+# DB on the day it runs, not on the code under review. Gating PRs on it turned
+# every new advisory into a red main and a red PR for everything in flight. The
+# vuln workflow runs this nightly (and on go.mod/go.sum changes) instead, and
+# Renovate's OSV alerts open the targeted fix PR.
+[tasks.vuln-all]
+dir = "{{ config_root }}"
+description = "govulncheck every non-example workspace module; reports all findings before failing"
+shell = "bash -c"
+run = """
+set -uo pipefail
+status=0
+for d in $(go work edit -json | python3 -c 'import json,sys;[print(u["DiskPath"]) for u in json.load(sys.stdin)["Use"] if not u["DiskPath"].startswith("./examples")]'); do
+  echo "== $d =="
+  ( cd "$d" && govulncheck ./... ) || status=1
+done
+exit "$status"
+"""
 
 [tasks.doccheck]
 dir = "{{ config_root }}"
@@ -136,7 +155,7 @@ echo "isolation OK"
 
 [tasks.ci-all]
 dir = "{{ config_root }}"
-description = "Build, test, race, lint, vuln-check every workspace module (parallel across cores)"
+description = "Build, test, race, lint every workspace module (parallel across cores); vuln scanning lives in vuln-all"
 env = { CGO_ENABLED = "1", CC = "zig cc", CXX = "zig c++" }
 # The script needs bash (pipefail, export -f); mise's default `sh` is dash on
 # Ubuntu runners, which rejects `set -o pipefail`.
@@ -179,8 +198,8 @@ check_module() {
     go test ./...
     go test -race ./...
     case "$d" in
-      ./examples/*) echo "   (demo module: skipping lint/govulncheck)" ;;
-      *) GOLANGCI_LINT_CACHE="$lintcache/$key" golangci-lint run --allow-parallel-runners; govulncheck ./... ;;
+      ./examples/*) echo "   (demo module: skipping lint)" ;;
+      *) GOLANGCI_LINT_CACHE="$lintcache/$key" golangci-lint run --allow-parallel-runners ;;
     esac
   ) >"$log" 2>&1
   status=$?
