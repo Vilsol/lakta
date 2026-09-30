@@ -54,13 +54,13 @@ require (
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/term v0.43.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/term v0.45.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 )
 
 require (
 	github.com/Vilsol/lakta/pkg/testkit v0.4.1
 	github.com/knadh/koanf/providers/env/v2 v2.0.0
-	google.golang.org/grpc v1.83.0
+	google.golang.org/grpc v1.83.2
 )
