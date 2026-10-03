@@ -3,7 +3,7 @@ module github.com/Vilsol/lakta/pkg/http/connect
 go 1.26.4
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2
 	buf.build/go/protovalidate v1.2.0
 	connectrpc.com/connect v1.20.0
 	connectrpc.com/otelconnect v0.9.0
@@ -11,14 +11,14 @@ require (
 	github.com/Vilsol/lakta v0.4.1
 	github.com/Vilsol/lakta/pkg/testkit v0.4.1
 	github.com/Vilsol/slox v0.1.0
-	github.com/knadh/koanf/v2 v2.3.5
+	github.com/knadh/koanf/v2 v2.3.7
 	github.com/samber/do/v2 v2.1.0
-	github.com/samber/oops v1.23.0
+	github.com/samber/oops v1.23.2
 	golang.org/x/net v0.58.0
 	golang.org/x/sync v0.22.0
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260928230214-8a89bd6388cc
 	google.golang.org/grpc v1.83.2
-	google.golang.org/protobuf v1.36.11
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
@@ -50,7 +50,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
-	github.com/oklog/ulid/v2 v2.1.1 // indirect
+	github.com/oklog/ulid/v2 v2.1.2 // indirect
 	github.com/pelletier/go-toml/v2 v2.3.1 // indirect
 	github.com/pterm/pterm v0.12.83 // indirect
 	github.com/samber/go-type-to-string v1.8.0 // indirect
