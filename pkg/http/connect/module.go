@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/netip"
 	"reflect"
+	"slices"
 	"sync"
 
 	"github.com/Vilsol/lakta/pkg/config"
@@ -49,18 +50,38 @@ func (m *Module) ConfigPath() string {
 // LoadConfig loads configuration from koanf.
 func (m *Module) LoadConfig(k *koanf.Koanf) error { return m.config.LoadFromKoanf(k, m.ConfigPath()) }
 
-// Init builds the ServeMux, mounts WithHandler entries as-is and passes the
-// shared []connect.HandlerOption chain into each WithService registrar.
+// Init builds the interceptor slots, mounts WithHandler entries as-is, passes
+// the shared []connect.HandlerOption into each WithService registrar, runs the
+// mounted-service hooks and wraps the mux in the limits and HTTP middlewares.
 func (m *Module) Init(ctx context.Context) error {
 	mux := http.NewServeMux()
-	opts := m.config.Interceptors()
 
+	opts, err := m.config.Interceptors(ctx)
+	if err != nil {
+		return oops.Wrapf(err, "failed to build interceptors")
+	}
+
+	paths := make([]string, 0, len(m.config.Handlers)+len(m.config.ServiceRegistrars))
 	for path, h := range m.config.Handlers {
 		mux.Handle(path, h)
+		paths = append(paths, path)
 	}
 	for _, reg := range m.config.ServiceRegistrars {
 		path, h := reg(ctx, opts)
 		mux.Handle(path, h)
+		paths = append(paths, path)
+	}
+
+	mounted := resolveMounted(paths)
+	for _, hook := range m.config.MountedHooks {
+		if err := hook(ctx, mounted); err != nil {
+			return oops.Wrapf(err, "mounted-service hook failed")
+		}
+	}
+
+	handler := m.config.limitsMiddleware(procedures(mounted), mux)
+	for _, mw := range slices.Backward(m.config.HTTPMiddlewares) {
+		handler = mw(handler)
 	}
 
 	addrPort, err := m.config.AddrPort()
@@ -68,7 +89,7 @@ func (m *Module) Init(ctx context.Context) error {
 		return oops.Wrapf(err, "failed to parse host address")
 	}
 	m.addrPort = addrPort
-	m.handler = mux
+	m.handler = handler
 
 	return nil
 }
@@ -87,11 +108,15 @@ func (m *Module) Start(ctx context.Context) error {
 		return oops.Wrapf(err, "failed to build server TLS config")
 	}
 
+	// Handlers see the runtime ctx values (injector, logger) but not its
+	// cancellation, which would abort in-flight requests before the drain.
+	baseCtx := context.WithoutCancel(ctx)
 	server := &http.Server{
 		Handler:           m.handler,
-		ReadTimeout:       m.config.ReadTimeout,
 		ReadHeaderTimeout: m.config.ReadHeaderTimeout,
+		MaxHeaderBytes:    m.config.MaxHeaderBytes,
 		TLSConfig:         tlsConfig,
+		BaseContext:       func(net.Listener) context.Context { return baseCtx },
 	}
 	if m.config.H2C && !m.config.TLS.Enabled() {
 		protocols := new(http.Protocols)

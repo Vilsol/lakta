@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"time"
 
 	"buf.build/go/protovalidate"
 	"connectrpc.com/connect"
@@ -19,83 +20,109 @@ import (
 
 const internalMessage = "internal error"
 
-// otelInterceptor builds the otelconnect tracing/metrics interceptor. It only
-// errors on invalid options; with none it never does, so a nil result degrades
-// gracefully rather than panicking in a config accessor.
+// otelInterceptor builds the otelconnect tracing/metrics interceptor. Remote
+// span contexts are trusted: callers are authenticated peers, so their traces
+// continue rather than start new roots. It only errors on invalid options; a
+// nil result degrades gracefully.
 func otelInterceptor() connect.Interceptor { //nolint:ireturn // connect.Interceptor is the library's composition unit
-	oi, err := otelconnect.NewInterceptor()
+	oi, err := otelconnect.NewInterceptor(otelconnect.WithTrustRemote())
 	if err != nil {
 		return nil
 	}
 	return oi
 }
 
-// loggingInterceptor logs each finished unary call, mirroring grpc/server's
-// logging.FinishCall event.
-func loggingInterceptor() connect.Interceptor { //nolint:ireturn // connect.Interceptor is the library's composition unit
-	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
-		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			resp, err := next(ctx, req)
-
-			attrs := []any{slog.String("procedure", req.Spec().Procedure)}
-			if err != nil {
-				attrs = append(attrs, slog.String("code", connect.CodeOf(err).String()))
-			}
-			slox.Log(ctx, slog.LevelInfo, "finished connect call", attrs...)
-
-			return resp, err
-		}
-	})
+// handlerInterceptor adapts a pair of server-side wrappers to connect.Interceptor;
+// client streams pass through untouched (server chain only).
+type handlerInterceptor struct {
+	unary  func(connect.UnaryFunc) connect.UnaryFunc
+	stream func(connect.StreamingHandlerFunc) connect.StreamingHandlerFunc
 }
 
-// recoveryInterceptor recovers a panicking handler into an opaque INTERNAL
-// AppError rendered as a connect.Error. It sits outer of errorInterceptor, so it
-// renders the panic itself; the panic value stays in the log line, never on the
-// wire (mirrors grpc/server's recovery handler).
-func recoveryInterceptor() connect.Interceptor { //nolint:ireturn // connect.Interceptor is the library's composition unit
-	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
-		return func(ctx context.Context, req connect.AnyRequest) (resp connect.AnyResponse, err error) { //nolint:nonamedreturns // deferred recover sets err
-			defer func() {
-				if r := recover(); r != nil {
-					slox.Error(ctx, "recovered from panic in connect handler", slog.Any("panic", r))
-					err = toConnectError(apperrors.Internal(internalMessage))
-				}
-			}()
+func (h handlerInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc { return h.unary(next) }
 
-			return next(ctx, req)
-		}
-	})
+func (h handlerInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
+	return next
 }
 
-// errorInterceptor renders any error returned by an inner handler/interceptor
-// through the §5 AppError path so a returned *AppError (including the validation
-// interceptor's) reaches the wire as a connect.Error carrying the same
-// errdetails.ErrorInfo/BadRequest a gRPC client sees. A pre-built connect.Error
-// passes through untouched.
-func errorInterceptor() connect.Interceptor { //nolint:ireturn // connect.Interceptor is the library's composition unit
-	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
-		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			resp, err := next(ctx, req)
-			if err == nil {
-				return resp, nil
-			}
-
-			var cerr *connect.Error
-			if stderrors.As(err, &cerr) {
-				return resp, err
-			}
-
-			return resp, toConnectError(apperrors.FromError(err))
-		}
-	})
+func (h handlerInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+	return h.stream(next)
 }
 
-// validationInterceptor runs protovalidate over each unary request message,
-// mirroring pkg/validation/grpc byte-for-byte: a CEL violation becomes an
-// AppError{VALIDATION} with one FieldViolation per violation (reason = the rule
-// id's final dotted segment), which errorInterceptor renders to
-// CodeInvalidArgument + errdetails.BadRequest — identical to the gRPC transport.
-func validationInterceptor() connect.Interceptor { //nolint:ireturn // connect.Interceptor is the library's composition unit
+// accessLogInterceptor logs each finished call with its procedure, code and
+// duration. It sits outside the error boundary, so it sees rendered codes.
+type accessLogInterceptor struct{}
+
+func (accessLogInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
+	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+		start := time.Now()
+		resp, err := next(ctx, req)
+		logFinished(ctx, req.Spec().Procedure, start, err)
+		return resp, err
+	}
+}
+
+func (accessLogInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
+	return next
+}
+
+func (accessLogInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
+		start := time.Now()
+		err := next(ctx, conn)
+		logFinished(ctx, conn.Spec().Procedure, start, err)
+		return err
+	}
+}
+
+func logFinished(ctx context.Context, procedure string, start time.Time, err error) {
+	code := "ok"
+	if err != nil {
+		code = connect.CodeOf(err).String()
+	}
+	slox.Info(ctx, "finished connect call",
+		slog.String("procedure", procedure),
+		slog.String("code", code),
+		slog.Int64("duration_ms", time.Since(start).Milliseconds()))
+}
+
+// recoveryInterceptor turns a handler panic into an oops error carrying the
+// panic value and stack. The error boundary (outer) renders it as an opaque
+// INTERNAL and logs the details; nothing of the panic reaches the wire.
+type recoveryInterceptor struct{}
+
+func (recoveryInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
+	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+		var (
+			resp connect.AnyResponse
+			err  error
+		)
+		if perr := oops.Recoverf(func() { resp, err = next(ctx, req) }, "panic in connect handler"); perr != nil {
+			return nil, perr //nolint:wrapcheck // already an oops error carrying the panic stack
+		}
+		return resp, err
+	}
+}
+
+func (recoveryInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
+	return next
+}
+
+func (recoveryInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
+		var err error
+		if perr := oops.Recoverf(func() { err = next(ctx, conn) }, "panic in connect handler"); perr != nil {
+			return perr //nolint:wrapcheck // already an oops error carrying the panic stack
+		}
+		return err
+	}
+}
+
+// newValidationInterceptor runs protovalidate over every request message, unary
+// and streamed, mirroring pkg/validation/grpc: a CEL violation becomes an
+// AppError{VALIDATION} with one FieldViolation per violation, which the error
+// boundary renders to CodeInvalidArgument + errdetails.BadRequest.
+func newValidationInterceptor() connect.Interceptor { //nolint:ireturn // connect.Interceptor is the library's composition unit
 	var (
 		once      sync.Once
 		validator protovalidate.Validator
@@ -109,14 +136,35 @@ func validationInterceptor() connect.Interceptor { //nolint:ireturn // connect.I
 		return validator, buildErr
 	}
 
-	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
-		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			if err := validateMessage(get, req.Any()); err != nil {
-				return nil, err
+	return handlerInterceptor{
+		unary: func(next connect.UnaryFunc) connect.UnaryFunc {
+			return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+				if err := validateMessage(get, req.Any()); err != nil {
+					return nil, err
+				}
+				return next(ctx, req)
 			}
-			return next(ctx, req)
-		}
-	})
+		},
+		stream: func(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+			return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
+				return next(ctx, &validatingConn{StreamingHandlerConn: conn, get: get})
+			}
+		},
+	}
+}
+
+// validatingConn validates each received message of a streaming call.
+type validatingConn struct {
+	connect.StreamingHandlerConn
+
+	get func() (protovalidate.Validator, error)
+}
+
+func (c *validatingConn) Receive(msg any) error {
+	if err := c.StreamingHandlerConn.Receive(msg); err != nil {
+		return err //nolint:wrapcheck // io.EOF must reach the handler unwrapped
+	}
+	return validateMessage(c.get, msg)
 }
 
 // validateMessage runs protovalidate over a request message. A non-proto request
@@ -170,8 +218,8 @@ func reason(v *protovalidate.Violation) string {
 
 // toConnectError renders an *AppError as a connect.Error: connect.Code cast from
 // AppError.GRPC (shared canonical numbering), errdetails.ErrorInfo{Reason,
-// Metadata} always, and errdetails.BadRequest when Fields is non-empty. INTERNAL
-// renders the opaque message.
+// Domain, Metadata} always, and errdetails.BadRequest when Fields is non-empty.
+// INTERNAL renders the opaque message.
 func toConnectError(e *apperrors.AppError) *connect.Error {
 	message := e.Message
 	if e.Code == apperrors.CodeInternal {
@@ -180,7 +228,7 @@ func toConnectError(e *apperrors.AppError) *connect.Error {
 
 	cerr := connect.NewError(connect.Code(e.GRPC), stderrors.New(message))
 
-	if info, err := connect.NewErrorDetail(&errdetails.ErrorInfo{Reason: string(e.Code), Metadata: e.Meta}); err == nil {
+	if info, err := connect.NewErrorDetail(&errdetails.ErrorInfo{Reason: e.ReasonOrCode(), Domain: e.Domain, Metadata: e.Meta}); err == nil {
 		cerr.AddDetail(info)
 	}
 

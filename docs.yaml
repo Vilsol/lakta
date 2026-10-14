@@ -340,7 +340,27 @@ modules:
       - key: read_timeout
         type: time.Duration
         envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__READ_TIMEOUT
-        description: readTimeout bounds reading the entire request incl. body (maps to
+        description: readTimeout bounds reading the entire request incl. body for unary
+      - key: read_max_bytes
+        type: int
+        envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__READ_MAX_BYTES
+        description: readMaxBytes caps each request message (connect ResourceExhausted beyond
+      - key: max_header_bytes
+        type: int
+        envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__MAX_HEADER_BYTES
+        description: maxHeaderBytes caps request header size (http.Server.MaxHeaderBytes)
+      - key: default_deadline
+        type: time.Duration
+        envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__DEFAULT_DEADLINE
+        description: defaultDeadline is applied to unary calls whose client sent none
+      - key: max_deadline
+        type: time.Duration
+        envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__MAX_DEADLINE
+        description: maxDeadline caps unary client deadlines. Default 0 (no cap)
+      - key: allow_get
+        type: bool
+        envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__ALLOW_GET
+        description: allowGet permits Connect GET requests (side-effect-free RPCs). Default
       - key: read_header_timeout
         type: time.Duration
         default: 10s
@@ -359,7 +379,16 @@ modules:
         description: 'is the recommended registrar: it defers handler construction to Init'
       - option: WithInterceptors
         type: '[]connect.Interceptor'
-        description: appends extra connect interceptors to the built-in chain
+        description: appends extra connect interceptors after every slot
+      - option: WithSlot
+        type: map[connect.Slot]connect.InterceptorFactory
+        description: sets the factory for a slot, replacing the built-in one if any
+      - option: WithHTTPMiddleware
+        type: '[]'
+        description: wraps the server handler; the first registered runs outermost
+      - option: WithMountedHook
+        type: '[]connect.MountedHook'
+        description: registers a hook that receives the mounted services
   - category: http
     type: fiber
     package: github.com/Vilsol/lakta/pkg/http/fiber

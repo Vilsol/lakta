@@ -102,8 +102,58 @@ func TestFromErrorOopsLift(t *testing.T) {
 	got := errpkg.FromError(oopsErr)
 
 	testza.AssertEqual(t, errpkg.CodeValidation, got.Code)
-	testza.AssertEqual(t, "email", got.Meta["field"])
 	testza.AssertErrorIs(t, got, oopsErr)
+}
+
+func TestFromErrorOopsContextNeverReachesWire(t *testing.T) {
+	t.Parallel()
+
+	oopsErr := oops.Code("VALIDATION").With("email", "jane@example.com").Errorf("lookup jane@example.com failed")
+	got := errpkg.FromError(oopsErr)
+
+	testza.AssertEqual(t, 0, len(got.Meta))
+	testza.AssertNotContains(t, got.Message, "jane@example.com")
+}
+
+func TestFromErrorOopsClassTag(t *testing.T) {
+	t.Parallel()
+
+	oopsErr := oops.In("note").Code("NOTE_NOT_FOUND").Tags(errpkg.ClassNotFound).Public("note not found").Errorf("lookup 42")
+	got := errpkg.FromError(oopsErr)
+
+	testza.AssertEqual(t, errpkg.CodeNotFound, got.Code)
+	testza.AssertEqual(t, 404, got.HTTP)
+	testza.AssertEqual(t, "NOTE_NOT_FOUND", got.Reason)
+	testza.AssertEqual(t, "note", got.Domain)
+	testza.AssertEqual(t, "note not found", got.Message)
+}
+
+func TestFromErrorOopsWithoutPublicUsesGenericMessage(t *testing.T) {
+	t.Parallel()
+
+	got := errpkg.FromError(oops.Code("SLOT_TAKEN").Tags(errpkg.ClassAborted).Errorf("slot 7 held by user 3"))
+
+	testza.AssertEqual(t, errpkg.CodeAborted, got.Code)
+	testza.AssertEqual(t, "aborted", got.Message)
+}
+
+func TestNewCodesMapToTransportStatus(t *testing.T) {
+	t.Parallel()
+
+	tests := map[errpkg.Code]struct {
+		http int
+		grpc codes.Code
+	}{
+		errpkg.CodeDeadlineExceeded:  {504, codes.DeadlineExceeded},
+		errpkg.CodeResourceExhausted: {429, codes.ResourceExhausted},
+		errpkg.CodeUnimplemented:     {501, codes.Unimplemented},
+		errpkg.CodeAborted:           {409, codes.Aborted},
+	}
+	for code, want := range tests {
+		got := errpkg.New(code, "x")
+		testza.AssertEqual(t, want.http, got.HTTP, string(code))
+		testza.AssertEqual(t, want.grpc, got.GRPC, string(code))
+	}
 }
 
 func TestFromErrorOopsUnknownCode(t *testing.T) {

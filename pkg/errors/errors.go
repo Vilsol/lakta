@@ -7,6 +7,7 @@ package errors
 
 import (
 	stderrors "errors"
+	"strings"
 
 	"github.com/samber/oops"
 	"google.golang.org/grpc/codes"
@@ -24,6 +25,8 @@ type FieldViolation struct {
 // constructors; enrich via the With* builders. The zero value is not valid.
 type AppError struct {
 	Code    Code              // canonical classifier
+	Reason  string            // machine code on the wire (ErrorInfo.Reason); empty means string(Code)
+	Domain  string            // error domain on the wire (ErrorInfo.Domain); may be empty
 	Message string            // human-safe, client-visible message
 	HTTP    int               // seeded from Code; the fiber renderer's status
 	GRPC    codes.Code        // seeded from Code; the gRPC renderer's status code
@@ -107,9 +110,8 @@ func Internal(msg string) *AppError { return New(CodeInternal, msg) }
 // FromError normalizes any error into a non-nil *AppError (nil in -> nil out).
 // Precedence:
 //  1. errors.As(*AppError): return it unchanged (already normalized).
-//  2. oops error (has Code()/Context()): map its Code() to a canonical Code when
-//     it matches, else CodeInternal; lift Context() into Meta (stringified);
-//     preserve the oops error as cause.
+//  2. oops error: see fromOops. Its context, message and stack stay in the
+//     cause (for logs) and never reach Message or Meta (the wire).
 //  3. otherwise: Internal("internal error") with err kept as cause.
 //
 // Framework errors (fiber.Error, grpc status) are NOT mapped here — that lives
@@ -125,19 +127,50 @@ func FromError(err error) *AppError {
 	}
 
 	if oopsErr, ok := oops.AsOops(err); ok {
-		code := CodeInternal
-		if c := stringifyCode(oopsErr.Code()); c != "" {
-			if _, _, ok := lookup(Code(c)); ok {
-				code = Code(c)
-			}
-		}
-
-		result := New(code, err.Error()).WithCause(err)
-		for k, v := range oopsErr.Context() {
-			result = result.WithMeta(k, stringifyValue(v))
-		}
-		return result
+		return fromOops(oopsErr, err)
 	}
 
 	return Internal("internal error").WithCause(err)
+}
+
+// ReasonOrCode returns the machine code rendered as ErrorInfo.Reason.
+func (e *AppError) ReasonOrCode() string {
+	if e.Reason != "" {
+		return e.Reason
+	}
+	return string(e.Code)
+}
+
+// fromOops maps an oops error: the transport class comes from a Class* tag,
+// else from an oops Code() that is itself canonical, else INTERNAL. The oops
+// Code() becomes Reason, In() becomes Domain, and Public() is the only text
+// that reaches Message (a generic per-code message otherwise).
+func fromOops(oopsErr oops.OopsError, cause error) *AppError {
+	reason := stringifyCode(oopsErr.Code())
+
+	code, ok := classFromTags(oopsErr.Tags())
+	if !ok {
+		code = CodeInternal
+		if _, _, known := lookup(Code(reason)); known {
+			code = Code(reason)
+		}
+	}
+
+	msg := oopsErr.Public()
+	if msg == "" || code == CodeInternal {
+		msg = genericMessage(code)
+	}
+
+	result := New(code, msg).WithCause(cause)
+	result.Reason = reason
+	result.Domain = oopsErr.Domain()
+
+	return result
+}
+
+func genericMessage(code Code) string {
+	if code == CodeInternal {
+		return "internal error"
+	}
+	return strings.ToLower(strings.ReplaceAll(string(code), "_", " "))
 }

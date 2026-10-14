@@ -10,6 +10,7 @@ option go_package = "github.com/Vilsol/lakta/pkg/http/connect/internal/gen/test/
 // three-protocol, h2c, drain, and DI tests.
 service EchoService {
   rpc Echo(EchoRequest) returns (EchoResponse);
+  rpc EchoStream(EchoRequest) returns (stream EchoResponse);
 }
 
 message EchoRequest {

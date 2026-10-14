@@ -72,7 +72,9 @@ func TestConnectModule_ValidationParity(t *testing.T) {
 }
 
 // panicEcho panics to exercise the recovery interceptor.
-type panicEcho struct{}
+type panicEcho struct {
+	testv1connect.UnimplementedEchoServiceHandler
+}
 
 func (panicEcho) Echo(_ context.Context, _ *connect.Request[testv1.EchoRequest]) (*connect.Response[testv1.EchoResponse], error) {
 	panic("handler boom")
@@ -106,6 +108,8 @@ func TestConnectModule_PanicRecovery(t *testing.T) {
 
 // greeter is a DI-provided dependency the WithService registrar resolves.
 type greeter struct {
+	testv1connect.UnimplementedEchoServiceHandler
+
 	prefix string
 }
 

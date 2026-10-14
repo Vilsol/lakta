@@ -590,6 +590,15 @@
     "http_connect": {
       "type": "object",
       "properties": {
+        "allow_get": {
+          "type": "boolean",
+          "description": "allowGet permits Connect GET requests (side-effect-free RPCs). Default"
+        },
+        "default_deadline": {
+          "type": "string",
+          "description": "defaultDeadline is applied to unary calls whose client sent none",
+          "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+        },
         "h2c": {
           "type": "boolean",
           "description": "h2C enables cleartext HTTP/2 (h2c) so gRPC clients work without TLS. When",
@@ -599,6 +608,15 @@
           "type": "string",
           "description": "host specifies the address for the server to bind to",
           "default": "0.0.0.0"
+        },
+        "max_deadline": {
+          "type": "string",
+          "description": "maxDeadline caps unary client deadlines. Default 0 (no cap)",
+          "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+        },
+        "max_header_bytes": {
+          "type": "integer",
+          "description": "maxHeaderBytes caps request header size (http.Server.MaxHeaderBytes)"
         },
         "port": {
           "type": "integer",
@@ -611,9 +629,13 @@
           "default": "10s",
           "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
         },
+        "read_max_bytes": {
+          "type": "integer",
+          "description": "readMaxBytes caps each request message (connect ResourceExhausted beyond"
+        },
         "read_timeout": {
           "type": "string",
-          "description": "readTimeout bounds reading the entire request incl. body (maps to",
+          "description": "readTimeout bounds reading the entire request incl. body for unary",
           "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
         },
         "tls": {

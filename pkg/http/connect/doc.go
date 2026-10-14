@@ -5,11 +5,12 @@
 // pkg/grpc/server is retained as the pure grpc-go / xDS escape hatch.
 //
 // Services register via [WithService], the deferred DI-style registrar that
-// receives the assembled shared interceptor chain (otelconnect, logging,
-// recovery, error rendering, protovalidate) to spread into a connect
-// NewXxxHandler constructor. Errors render through the pkg/errors AppError wire
+// receives the assembled interceptor slots (see [Slot]) to spread into a
+// connect NewXxxHandler constructor. Every error is rendered, logged and
+// recorded once by the error-boundary slot through the pkg/errors AppError wire
 // contract, so a protovalidate CEL violation returns the same
-// errdetails.BadRequest a gRPC caller sees.
+// errdetails.BadRequest a gRPC caller sees and oops context never reaches the
+// wire.
 //
 // This is an own go-module (its connect/otelconnect/protovalidate deps must
 // not enter the core graph). Until the next lakta tag the sibling

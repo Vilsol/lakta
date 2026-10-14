@@ -22,6 +22,8 @@ import (
 
 // echoServer echoes the request message back.
 type echoServer struct {
+	testv1connect.UnimplementedEchoServiceHandler
+
 	prefix string
 }
 
@@ -157,6 +159,8 @@ func TestConnectModule_GracefulDrain(t *testing.T) {
 }
 
 type slowEcho struct {
+	testv1connect.UnimplementedEchoServiceHandler
+
 	entered chan struct{}
 	release chan struct{}
 }

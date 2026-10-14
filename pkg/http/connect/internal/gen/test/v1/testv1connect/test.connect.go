@@ -37,6 +37,8 @@ const (
 const (
 	// EchoServiceEchoProcedure is the fully-qualified name of the EchoService's Echo RPC.
 	EchoServiceEchoProcedure = "/test.v1.EchoService/Echo"
+	// EchoServiceEchoStreamProcedure is the fully-qualified name of the EchoService's EchoStream RPC.
+	EchoServiceEchoStreamProcedure = "/test.v1.EchoService/EchoStream"
 	// ValidateServiceCheckProcedure is the fully-qualified name of the ValidateService's Check RPC.
 	ValidateServiceCheckProcedure = "/test.v1.ValidateService/Check"
 )
@@ -44,6 +46,7 @@ const (
 // EchoServiceClient is a client for the test.v1.EchoService service.
 type EchoServiceClient interface {
 	Echo(context.Context, *connect.Request[v1.EchoRequest]) (*connect.Response[v1.EchoResponse], error)
+	EchoStream(context.Context, *connect.Request[v1.EchoRequest]) (*connect.ServerStreamForClient[v1.EchoResponse], error)
 }
 
 // NewEchoServiceClient constructs a client for the test.v1.EchoService service. By default, it uses
@@ -63,12 +66,19 @@ func NewEchoServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(echoServiceMethods.ByName("Echo")),
 			connect.WithClientOptions(opts...),
 		),
+		echoStream: connect.NewClient[v1.EchoRequest, v1.EchoResponse](
+			httpClient,
+			baseURL+EchoServiceEchoStreamProcedure,
+			connect.WithSchema(echoServiceMethods.ByName("EchoStream")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // echoServiceClient implements EchoServiceClient.
 type echoServiceClient struct {
-	echo *connect.Client[v1.EchoRequest, v1.EchoResponse]
+	echo       *connect.Client[v1.EchoRequest, v1.EchoResponse]
+	echoStream *connect.Client[v1.EchoRequest, v1.EchoResponse]
 }
 
 // Echo calls test.v1.EchoService.Echo.
@@ -76,9 +86,15 @@ func (c *echoServiceClient) Echo(ctx context.Context, req *connect.Request[v1.Ec
 	return c.echo.CallUnary(ctx, req)
 }
 
+// EchoStream calls test.v1.EchoService.EchoStream.
+func (c *echoServiceClient) EchoStream(ctx context.Context, req *connect.Request[v1.EchoRequest]) (*connect.ServerStreamForClient[v1.EchoResponse], error) {
+	return c.echoStream.CallServerStream(ctx, req)
+}
+
 // EchoServiceHandler is an implementation of the test.v1.EchoService service.
 type EchoServiceHandler interface {
 	Echo(context.Context, *connect.Request[v1.EchoRequest]) (*connect.Response[v1.EchoResponse], error)
+	EchoStream(context.Context, *connect.Request[v1.EchoRequest], *connect.ServerStream[v1.EchoResponse]) error
 }
 
 // NewEchoServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -94,10 +110,18 @@ func NewEchoServiceHandler(svc EchoServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(echoServiceMethods.ByName("Echo")),
 		connect.WithHandlerOptions(opts...),
 	)
+	echoServiceEchoStreamHandler := connect.NewServerStreamHandler(
+		EchoServiceEchoStreamProcedure,
+		svc.EchoStream,
+		connect.WithSchema(echoServiceMethods.ByName("EchoStream")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/test.v1.EchoService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case EchoServiceEchoProcedure:
 			echoServiceEchoHandler.ServeHTTP(w, r)
+		case EchoServiceEchoStreamProcedure:
+			echoServiceEchoStreamHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -109,6 +133,10 @@ type UnimplementedEchoServiceHandler struct{}
 
 func (UnimplementedEchoServiceHandler) Echo(context.Context, *connect.Request[v1.EchoRequest]) (*connect.Response[v1.EchoResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("test.v1.EchoService.Echo is not implemented"))
+}
+
+func (UnimplementedEchoServiceHandler) EchoStream(context.Context, *connect.Request[v1.EchoRequest], *connect.ServerStream[v1.EchoResponse]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("test.v1.EchoService.EchoStream is not implemented"))
 }
 
 // ValidateServiceClient is a client for the test.v1.ValidateService service.

@@ -21,7 +21,7 @@ const (
 
 // ServiceRegistrar defers handler construction until Init, when the injector is
 // in ctx — mirrors grpcclient.ClientRegistrar. It receives the assembled shared
-// []connect.HandlerOption (interceptor chain) and returns a connect constructor's
+// []connect.HandlerOption (interceptor slots and read limit) and returns a connect constructor's
 // (path, handler) pair; connect already yields the concrete types, so no generic
 // is needed (unlike WithClient[T]).
 type ServiceRegistrar func(ctx context.Context, opts []connect.HandlerOption) (string, http.Handler)
@@ -42,9 +42,29 @@ type Config struct {
 	// TLS is set, standard HTTP/2-over-TLS is used and H2C is ignored.
 	H2C bool `koanf:"h2c"`
 
-	// ReadTimeout bounds reading the entire request incl. body (maps to
-	// http.Server.ReadTimeout). Default 0 (off) — streaming RPCs need unbounded reads.
+	// ReadTimeout bounds reading the entire request incl. body for unary
+	// procedures only (a per-request read deadline). Default 0 (off). Streams
+	// are never bounded by it.
 	ReadTimeout time.Duration `koanf:"read_timeout"`
+
+	// ReadMaxBytes caps each request message (connect ResourceExhausted beyond
+	// it) and the whole body of unary procedures. Default 0 (off).
+	ReadMaxBytes int `koanf:"read_max_bytes"`
+
+	// MaxHeaderBytes caps request header size (http.Server.MaxHeaderBytes).
+	// Default 0 (net/http's 1 MiB).
+	MaxHeaderBytes int `koanf:"max_header_bytes"`
+
+	// DefaultDeadline is applied to unary calls whose client sent none.
+	// Default 0 (none).
+	DefaultDeadline time.Duration `koanf:"default_deadline"`
+
+	// MaxDeadline caps unary client deadlines. Default 0 (no cap).
+	MaxDeadline time.Duration `koanf:"max_deadline"`
+
+	// AllowGet permits Connect GET requests (side-effect-free RPCs). Default
+	// false: GET is refused with 405.
+	AllowGet bool `koanf:"allow_get"`
 
 	// ReadHeaderTimeout bounds reading request headers (maps to
 	// http.Server.ReadHeaderTimeout). Default 10s slowloris guard.
@@ -60,10 +80,20 @@ type Config struct {
 	// ServiceRegistrars holds deferred DI-resolved registrars from WithService.
 	ServiceRegistrars []ServiceRegistrar `code_only:"WithService" koanf:"-"`
 
-	// ExtraInterceptors holds extra connect interceptors appended to the built-in
-	// chain (auth, resilience adapters slot in here later). Named ExtraInterceptors
-	// to avoid clashing with the Interceptors() domain method.
+	// ExtraInterceptors holds extra connect interceptors appended after every
+	// slot (the innermost position). Named ExtraInterceptors to avoid clashing
+	// with the Interceptors() domain method.
 	ExtraInterceptors []connect.Interceptor `code_only:"WithInterceptors" koanf:"-"`
+
+	// Slots overrides or fills interceptor slots (see Slot).
+	Slots map[Slot]InterceptorFactory `code_only:"WithSlot" koanf:"-"`
+
+	// HTTPMiddlewares wrap the whole handler, first registered outermost. They
+	// run before connect reads the request body.
+	HTTPMiddlewares []func(http.Handler) http.Handler `code_only:"WithHTTPMiddleware" koanf:"-"`
+
+	// MountedHooks receive the mounted services at the end of Init.
+	MountedHooks []MountedHook `code_only:"WithMountedHook" koanf:"-"`
 }
 
 // NewDefaultConfig returns default configuration.
@@ -99,29 +129,6 @@ func (c *Config) AddrPort() (netip.AddrPort, error) {
 func (c *Config) ServerTLSConfig() (*tls.Config, error) {
 	cfg, err := c.TLS.ServerConfig()
 	return cfg, oops.Wrapf(err, "failed to build server TLS config")
-}
-
-// Interceptors assembles the shared chain in one place, mirroring grpc/server's
-// hardcoded trio but exposed as a config domain method so Phase 11 auth /
-// resilience extend the slice. Order (outer→inner): otelconnect, logging,
-// recovery, errors, validate, then any code-registered ExtraInterceptors.
-// Returned as a []connect.HandlerOption so registrars pass it straight to
-// NewXxxHandler.
-func (c *Config) Interceptors() []connect.HandlerOption {
-	ics := make([]connect.Interceptor, 0, len(c.ExtraInterceptors)+5) //nolint:mnd // built-in chain length
-
-	if otel := otelInterceptor(); otel != nil {
-		ics = append(ics, otel)
-	}
-	ics = append(ics,
-		loggingInterceptor(),
-		recoveryInterceptor(),
-		errorInterceptor(),
-		validationInterceptor(),
-	)
-	ics = append(ics, c.ExtraInterceptors...)
-
-	return []connect.HandlerOption{connect.WithInterceptors(ics...)}
 }
 
 // Option configures the Module.
@@ -180,7 +187,37 @@ func WithService(fn ServiceRegistrar) Option {
 	return func(m *Config) { m.ServiceRegistrars = append(m.ServiceRegistrars, fn) }
 }
 
-// WithInterceptors appends extra connect interceptors to the built-in chain.
+// WithReadMaxBytes caps request messages and unary bodies.
+func WithReadMaxBytes(n int) Option {
+	return func(m *Config) { m.ReadMaxBytes = n }
+}
+
+// WithMaxHeaderBytes caps request header size.
+func WithMaxHeaderBytes(n int) Option {
+	return func(m *Config) { m.MaxHeaderBytes = n }
+}
+
+// WithDefaultDeadline sets the deadline for unary calls that arrive without one.
+func WithDefaultDeadline(d time.Duration) Option {
+	return func(m *Config) { m.DefaultDeadline = d }
+}
+
+// WithMaxDeadline caps unary client deadlines.
+func WithMaxDeadline(d time.Duration) Option {
+	return func(m *Config) { m.MaxDeadline = d }
+}
+
+// WithAllowGet permits Connect GET requests.
+func WithAllowGet(allow bool) Option {
+	return func(m *Config) { m.AllowGet = allow }
+}
+
+// WithHTTPMiddleware wraps the server handler; the first registered runs outermost.
+func WithHTTPMiddleware(mw func(http.Handler) http.Handler) Option {
+	return func(m *Config) { m.HTTPMiddlewares = append(m.HTTPMiddlewares, mw) }
+}
+
+// WithInterceptors appends extra connect interceptors after every slot.
 func WithInterceptors(interceptors ...connect.Interceptor) Option {
 	return func(m *Config) { m.ExtraInterceptors = append(m.ExtraInterceptors, interceptors...) }
 }

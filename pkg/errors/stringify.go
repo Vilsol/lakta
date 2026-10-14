@@ -13,11 +13,3 @@ func stringifyCode(code any) string {
 	}
 	return fmt.Sprint(code)
 }
-
-// stringifyValue renders an oops Context() value (any) as a string for Meta.
-func stringifyValue(v any) string {
-	if s, ok := v.(string); ok {
-		return s
-	}
-	return fmt.Sprint(v)
-}

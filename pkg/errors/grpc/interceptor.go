@@ -50,7 +50,7 @@ func toStatus(e *errpkg.AppError) *status.Status {
 	st := status.New(e.GRPC, message)
 
 	details := []protoadapt.MessageV1{
-		&errdetails.ErrorInfo{Reason: string(e.Code), Metadata: e.Meta},
+		&errdetails.ErrorInfo{Reason: e.ReasonOrCode(), Domain: e.Domain, Metadata: e.Meta},
 	}
 	if len(e.Fields) > 0 {
 		violations := make([]*errdetails.BadRequest_FieldViolation, 0, len(e.Fields))

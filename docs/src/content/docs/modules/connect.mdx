@@ -37,15 +37,41 @@ For a pre-built handler that already carries its own options, use `WithHandler(p
 
 ## Interceptors
 
-The following interceptors are applied automatically (outer to inner):
+The interceptor chain is a fixed sequence of named slots (outer to inner). Every slot wraps unary and streaming handlers:
 
-- **OpenTelemetry** — trace propagation (when otel is enabled)
-- **Logging** — structured request/response logging via slox
-- **Recovery** — converts panics to Connect errors
-- **Errors** — error normalization
-- **Validation** — request validation
+| Slot | Default |
+|---|---|
+| `SlotOtel` | otelconnect tracing and metrics; remote span contexts are trusted |
+| `SlotRequestID` | accepts an inbound `X-Request-Id` only if it is a UUID or ULID, otherwise generates a ULID; puts it in ctx (`RequestID(ctx)`), the ctx logger and the response |
+| `SlotAccessLog` | one log line per finished call with procedure, code and duration |
+| `SlotErrorBoundary` | renders, logs and records every error from the slots below (see below) |
+| `SlotRecovery` | turns a handler panic into an error with the panic stack |
+| `SlotDeadline` | applies `default_deadline` to unary calls without one and caps them at `max_deadline` |
+| `SlotAuth`, `SlotAuthz` | empty; filled by auth modules or the application |
+| `SlotValidate` | protovalidate on every request message |
+| `SlotUser` | empty; `WithInterceptors(...)` appends after it |
 
-Append your own with `WithInterceptors(...)`; they run after the built-in chain.
+Replace or fill a slot with `WithSlot(slot, factory)`. Factories run during `Init`, so they can resolve DI dependencies. Security interceptors must implement `WrapStreamingHandler` as well as `WrapUnary`.
+
+### Error boundary
+
+Every failed call is handled once, at the boundary:
+
+- **Wire:** the error is mapped through `pkg/errors.FromError`. For oops errors, an `errors.Class*` tag selects the status, `Code()` becomes `ErrorInfo.Reason`, `In()` becomes `ErrorInfo.Domain`, and `Public()` is the only text the client sees. oops context, stack and cause never reach the wire.
+- **Log:** one line with the full error (oops context and stack included), at `ERROR` for 5xx classes and `WARN` otherwise.
+- **Trace:** `span.RecordError` with `error.code` and `error.domain`; the span status is set to error for 5xx classes only.
+
+```go
+var errNoteNotFound = oops.In("note").Code("NOTE_NOT_FOUND").Tags(errors.ClassNotFound).Public("note not found")
+```
+
+### Limits
+
+Before connect reads the request body, an HTTP middleware refuses `GET` to procedures unless `allow_get` is set, and for unary procedures caps the body at `read_max_bytes` and applies `read_timeout`. Streams are capped per message by `read_max_bytes` only. `WithHTTPMiddleware` adds your own middleware around the whole handler.
+
+### Mounted services
+
+`WithMountedHook` receives the descriptors of every mounted protobuf service at the end of `Init` (for example to check that every RPC carries an authorization rule). A hook error fails `Init`.
 
 ## Transport security
 

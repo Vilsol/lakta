@@ -20,6 +20,10 @@ type Code string
 //	FAILED_PRECONDITION  400   FailedPrecondition
 //	UNAVAILABLE          503   Unavailable
 //	INTERNAL             500   Internal
+//	DEADLINE_EXCEEDED    504   DeadlineExceeded
+//	RESOURCE_EXHAUSTED   429   ResourceExhausted
+//	UNIMPLEMENTED        501   Unimplemented
+//	ABORTED              409   Aborted
 const (
 	CodeNotFound           Code = "NOT_FOUND"
 	CodeInvalidArgument    Code = "INVALID_ARGUMENT"
@@ -30,6 +34,10 @@ const (
 	CodeFailedPrecondition Code = "FAILED_PRECONDITION"
 	CodeUnavailable        Code = "UNAVAILABLE"
 	CodeInternal           Code = "INTERNAL"
+	CodeDeadlineExceeded   Code = "DEADLINE_EXCEEDED"
+	CodeResourceExhausted  Code = "RESOURCE_EXHAUSTED"
+	CodeUnimplemented      Code = "UNIMPLEMENTED"
+	CodeAborted            Code = "ABORTED"
 )
 
 const (
@@ -40,6 +48,9 @@ const (
 	statusConflict            = 409
 	statusInternalServerError = 500
 	statusServiceUnavailable  = 503
+	statusTooManyRequests     = 429
+	statusNotImplemented      = 501
+	statusGatewayTimeout      = 504
 )
 
 // lookup returns the (HTTP, codes.Code) seed for a canonical code. The bool is
@@ -65,6 +76,14 @@ func lookup(code Code) (int, codes.Code, bool) {
 		return statusServiceUnavailable, codes.Unavailable, true
 	case CodeInternal:
 		return statusInternalServerError, codes.Internal, true
+	case CodeDeadlineExceeded:
+		return statusGatewayTimeout, codes.DeadlineExceeded, true
+	case CodeResourceExhausted:
+		return statusTooManyRequests, codes.ResourceExhausted, true
+	case CodeUnimplemented:
+		return statusNotImplemented, codes.Unimplemented, true
+	case CodeAborted:
+		return statusConflict, codes.Aborted, true
 	default:
 		return 0, codes.OK, false
 	}
