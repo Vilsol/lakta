@@ -1,8 +1,10 @@
 package lakta_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"reflect"
 	"sync/atomic"
 	"syscall"
@@ -12,6 +14,7 @@ import (
 	"github.com/MarvinJWendt/testza"
 	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/Vilsol/lakta/pkg/testkit"
+	"github.com/Vilsol/slox"
 	"github.com/knadh/koanf/v2"
 	"github.com/samber/do/v2"
 )
@@ -283,6 +286,58 @@ func TestRuntime_DiamondDependencies(t *testing.T) {
 	testza.AssertTrue(t, seqC < seqD)
 }
 
+func TestRuntime_StableSortKeepsListOrder(t *testing.T) {
+	t.Parallel()
+
+	var counter atomic.Int64
+	var seqP, seqC, seqZ int64
+
+	typeA := reflect.TypeFor[*depTypeA]()
+
+	mP := testkit.NewMockProviderModule()
+	mP.ProvidesTypes = []reflect.Type{typeA}
+	mP.OnInit = func(_ context.Context) error { seqP = counter.Add(1); return nil }
+
+	mC := testkit.NewMockProviderModule()
+	mC.RequiredDeps = []reflect.Type{typeA}
+	mC.OnInit = func(_ context.Context) error { seqC = counter.Add(1); return nil }
+
+	// mZ declares nothing; it must still init after mC because it is listed after it.
+	mZ := testkit.NewMockModule()
+	mZ.OnInit = func(_ context.Context) error { seqZ = counter.Add(1); return nil }
+
+	rh := testkit.NewRuntimeHarness(t, mP, mC, mZ)
+	testza.AssertNil(t, rh.Shutdown())
+
+	testza.AssertEqual(t, []int64{1, 2, 3}, []int64{seqP, seqC, seqZ})
+}
+
+func TestRuntime_StableSortPullsDependencyForward(t *testing.T) {
+	t.Parallel()
+
+	var counter atomic.Int64
+	var seqP, seqC, seqZ int64
+
+	typeA := reflect.TypeFor[*depTypeA]()
+
+	mC := testkit.NewMockProviderModule()
+	mC.RequiredDeps = []reflect.Type{typeA}
+	mC.OnInit = func(_ context.Context) error { seqC = counter.Add(1); return nil }
+
+	mP := testkit.NewMockProviderModule()
+	mP.ProvidesTypes = []reflect.Type{typeA}
+	mP.OnInit = func(_ context.Context) error { seqP = counter.Add(1); return nil }
+
+	mZ := testkit.NewMockModule()
+	mZ.OnInit = func(_ context.Context) error { seqZ = counter.Add(1); return nil }
+
+	// mC is listed first but needs mP; only mP moves forward, mZ stays last.
+	rh := testkit.NewRuntimeHarness(t, mC, mP, mZ)
+	testza.AssertNil(t, rh.Shutdown())
+
+	testza.AssertEqual(t, []int64{1, 2, 3}, []int64{seqP, seqC, seqZ})
+}
+
 func TestRuntime_CycleDetected(t *testing.T) {
 	t.Parallel()
 
@@ -303,6 +358,22 @@ func TestRuntime_CycleDetected(t *testing.T) {
 	testza.AssertNotNil(t, err)
 	testza.AssertEqual(t, int32(0), mA.InitCalls.Load())
 	testza.AssertEqual(t, int32(0), mB.InitCalls.Load())
+}
+
+func TestRunContext_LogsSortError(t *testing.T) {
+	t.Parallel()
+
+	m := testkit.NewMockProviderModule()
+	m.RequiredDeps = []reflect.Type{reflect.TypeFor[*depTypeA]()}
+
+	var buf bytes.Buffer
+	ctx := slox.Into(t.Context(), slog.New(slog.NewTextHandler(&buf, nil)))
+
+	err := lakta.NewRuntime(m).RunContext(ctx)
+
+	testza.AssertNotNil(t, err)
+	testza.AssertContains(t, buf.String(), "level=ERROR")
+	testza.AssertContains(t, buf.String(), "depTypeA")
 }
 
 func TestRuntime_MissingRequiredDep(t *testing.T) {

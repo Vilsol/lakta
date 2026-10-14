@@ -28,8 +28,8 @@ type Runtime struct {
 	modules []Module
 }
 
-// NewRuntime creates a runtime with the given modules. Order does not matter —
-// the runtime resolves Init order automatically from Provider/Dependent declarations.
+// NewRuntime creates a runtime with the given modules. Init order follows the
+// Provider/Dependent declarations; where they leave a choice, list order wins.
 func NewRuntime(modules ...Module) *Runtime {
 	return &Runtime{
 		modules: modules,
@@ -49,6 +49,7 @@ func (r *Runtime) Run() error {
 func (r *Runtime) RunContext(ctx context.Context) error {
 	sorted, meta, err := sortModules(r.modules)
 	if err != nil {
+		slox.Error(ctx, "failed resolving module order", slog.Any("error", err))
 		return err
 	}
 
@@ -422,7 +423,7 @@ func describeModules(sorted []Module, meta []moduleMeta) []ModuleInfo {
 }
 
 // sortModules topologically sorts modules based on Provider/Dependent declarations
-// using Kahn's algorithm. Modules with no declared deps preserve their original order.
+// using Kahn's algorithm. The order is stable: list order wins wherever deps allow.
 // meta[i] holds the declarations derived for sorted[i], so callers avoid a second
 // reflect pass. Unmet required deps satisfy errors.Is(err, ErrUnmetDependency).
 func sortModules(modules []Module) ([]Module, []moduleMeta, error) {
@@ -490,28 +491,31 @@ func sortModules(modules []Module) ([]Module, []moduleMeta, error) {
 		}
 	}
 
-	// Kahn's algorithm — seed queue with all zero-in-degree modules in original order
-	queue := make([]int, 0, len(modules))
+	// Kahn's algorithm with the ready set ordered by list position: the next module
+	// is always the earliest-listed one whose deps are met, so the result equals the
+	// caller's list order wherever the dependency graph allows it.
+	ready := make([]int, 0, len(modules))
 
 	for i := range modules {
 		if inDegree[i] == 0 {
-			queue = append(queue, i)
+			ready = append(ready, i)
 		}
 	}
 
 	sorted := make([]Module, 0, len(modules))
 	meta := make([]moduleMeta, 0, len(modules))
 
-	for len(queue) > 0 {
-		idx := queue[0]
-		queue = queue[1:]
+	for len(ready) > 0 {
+		idx := ready[0]
+		ready = ready[1:]
 		sorted = append(sorted, modules[idx])
 		meta = append(meta, metaByIdx[idx])
 
 		for _, next := range edges[idx] {
 			inDegree[next]--
 			if inDegree[next] == 0 {
-				queue = append(queue, next)
+				pos, _ := slices.BinarySearch(ready, next)
+				ready = slices.Insert(ready, pos, next)
 			}
 		}
 	}
