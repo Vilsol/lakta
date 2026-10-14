@@ -11,21 +11,22 @@ import (
 
 // Origin values for a resolved config key.
 const (
-	OriginFile    = "file"
-	OriginEnv     = "env"
-	OriginFlag    = "flag"
-	OriginDefault = "default"
+	OriginFile     = "file"
+	OriginEnv      = "env"
+	OriginFlag     = "flag"
+	OriginOverride = "override"
+	OriginDefault  = "default"
 )
 
 // ProvenanceEntry attributes a config key to the highest layer that set it.
 type ProvenanceEntry struct {
 	Key    string `json:"key"`
-	Origin string `json:"origin"` // file|env|flag|default
+	Origin string `json:"origin"` // file|env|flag|override|default
 	Value  any    `json:"value"`  // pre-redaction; caller redacts before display
 }
 
 // ProvenanceSnapshot reconstructs per-key origin by replaying the module's
-// layers (files -> env -> flag) into throwaway koanf instances and attributing
+// layers (files -> env -> flag -> override) into throwaway koanf instances and attributing
 // each key to the highest layer containing it; keys present in none are
 // "default". koanf has no native per-key origin tracking. Read under RLock.
 func (m *Module) ProvenanceSnapshot() []ProvenanceEntry {
@@ -56,12 +57,15 @@ func (m *Module) ProvenanceSnapshot() []ProvenanceEntry {
 		})
 	}
 
+	overrideK := koanf.New(".")
+	_ = m.applyValues(overrideK)
+
 	all := m.koanf.All()
 	entries := make([]ProvenanceEntry, 0, len(all))
 	for key, val := range all {
 		entries = append(entries, ProvenanceEntry{
 			Key:    key,
-			Origin: originOf(key, fileK, envK, flagK),
+			Origin: originOf(key, fileK, envK, flagK, overrideK),
 			Value:  val,
 		})
 	}
@@ -71,8 +75,10 @@ func (m *Module) ProvenanceSnapshot() []ProvenanceEntry {
 	return entries
 }
 
-func originOf(key string, fileK, envK, flagK *koanf.Koanf) string {
+func originOf(key string, fileK, envK, flagK, overrideK *koanf.Koanf) string {
 	switch {
+	case overrideK.Exists(key):
+		return OriginOverride
 	case flagK.Exists(key):
 		return OriginFlag
 	case envK.Exists(key):

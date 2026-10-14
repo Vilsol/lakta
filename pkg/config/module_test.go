@@ -199,10 +199,11 @@ func TestConfigModule_Provides(t *testing.T) {
 
 	m := NewModule()
 	types := m.Provides()
-	testza.AssertEqual(t, 3, len(types))
+	testza.AssertEqual(t, 4, len(types))
 	testza.AssertTrue(t, types[0] == reflect.TypeFor[*koanf.Koanf]())
 	testza.AssertTrue(t, types[1] == reflect.TypeFor[ReloadNotifier]())
 	testza.AssertTrue(t, types[2] == reflect.TypeFor[*Module]())
+	testza.AssertTrue(t, types[3] == reflect.TypeFor[Profile]())
 }
 
 func TestUnmarshalKoanf(t *testing.T) {

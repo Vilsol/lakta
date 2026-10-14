@@ -25,6 +25,7 @@ func (m *Module) Provides() []reflect.Type {
 		reflect.TypeFor[*koanf.Koanf](),
 		reflect.TypeFor[ReloadNotifier](),
 		reflect.TypeFor[*Module](),
+		reflect.TypeFor[Profile](),
 	}
 }
 
@@ -63,11 +64,16 @@ func (m *Module) Init(ctx context.Context) error {
 		return oops.Wrapf(err, "failed to load CLI flags")
 	}
 
+	if err := m.applyValues(m.koanf); err != nil {
+		return oops.Wrapf(err, "failed to apply override values")
+	}
+
 	m.startWatcher(ctx)
 
 	lakta.ProvideValue(ctx, m.koanf)
 	lakta.ProvideValue[ReloadNotifier](ctx, m)
 	lakta.ProvideValue(ctx, m)
+	lakta.ProvideValue(ctx, m.Profile())
 
 	return nil
 }
@@ -143,6 +149,20 @@ func (m *Module) loadCLIFlags() error {
 	return nil
 }
 
+func (m *Module) applyValues(k *koanf.Koanf) error {
+	for key, val := range m.config.Values {
+		if err := k.Set(key, val); err != nil {
+			return oops.Wrapf(err, "failed to set override %q", key)
+		}
+	}
+	return nil
+}
+
+// Profile returns the active config profile.
+func (m *Module) Profile() Profile {
+	return Profile(m.config.Profile)
+}
+
 func parseFlag(arg string) (string, string, bool) {
 	raw, ok := strings.CutPrefix(arg, "--")
 	if !ok {
@@ -208,6 +228,10 @@ func (m *Module) reload() error {
 		if err := newKoanf.Load(posflag.Provider(m.flagSet, ".", newKoanf), nil); err != nil {
 			return oops.Wrapf(err, "failed to reload CLI flags")
 		}
+	}
+
+	if err := m.applyValues(newKoanf); err != nil {
+		return oops.Wrapf(err, "failed to reapply override values")
 	}
 
 	for _, validate := range m.onValidate {

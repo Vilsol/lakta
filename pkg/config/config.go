@@ -4,6 +4,7 @@
 package config
 
 import (
+	"maps"
 	"os"
 	"time"
 
@@ -44,6 +45,11 @@ type Config struct {
 	// after the base config so its keys win. Empty disables the overlay.
 	// Defaults from the LAKTA_PROFILE env var.
 	Profile string
+
+	// Values are programmatic overrides keyed by dotted koanf path. They are
+	// applied after CLI flags, so they win over every other layer, and they are
+	// replayed on reload. Meant for values known only at runtime (tests).
+	Values map[string]any
 }
 
 // Option manipulates Config.
@@ -106,6 +112,18 @@ func WithArgs(args []string) Option {
 func WithProfile(name string) Option {
 	return func(cfg *Config) {
 		cfg.Profile = name
+	}
+}
+
+// WithValues adds programmatic overrides keyed by dotted koanf path (e.g.
+// "modules.http.connect.default.port"). They take precedence over files, env
+// vars and CLI flags and survive reloads.
+func WithValues(values map[string]any) Option {
+	return func(cfg *Config) {
+		if cfg.Values == nil {
+			cfg.Values = make(map[string]any, len(values))
+		}
+		maps.Copy(cfg.Values, values)
 	}
 }
 

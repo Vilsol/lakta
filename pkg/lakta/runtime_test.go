@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"reflect"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"testing"
@@ -286,56 +287,57 @@ func TestRuntime_DiamondDependencies(t *testing.T) {
 	testza.AssertTrue(t, seqC < seqD)
 }
 
-func TestRuntime_StableSortKeepsListOrder(t *testing.T) {
+func TestRuntime_StableSort(t *testing.T) {
 	t.Parallel()
 
-	var counter atomic.Int64
-	var seqP, seqC, seqZ int64
+	// P provides A, C requires A, Z declares nothing. Whatever the list order,
+	// only C's dependency may move P forward; Z must keep its list position.
+	tests := map[string][]string{
+		"list order already valid":  {"P", "C", "Z"},
+		"dependency pulled forward": {"C", "P", "Z"},
+	}
 
-	typeA := reflect.TypeFor[*depTypeA]()
+	for name, order := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-	mP := testkit.NewMockProviderModule()
-	mP.ProvidesTypes = []reflect.Type{typeA}
-	mP.OnInit = func(_ context.Context) error { seqP = counter.Add(1); return nil }
+			var counter atomic.Int64
+			seq := map[string]int64{}
+			var mu sync.Mutex
+			record := func(n string) func(context.Context) error {
+				return func(context.Context) error {
+					mu.Lock()
+					defer mu.Unlock()
+					seq[n] = counter.Add(1)
+					return nil
+				}
+			}
 
-	mC := testkit.NewMockProviderModule()
-	mC.RequiredDeps = []reflect.Type{typeA}
-	mC.OnInit = func(_ context.Context) error { seqC = counter.Add(1); return nil }
+			typeA := reflect.TypeFor[*depTypeA]()
 
-	// mZ declares nothing; it must still init after mC because it is listed after it.
-	mZ := testkit.NewMockModule()
-	mZ.OnInit = func(_ context.Context) error { seqZ = counter.Add(1); return nil }
+			mP := testkit.NewMockProviderModule()
+			mP.ProvidesTypes = []reflect.Type{typeA}
+			mP.OnInit = record("P")
 
-	rh := testkit.NewRuntimeHarness(t, mP, mC, mZ)
-	testza.AssertNil(t, rh.Shutdown())
+			mC := testkit.NewMockProviderModule()
+			mC.RequiredDeps = []reflect.Type{typeA}
+			mC.OnInit = record("C")
 
-	testza.AssertEqual(t, []int64{1, 2, 3}, []int64{seqP, seqC, seqZ})
-}
+			mZ := testkit.NewMockModule()
+			mZ.OnInit = record("Z")
 
-func TestRuntime_StableSortPullsDependencyForward(t *testing.T) {
-	t.Parallel()
+			byName := map[string]lakta.Module{"P": mP, "C": mC, "Z": mZ}
+			modules := make([]lakta.Module, 0, len(order))
+			for _, n := range order {
+				modules = append(modules, byName[n])
+			}
 
-	var counter atomic.Int64
-	var seqP, seqC, seqZ int64
+			rh := testkit.NewRuntimeHarness(t, modules...)
+			testza.AssertNil(t, rh.Shutdown())
 
-	typeA := reflect.TypeFor[*depTypeA]()
-
-	mC := testkit.NewMockProviderModule()
-	mC.RequiredDeps = []reflect.Type{typeA}
-	mC.OnInit = func(_ context.Context) error { seqC = counter.Add(1); return nil }
-
-	mP := testkit.NewMockProviderModule()
-	mP.ProvidesTypes = []reflect.Type{typeA}
-	mP.OnInit = func(_ context.Context) error { seqP = counter.Add(1); return nil }
-
-	mZ := testkit.NewMockModule()
-	mZ.OnInit = func(_ context.Context) error { seqZ = counter.Add(1); return nil }
-
-	// mC is listed first but needs mP; only mP moves forward, mZ stays last.
-	rh := testkit.NewRuntimeHarness(t, mC, mP, mZ)
-	testza.AssertNil(t, rh.Shutdown())
-
-	testza.AssertEqual(t, []int64{1, 2, 3}, []int64{seqP, seqC, seqZ})
+			testza.AssertEqual(t, []int64{1, 2, 3}, []int64{seq["P"], seq["C"], seq["Z"]})
+		})
+	}
 }
 
 func TestRuntime_CycleDetected(t *testing.T) {
