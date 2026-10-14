@@ -9,6 +9,7 @@ import (
 	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/Vilsol/slox"
 	"github.com/knadh/koanf/v2"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/oops"
 	"go.opentelemetry.io/otel"
 	otellog "go.opentelemetry.io/otel/log"
@@ -57,8 +58,18 @@ func (m *Module) Init(ctx context.Context) error {
 	if !m.config.Enabled {
 		m.providers.shutdown = func(context.Context) error { return nil }
 		provideNoopProviders(ctx)
+		lakta.ProvideValue(ctx, prometheus.NewRegistry())
 		return nil
 	}
+
+	// The registry is always provided so a management server can mount
+	// /metrics regardless of how (or whether) the SDK came up.
+	defer func() {
+		if m.providers.registry == nil {
+			m.providers.registry = prometheus.NewRegistry()
+		}
+		lakta.ProvideValue(ctx, m.providers.registry)
+	}()
 
 	if m.config.SetupFn != nil {
 		shutdown, err := m.config.SetupFn(ctx, m.config.ServiceName)
@@ -130,6 +141,7 @@ func (m *Module) Provides() []reflect.Type {
 		reflect.TypeFor[oteltrace.TracerProvider](),
 		reflect.TypeFor[otelmetric.MeterProvider](),
 		reflect.TypeFor[otellog.LoggerProvider](),
+		reflect.TypeFor[*prometheus.Registry](),
 	}
 }
 

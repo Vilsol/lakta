@@ -38,6 +38,18 @@ ctx, span := tracer.Start(ctx, "operation-name")
 defer span.End()
 ```
 
+## Exporters per signal
+
+`exporters` selects `otlp` or `none` per signal and replaces `signals`. Traces and metrics always get an SDK provider (spans record and trace IDs reach logs without a collector); logs get a provider only for `otlp`. Metrics are always readable through the private `*prometheus.Registry` the module provides in DI, which the management server exposes on `/metrics`.
+
+```yaml
+modules:
+  otel:
+    otel:
+      default:
+        exporters: { traces: otlp, metrics: none, logs: none }
+```
+
 ## Configuration Reference
 
 <ModuleConfig category="otel" type="otel" />

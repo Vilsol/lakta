@@ -12,6 +12,7 @@ import (
 	"github.com/Vilsol/lakta/pkg/otel"
 	"github.com/Vilsol/lakta/pkg/testkit"
 	"github.com/knadh/koanf/v2"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/do/v2"
 	otellog "go.opentelemetry.io/otel/log"
 	otelmetric "go.opentelemetry.io/otel/metric"
@@ -126,7 +127,8 @@ func TestOtelModule_ProvidesTypes(t *testing.T) {
 	m := otel.NewModule()
 	provides := m.Provides()
 
-	testza.AssertEqual(t, 3, len(provides))
+	testza.AssertEqual(t, 4, len(provides))
+	testza.AssertTrue(t, containsType(provides, reflect.TypeFor[*prometheus.Registry]()))
 	testza.AssertTrue(t, containsType(provides, reflect.TypeFor[oteltrace.TracerProvider]()))
 	testza.AssertTrue(t, containsType(provides, reflect.TypeFor[otelmetric.MeterProvider]()))
 	testza.AssertTrue(t, containsType(provides, reflect.TypeFor[otellog.LoggerProvider]()))

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/MarvinJWendt/testza"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
@@ -126,7 +127,7 @@ func TestNewTracerProvider(t *testing.T) {
 	cfg := NewDefaultConfig()
 	cfg.TraceExporter = tracetest.NewInMemoryExporter()
 	res := buildResource(context.Background(), cfg)
-	tp, err := newTracerProvider(context.Background(), cfg, res)
+	tp, err := newTracerProvider(context.Background(), cfg, res, true)
 	testza.AssertNil(t, err)
 	testza.AssertNotNil(t, tp)
 	testza.AssertNil(t, tp.Shutdown(context.Background()))
@@ -137,7 +138,7 @@ func TestNewMeterProvider(t *testing.T) {
 	cfg := NewDefaultConfig()
 	cfg.MetricExporter = noopMetricExporter{}
 	res := buildResource(context.Background(), cfg)
-	mp, err := newMeterProvider(context.Background(), cfg, res)
+	mp, err := newMeterProvider(context.Background(), cfg, res, true, prometheus.NewRegistry())
 	testza.AssertNil(t, err)
 	testza.AssertNotNil(t, mp)
 	testza.AssertNil(t, mp.Shutdown(context.Background()))

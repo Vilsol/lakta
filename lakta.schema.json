@@ -147,6 +147,15 @@
                 }
               },
               "additionalProperties": false
+            },
+            "management": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/http_management"
+                }
+              },
+              "additionalProperties": false
             }
           }
         },
@@ -670,9 +679,32 @@
       },
       "additionalProperties": true
     },
+    "http_management": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "host specifies the address for the server to bind to",
+          "default": "0.0.0.0"
+        },
+        "port": {
+          "type": "integer",
+          "description": "port represents the port number on which the server listens",
+          "default": 8081
+        }
+      },
+      "additionalProperties": false
+    },
     "logging_slog": {
       "type": "object",
       "properties": {
+        "format": {
+          "description": "format selects a built-in output handler: \"json\" (stdlib JSON with keys",
+          "enum": [
+            "json",
+            "text"
+          ]
+        },
         "global_default": {
           "type": "boolean",
           "description": "globalDefault indicates whether the logger should be set as the default globally",
@@ -689,6 +721,14 @@
           "additionalProperties": {
             "type": "string"
           }
+        },
+        "service": {
+          "type": "string",
+          "description": "service is added to every line as \"service\" when Format is set"
+        },
+        "version": {
+          "type": "string",
+          "description": "version is added to every line as \"version\" when Format is set"
         }
       },
       "additionalProperties": false
@@ -719,6 +759,13 @@
         "environment": {
           "type": "string",
           "description": "environment is the deployment environment (e.g. \"production\", \"staging\")"
+        },
+        "exporters": {
+          "type": "object",
+          "description": "exporters selects the exporter per signal (\"traces\", \"metrics\", \"logs\"):",
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "headers": {
           "type": "object",

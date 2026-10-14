@@ -25,7 +25,20 @@ lakta.NewRuntime(
 
 `pkg/logging/tint` wraps [`github.com/lmittmann/tint`](https://github.com/lmittmann/tint) to produce colorized, human-readable console output.
 
-### Configuration Reference
+### Built-in formats
+
+Set `format` on the slog module to skip a separate handler module: `json` writes stdlib JSON lines with the keys `time`, `level` (uppercase), `message`, plus `service` and `version` when set; `text` writes tint output for local development. Trace and span IDs are added from the active span.
+
+```yaml
+modules:
+  logging:
+    slog:
+      default:
+        format: json
+        service: my-service
+```
+
+## Configuration Reference
 
 <ModuleConfig category="logging" type="tint" />
 

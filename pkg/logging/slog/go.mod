@@ -8,10 +8,12 @@ require (
 	github.com/Vilsol/lakta/pkg/testkit v0.4.1
 	github.com/Vilsol/slox v0.1.0
 	github.com/knadh/koanf/v2 v2.3.5
+	github.com/lmittmann/tint v1.2.0
 	github.com/remychantenay/slog-otel v1.3.5
 	github.com/samber/do/v2 v2.1.0
 	github.com/samber/oops v1.23.0
 	go.opentelemetry.io/contrib/bridges/otelslog v0.20.0
+	go.opentelemetry.io/otel/sdk v1.36.0
 )
 
 require (
@@ -27,6 +29,7 @@ require (
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/gookit/color v1.6.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/knadh/koanf/maps v0.1.2 // indirect

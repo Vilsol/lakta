@@ -73,6 +73,13 @@ type Config struct {
 	// Signals lists which telemetry signals to enable: "traces", "metrics", "logs".
 	Signals []string `koanf:"signals"`
 
+	// Exporters selects the exporter per signal ("traces", "metrics", "logs"):
+	// "otlp" or "none". When set, it replaces Signals: traces and metrics always
+	// get an SDK provider (so spans record and trace IDs reach logs, and the
+	// Prometheus registry is fed), with an OTLP exporter only for "otlp"; logs
+	// get a provider only for "otlp". A signal left out means "none".
+	Exporters map[string]string `koanf:"exporters"`
+
 	// SetupFn overrides the default OTLP SDK setup. Useful for testing or custom exporters.
 	SetupFn func(ctx context.Context, serviceName string) (func(context.Context) error, error) `koanf:"-"`
 
@@ -191,6 +198,11 @@ func WithRequired(required bool) Option {
 // WithSignals sets which telemetry signals to enable ("traces", "metrics", "logs").
 func WithSignals(signals ...string) Option {
 	return func(m *Config) { m.Signals = signals }
+}
+
+// WithExporters sets the per-signal exporter ("otlp" or "none").
+func WithExporters(exporters map[string]string) Option {
+	return func(m *Config) { m.Exporters = exporters }
 }
 
 // WithSetupFn overrides the default OTLP SDK setup function.

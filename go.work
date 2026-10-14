@@ -21,6 +21,7 @@ use (
 	./pkg/health
 	./pkg/http/connect
 	./pkg/http/fiber
+	./pkg/http/management
 	./pkg/logging/slog
 	./pkg/logging/tint
 	./pkg/otel

@@ -16,6 +16,7 @@ import (
 	pkg_health "github.com/Vilsol/lakta/pkg/health"
 	pkg_http_connect "github.com/Vilsol/lakta/pkg/http/connect"
 	pkg_http_fiber "github.com/Vilsol/lakta/pkg/http/fiber"
+	pkg_http_management "github.com/Vilsol/lakta/pkg/http/management"
 	pkg_logging_slog "github.com/Vilsol/lakta/pkg/logging/slog"
 	pkg_logging_tint "github.com/Vilsol/lakta/pkg/logging/tint"
 	pkg_otel "github.com/Vilsol/lakta/pkg/otel"
@@ -37,6 +38,7 @@ var defaultEntries = []reflectcfg.Entry{
 	reflectcfg.FromModule(pkg_health.NewModule(), pkg_health.NewDefaultConfig()),
 	reflectcfg.FromModule(pkg_http_connect.NewModule(), pkg_http_connect.NewDefaultConfig()),
 	reflectcfg.FromModule(pkg_http_fiber.NewModule(), pkg_http_fiber.NewDefaultConfig()),
+	reflectcfg.FromModule(pkg_http_management.NewModule(), pkg_http_management.NewDefaultConfig()),
 	reflectcfg.FromModule(pkg_logging_slog.NewModule(), pkg_logging_slog.NewDefaultConfig()),
 	reflectcfg.FromModule(pkg_logging_tint.NewModule(), pkg_logging_tint.NewDefaultConfig()),
 	reflectcfg.FromModule(pkg_otel.NewModule(), pkg_otel.NewDefaultConfig()),

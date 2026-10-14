@@ -437,6 +437,22 @@ modules:
       - option: WithRouterCtx
         type: '[]fiber.RouterCtx'
         description: adds a context-aware router (code-only). Its closure runs during
+  - category: http
+    type: management
+    package: github.com/Vilsol/lakta/pkg/http/management
+    configPath: modules.http.management.<name>
+    description: represents configuration for the management server [Module]
+    fields:
+      - key: host
+        type: string
+        default: 0.0.0.0
+        envVar: LAKTA_MODULES__HTTP__MANAGEMENT__<NAME>__HOST
+        description: host specifies the address for the server to bind to
+      - key: port
+        type: uint16
+        default: "8081"
+        envVar: LAKTA_MODULES__HTTP__MANAGEMENT__<NAME>__PORT
+        description: port represents the port number on which the server listens
   - category: logging
     type: slog
     package: github.com/Vilsol/lakta/pkg/logging/slog
@@ -457,6 +473,23 @@ modules:
         default: "true"
         envVar: LAKTA_MODULES__LOGGING__SLOG__<NAME>__GLOBAL_DEFAULT
         description: globalDefault indicates whether the logger should be set as the default globally
+      - key: format
+        type: string
+        enum: json,text
+        envVar: LAKTA_MODULES__LOGGING__SLOG__<NAME>__FORMAT
+        description: 'format selects a built-in output handler: "json" (stdlib JSON with keys'
+      - key: service
+        type: string
+        envVar: LAKTA_MODULES__LOGGING__SLOG__<NAME>__SERVICE
+        description: service is added to every line as "service" when Format is set
+      - key: version
+        type: string
+        envVar: LAKTA_MODULES__LOGGING__SLOG__<NAME>__VERSION
+        description: version is added to every line as "version" when Format is set
+    codeOnly:
+      - option: WithWriter
+        type: io.Writer
+        description: sets where built-in handlers write
   - category: logging
     type: tint
     package: github.com/Vilsol/lakta/pkg/logging/tint
@@ -541,6 +574,10 @@ modules:
         default: '["traces","metrics","logs"]'
         envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__SIGNALS
         description: 'signals lists which telemetry signals to enable: "traces", "metrics", "logs"'
+      - key: exporters
+        type: map[string]string
+        envVar: LAKTA_MODULES__OTEL__OTEL__<NAME>__EXPORTERS
+        description: 'exporters selects the exporter per signal ("traces", "metrics", "logs"):'
   - category: resilience
     type: policy
     package: github.com/Vilsol/lakta/pkg/resilience/policy

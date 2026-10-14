@@ -79,9 +79,15 @@ func (m *Module) Init(ctx context.Context) error {
 
 	m.validateLevelPrefixes(ctx)
 
-	handler, err := do.Invoke[slog.Handler](injector)
+	handler, err := m.config.builtinHandler()
 	if err != nil {
-		return oops.Wrapf(err, "failed to retrieve logger handler")
+		return oops.Wrapf(err, "failed to build log handler")
+	}
+	if handler == nil {
+		handler, err = do.Invoke[slog.Handler](injector)
+		if err != nil {
+			return oops.Wrapf(err, "no log format set and no slog.Handler provided")
+		}
 	}
 
 	fanout := slog.NewMultiHandler(
@@ -173,11 +179,11 @@ func (m *Module) Provides() []reflect.Type {
 
 // Dependencies declares the types this module needs from DI before Init.
 func (m *Module) Dependencies() ([]reflect.Type, []reflect.Type) {
-	return []reflect.Type{
-			reflect.TypeFor[slog.Handler](),
-		}, []reflect.Type{
-			reflect.TypeFor[*koanf.Koanf](),
-		}
+	// slog.Handler is optional: a built-in Format needs none.
+	return nil, []reflect.Type{
+		reflect.TypeFor[slog.Handler](),
+		reflect.TypeFor[*koanf.Koanf](),
+	}
 }
 
 // Shutdown is a no-op for this module.

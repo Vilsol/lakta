@@ -9,6 +9,7 @@ import (
 	"runtime/debug"
 	"slices"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/oops"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
@@ -19,6 +20,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	otelprom "go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/propagation"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
@@ -34,6 +36,32 @@ type otelProviders struct {
 	tracerProvider *sdktrace.TracerProvider
 	meterProvider  *sdkmetric.MeterProvider
 	loggerProvider *sdklog.LoggerProvider
+	registry       *prometheus.Registry
+}
+
+const (
+	exporterOTLP = "otlp"
+	exporterNone = "none"
+)
+
+// signalMode reports whether a signal gets a provider and whether that
+// provider exports over OTLP. Without Exporters, Signals decides (legacy).
+func (c *Config) signalMode(signal string) (bool, bool, error) {
+	if c.Exporters == nil {
+		on := slices.Contains(c.Signals, signal)
+		return on, on, nil
+	}
+
+	switch mode := c.Exporters[signal]; mode {
+	case exporterOTLP:
+		return true, true, nil
+	case exporterNone, "":
+		// logs without an exporter have nowhere to go; traces and metrics keep
+		// the SDK provider for trace IDs and the Prometheus reader.
+		return signal != signalLogs, false, nil
+	default:
+		return false, false, oops.Errorf("unknown %s exporter %q (want otlp or none)", signal, mode)
+	}
 }
 
 func setupOTelSDK(ctx context.Context, cfg Config) (otelProviders, error) {
@@ -58,9 +86,23 @@ func setupOTelSDK(ctx context.Context, cfg Config) (otelProviders, error) {
 
 	var providers otelProviders
 	providers.shutdown = shutdownAll
+	providers.registry = prometheus.NewRegistry()
 
-	if slices.Contains(cfg.Signals, signalTraces) {
-		tp, tpErr := newTracerProvider(ctx, cfg, res)
+	tracesOn, tracesOTLP, err := cfg.signalMode(signalTraces)
+	if err != nil {
+		return otelProviders{}, err
+	}
+	metricsOn, metricsOTLP, err := cfg.signalMode(signalMetrics)
+	if err != nil {
+		return otelProviders{}, err
+	}
+	logsOn, _, err := cfg.signalMode(signalLogs)
+	if err != nil {
+		return otelProviders{}, err
+	}
+
+	if tracesOn {
+		tp, tpErr := newTracerProvider(ctx, cfg, res, tracesOTLP)
 		if tpErr != nil {
 			_ = shutdownAll(ctx)
 			return otelProviders{}, tpErr
@@ -70,8 +112,8 @@ func setupOTelSDK(ctx context.Context, cfg Config) (otelProviders, error) {
 		providers.tracerProvider = tp
 	}
 
-	if slices.Contains(cfg.Signals, signalMetrics) {
-		mp, mpErr := newMeterProvider(ctx, cfg, res)
+	if metricsOn {
+		mp, mpErr := newMeterProvider(ctx, cfg, res, metricsOTLP, providers.registry)
 		if mpErr != nil {
 			_ = shutdownAll(ctx)
 			return otelProviders{}, mpErr
@@ -87,7 +129,7 @@ func setupOTelSDK(ctx context.Context, cfg Config) (otelProviders, error) {
 		}
 	}
 
-	if slices.Contains(cfg.Signals, signalLogs) {
+	if logsOn {
 		lp, lpErr := newLoggerProvider(ctx, cfg, res)
 		if lpErr != nil {
 			_ = shutdownAll(ctx)
@@ -170,17 +212,21 @@ func serviceInstanceID() string {
 	return fmt.Sprintf("%s-%d", hostname, os.Getpid())
 }
 
-func newTracerProvider(ctx context.Context, cfg Config, res *resource.Resource) (*sdktrace.TracerProvider, error) {
-	exp, err := newTraceExporter(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exp),
+func newTracerProvider(ctx context.Context, cfg Config, res *resource.Resource, export bool) (*sdktrace.TracerProvider, error) {
+	opts := []sdktrace.TracerProviderOption{
 		sdktrace.WithResource(res),
 		sdktrace.WithSampler(buildSampler(cfg.SampleRate)),
-	), nil
+	}
+
+	if export {
+		exp, err := newTraceExporter(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, sdktrace.WithBatcher(exp))
+	}
+
+	return sdktrace.NewTracerProvider(opts...), nil
 }
 
 //nolint:dupl,ireturn
@@ -218,19 +264,30 @@ func newTraceExporter(ctx context.Context, cfg Config) (sdktrace.SpanExporter, e
 	}
 }
 
-func newMeterProvider(ctx context.Context, cfg Config, res *resource.Resource) (*sdkmetric.MeterProvider, error) {
-	exp, err := newMetricExporter(ctx, cfg)
+// newMeterProvider always attaches a Prometheus reader on the module's private
+// registry (scraped via the management server) and adds a periodic OTLP
+// reader only when export is set.
+func newMeterProvider(ctx context.Context, cfg Config, res *resource.Resource, export bool, registry *prometheus.Registry) (*sdkmetric.MeterProvider, error) {
+	promReader, err := otelprom.New(otelprom.WithRegisterer(registry))
 	if err != nil {
-		return nil, err
+		return nil, oops.Wrapf(err, "failed to create Prometheus reader")
 	}
 
-	reader := sdkmetric.NewPeriodicReader(exp, sdkmetric.WithInterval(cfg.MetricInterval))
-
-	return sdkmetric.NewMeterProvider(
-		sdkmetric.WithReader(reader),
+	opts := []sdkmetric.Option{
+		sdkmetric.WithReader(promReader),
 		sdkmetric.WithResource(res),
 		sdkmetric.WithExemplarFilter(exemplar.TraceBasedFilter),
-	), nil
+	}
+
+	if export {
+		exp, err := newMetricExporter(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp, sdkmetric.WithInterval(cfg.MetricInterval))))
+	}
+
+	return sdkmetric.NewMeterProvider(opts...), nil
 }
 
 //nolint:dupl,ireturn
