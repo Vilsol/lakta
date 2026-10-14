@@ -17,6 +17,12 @@ type Principal struct {
 	Roles    []string
 	Claims   map[string]any
 	Token    jwt.Token
+
+	// Session is the "sid" claim (empty when absent).
+	Session string
+
+	// Raw is the verified bearer token for forwarding; it never prints.
+	Raw RawToken
 }
 
 // principalKeyType is the unexported context key for the stashed Principal.

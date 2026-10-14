@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/MarvinJWendt/testza"
+	"github.com/Vilsol/lakta/pkg/config"
+	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/Vilsol/lakta/pkg/testkit"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 )
@@ -123,6 +125,7 @@ func TestInit_StaticProfileGate_OutsideAllowlistRefused(t *testing.T) {
 func TestInit_NoStaticKey_Succeeds(t *testing.T) {
 	t.Parallel()
 	h := testkit.NewHarness(t)
+	lakta.ProvideValue(h.Ctx(), config.Profile("test"))
 	m := NewModule(WithName("default"))
 	err := m.Init(h.Ctx())
 	testza.AssertNoError(t, err)

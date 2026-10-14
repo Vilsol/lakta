@@ -6,28 +6,27 @@ import (
 	"os"
 	"reflect"
 	"slices"
-	"time"
+	"strings"
 
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/Vilsol/slox"
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/hellofresh/health-go/v5"
 	"github.com/knadh/koanf/v2"
-	"github.com/lestrrat-go/httprc/v3"
-	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/samber/do/v2"
 	"github.com/samber/oops"
 )
 
-// profileEnvVar is the active-profile signal that gates the static_key dev path.
+// profileEnvVar is the fallback active-profile signal when no config module
+// provides config.Profile in DI.
 const profileEnvVar = "LAKTA_PROFILE"
-
-// minRefreshInterval bounds how often the JWKS cache re-fetches a keyset.
-const minRefreshInterval = 15 * time.Minute
 
 // Module provides a *Registry at modules.auth.verifier.<instance> via DI.
 type Module struct {
 	config   Config
 	registry *Registry
+	profile  config.Profile
 
 	cacheCancel context.CancelFunc
 }
@@ -49,8 +48,17 @@ func (m *Module) LoadConfig(k *koanf.Koanf) error {
 	return m.config.LoadFromKoanf(k, m.ConfigPath())
 }
 
-// Init builds the Registry from config and provides it into DI.
+// Init builds the Registry from config and provides it into DI. Under a
+// production profile it refuses configurations that only make sense in
+// development. When a *health.Health is in DI, it registers a readiness check
+// that passes once every issuer's keys have loaded.
 func (m *Module) Init(ctx context.Context) error {
+	m.profile = activeProfile(ctx)
+
+	if err := checkProduction(m.profile, m.config); err != nil {
+		return err
+	}
+
 	state, cancel, err := m.buildState(ctx, m.config)
 	if err != nil {
 		return err
@@ -62,6 +70,42 @@ func (m *Module) Init(ctx context.Context) error {
 
 	lakta.ProvideValue(ctx, m.registry)
 
+	if h, herr := do.Invoke[*health.Health](lakta.GetInjector(ctx)); herr == nil {
+		if rerr := h.Register(health.Config{Name: "auth-verifier-" + m.config.Name, Check: m.registry.Ready}); rerr != nil {
+			return oops.Wrapf(rerr, "auth: failed to register readiness check")
+		}
+	}
+
+	return nil
+}
+
+// activeProfile prefers the config module's profile and falls back to the env var.
+func activeProfile(ctx context.Context) config.Profile {
+	if p, err := do.Invoke[config.Profile](lakta.GetInjector(ctx)); err == nil {
+		return p
+	}
+	return config.Profile(os.Getenv(profileEnvVar))
+}
+
+// checkProduction rejects development-only settings under a production profile.
+func checkProduction(profile config.Profile, cfg Config) error {
+	if !profile.IsProduction() {
+		return nil
+	}
+	if len(cfg.Issuers) == 0 {
+		return oops.Errorf("auth: no issuers configured under production profile %q", profile)
+	}
+	if cfg.StaticKey != nil {
+		return oops.Errorf("auth: static_key is not permitted under production profile %q", profile)
+	}
+	for _, ic := range cfg.Issuers {
+		if !strings.HasPrefix(ic.Issuer, "https://") {
+			return oops.Errorf("auth: issuer %q must use https under production profile %q", ic.Issuer, profile)
+		}
+		if ic.JWKSURL != "" && !strings.HasPrefix(ic.JWKSURL, "https://") {
+			return oops.Errorf("auth: jwks_url %q must use https under production profile %q", ic.JWKSURL, profile)
+		}
+	}
 	return nil
 }
 
@@ -92,18 +136,11 @@ func (m *Module) buildState(ctx context.Context, cfg Config) (*registryState, co
 	}, cancel, nil
 }
 
-// buildIssuers resolves every issuer's JWKS (discovering it when empty) into a
-// shared background-refreshing cache and returns the verifier map keyed by iss.
+// buildIssuers creates one lazily loaded keyset per issuer and starts its
+// background loader on ctx. No network access happens here: discovery and the
+// first fetch run in the background (or on first Verify), so the service
+// starts while the identity provider is down.
 func buildIssuers(ctx context.Context, configs []IssuerConfig) (map[string]*issuerVerifier, error) {
-	if len(configs) == 0 {
-		return map[string]*issuerVerifier{}, nil
-	}
-
-	cache, err := jwk.NewCache(ctx, httprc.NewClient())
-	if err != nil {
-		return nil, oops.Wrapf(err, "failed to create jwks cache")
-	}
-
 	issuers := make(map[string]*issuerVerifier, len(configs))
 	for i := range configs {
 		ic := configs[i]
@@ -117,22 +154,6 @@ func buildIssuers(ctx context.Context, configs []IssuerConfig) (map[string]*issu
 			return nil, oops.Errorf("auth: issuer %q algorithms must be non-empty", ic.Issuer)
 		}
 
-		jwksURL := ic.JWKSURL
-		if jwksURL == "" {
-			jwksURL, err = discoverJWKS(ctx, ic.Issuer)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if err = cache.Register(ctx, jwksURL, jwk.WithMinInterval(minRefreshInterval)); err != nil {
-			return nil, oops.Wrapf(err, "auth: failed to register jwks %q", jwksURL)
-		}
-		keyset, csErr := cache.CachedSet(jwksURL)
-		if csErr != nil {
-			return nil, oops.Wrapf(csErr, "auth: failed to build cached keyset for %q", jwksURL)
-		}
-
 		skew := ic.ClockSkew
 		if skew <= 0 {
 			skew = defaultClockSkew
@@ -141,12 +162,16 @@ func buildIssuers(ctx context.Context, configs []IssuerConfig) (map[string]*issu
 			skew = maxClockSkew
 		}
 
+		keys := newLazyKeys(ic.Issuer, ic.JWKSURL)
+		go keys.run(ctx)
+
 		issuers[ic.Issuer] = &issuerVerifier{
 			issuer:    ic.Issuer,
 			audience:  ic.Audience,
 			algs:      ic.Algorithms,
-			keyset:    keyset,
+			keys:      keys,
 			clockSkew: skew,
+			tokenType: ic.TokenType,
 		}
 	}
 
@@ -165,7 +190,7 @@ func (m *Module) buildStatic(ctx context.Context, sk *StaticKey) (*staticVerifie
 		profiles = defaultStaticProfiles()
 	}
 
-	active := os.Getenv(profileEnvVar)
+	active := string(m.profile)
 	if active == "" {
 		return nil, oops.Errorf("auth: static_key is configured but %s is unset; refusing to load the dev key (fail-safe)", profileEnvVar)
 	}
@@ -219,6 +244,8 @@ func (m *Module) Provides() []reflect.Type {
 func (m *Module) Dependencies() ([]reflect.Type, []reflect.Type) {
 	return nil, []reflect.Type{
 		reflect.TypeFor[*koanf.Koanf](),
+		reflect.TypeFor[config.Profile](),
+		reflect.TypeFor[*health.Health](),
 	}
 }
 

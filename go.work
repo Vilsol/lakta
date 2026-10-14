@@ -6,6 +6,7 @@ use (
 	.
 	./cmd
 	./examples/microservices
+	./pkg/auth/connect
 	./pkg/auth/fiber
 	./pkg/auth/grpc
 	./pkg/auth/verifier

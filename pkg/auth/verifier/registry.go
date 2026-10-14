@@ -2,6 +2,7 @@ package verifier
 
 import (
 	"context"
+	stderrors "errors"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -44,8 +45,9 @@ type issuerVerifier struct {
 	issuer    string
 	audience  []string
 	algs      []string
-	keyset    jwk.Set
+	keys      *lazyKeys
 	clockSkew time.Duration
+	tokenType string
 }
 
 // staticVerifier is the HS256-only dev path; it can never reach a JWKS keyset.
@@ -57,8 +59,9 @@ type staticVerifier struct {
 
 // Verify validates rawToken end-to-end and returns the Principal. Every failure
 // path returns an opaque errors.Unauthenticated that never reveals which check
-// failed. See the phase design for the numbered sequence.
-func (r *Registry) Verify(_ context.Context, rawToken string) (*Principal, error) {
+// failed on the wire; ReasonOf recovers the internal reason for logs. Before an
+// issuer's keys have loaded, it returns errors.Unavailable instead.
+func (r *Registry) Verify(ctx context.Context, rawToken string) (*Principal, error) {
 	st := r.state.Load()
 	if st == nil {
 		return nil, unauthenticated()
@@ -69,17 +72,17 @@ func (r *Registry) Verify(_ context.Context, rawToken string) (*Principal, error
 	// 1. Read the JWS header algorithm WITHOUT verifying the signature.
 	alg, ok := headerAlgorithm(raw)
 	if !ok {
-		return nil, unauthenticated()
+		return nil, Reject(ReasonMalformed, nil)
 	}
 	// alg:none (and any empty alg) is rejected outright, before key selection.
 	if alg == "" || alg == jwa.NoSignature().String() {
-		return nil, unauthenticated()
+		return nil, Reject(ReasonAlgorithm, nil)
 	}
 
 	// 1b. Read the unverified issuer purely to route to a keyset.
 	unverified, err := jwt.Parse(raw, jwt.WithVerify(false), jwt.WithValidate(false))
 	if err != nil {
-		return nil, unauthenticated()
+		return nil, Reject(ReasonMalformed, err)
 	}
 	iss, _ := unverified.Issuer()
 
@@ -87,13 +90,17 @@ func (r *Registry) Verify(_ context.Context, rawToken string) (*Principal, error
 	if iv, found := st.issuers[iss]; found {
 		// 3. Enforce the alg allowlist BEFORE key selection.
 		if !slices.Contains(iv.algs, alg) {
-			return nil, unauthenticated()
+			return nil, Reject(ReasonAlgorithm, nil)
 		}
-		tok, verr := iv.verify(raw)
+		keyset, kerr := iv.keys.get(ctx)
+		if kerr != nil {
+			return nil, keysUnavailable(kerr)
+		}
+		tok, verr := iv.verify(raw, keyset)
 		if verr != nil {
-			return nil, unauthenticated()
+			return nil, verr
 		}
-		return buildPrincipal(tok, st.scopeClaim, st.rolesClaim), nil
+		return buildPrincipal(tok, rawToken, st.scopeClaim, st.rolesClaim), nil
 	}
 
 	// The static path is reachable only for HS256 tokens whose iss matches no
@@ -101,12 +108,27 @@ func (r *Registry) Verify(_ context.Context, rawToken string) (*Principal, error
 	if st.staticKey != nil && alg == staticAlgorithm {
 		tok, verr := st.staticKey.verify(raw)
 		if verr != nil {
-			return nil, unauthenticated()
+			return nil, Reject(ReasonInvalid, verr)
 		}
-		return buildPrincipal(tok, st.scopeClaim, st.rolesClaim), nil
+		return buildPrincipal(tok, rawToken, st.scopeClaim, st.rolesClaim), nil
 	}
 
-	return nil, unauthenticated()
+	return nil, Reject(ReasonUnknownIssuer, nil)
+}
+
+// Ready reports an error until every issuer's keys have loaded once. Later
+// refresh failures keep the cached keys and do not affect readiness.
+func (r *Registry) Ready(_ context.Context) error {
+	st := r.state.Load()
+	if st == nil {
+		return oops.Errorf("auth: verifier not initialized")
+	}
+	for iss, iv := range st.issuers {
+		if _, ok := iv.keys.loaded(); !ok {
+			return oops.Errorf("auth: keys for issuer %q not loaded yet", iss)
+		}
+	}
+	return nil
 }
 
 // headerAlgorithm returns the JWS protected-header `alg` without verifying the
@@ -131,19 +153,28 @@ func headerAlgorithm(raw []byte) (string, bool) {
 // iss (exact), exp/nbf (within the capped skew) and audience intersection.
 //
 //nolint:ireturn // returns the jwx jwt.Token interface, the library's own type
-func (iv *issuerVerifier) verify(raw []byte) (jwt.Token, error) {
+func (iv *issuerVerifier) verify(raw []byte, keyset jwk.Set) (jwt.Token, error) {
 	tok, err := jwt.Parse(raw,
-		jwt.WithKeySet(iv.keyset, jws.WithInferAlgorithmFromKey(false)),
+		jwt.WithKeySet(keyset, jws.WithInferAlgorithmFromKey(false)),
 		jwt.WithValidate(true),
 		jwt.WithIssuer(iv.issuer),
 		jwt.WithAcceptableSkew(iv.clockSkew),
 	)
 	if err != nil {
-		return nil, oops.Wrapf(err, "jwt parse")
+		if stderrors.Is(err, jwt.TokenExpiredError()) {
+			return nil, Reject(ReasonExpired, err)
+		}
+		return nil, Reject(ReasonInvalid, err)
 	}
 	aud, _ := tok.Audience()
 	if !intersects(aud, iv.audience) {
-		return nil, oops.Errorf("audience mismatch")
+		return nil, Reject(ReasonAudience, nil)
+	}
+	if iv.tokenType != "" {
+		var typ string
+		if gerr := tok.Get("typ", &typ); gerr != nil || typ != iv.tokenType {
+			return nil, Reject(ReasonTokenType, gerr)
+		}
 	}
 	return tok, nil
 }
@@ -182,7 +213,7 @@ func intersects(have, want []string) bool {
 
 // buildPrincipal materializes the verified token into a Principal, extracting
 // scopes and roles from the configured claim paths.
-func buildPrincipal(tok jwt.Token, scopeClaim, rolesClaim string) *Principal {
+func buildPrincipal(tok jwt.Token, rawToken, scopeClaim, rolesClaim string) *Principal {
 	sub, _ := tok.Subject()
 	iss, _ := tok.Issuer()
 	aud, _ := tok.Audience()
@@ -203,7 +234,15 @@ func buildPrincipal(tok jwt.Token, scopeClaim, rolesClaim string) *Principal {
 		Roles:    roleValues(claimByPath(claims, rolesClaim)),
 		Claims:   claims,
 		Token:    tok,
+		Session:  sessionOf(claims),
+		Raw:      RawToken(rawToken),
 	}
+}
+
+// sessionOf returns the "sid" claim, or "".
+func sessionOf(claims map[string]any) string {
+	sid, _ := claims["sid"].(string)
+	return sid
 }
 
 // claimByPath walks a dotted path (e.g. "realm_access.roles") through nested

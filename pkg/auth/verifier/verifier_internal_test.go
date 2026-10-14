@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/MarvinJWendt/testza"
-	"github.com/lestrrat-go/httprc/v3"
-	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 )
 
@@ -206,14 +204,12 @@ func TestVerify_JWKSRotation_NoReload(t *testing.T) {
 	body.Store(jwksJSON(t, pub1))
 	srv := jwksServer(t, &body)
 
-	// Build a cache with a short constant refresh so rotation is observable.
+	// Short refresh interval so rotation is observable.
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	cache, err := jwk.NewCache(ctx, httprc.NewClient())
-	testza.AssertNoError(t, err)
-	testza.AssertNoError(t, cache.Register(ctx, srv.URL, jwk.WithConstantInterval(200*time.Millisecond)))
-	keyset, err := cache.CachedSet(srv.URL)
-	testza.AssertNoError(t, err)
+	keys := newLazyKeys(testIssuer, srv.URL)
+	keys.refresh = 200 * time.Millisecond
+	go keys.run(ctx)
 
 	reg := &Registry{}
 	reg.state.Store(&registryState{
@@ -221,14 +217,14 @@ func TestVerify_JWKSRotation_NoReload(t *testing.T) {
 			issuer:    testIssuer,
 			audience:  []string{testAudience},
 			algs:      []string{algRS256},
-			keyset:    keyset,
+			keys:      keys,
 			clockSkew: time.Minute,
 		}},
 		scopeClaim: defaultScopeClaim,
 	})
 
 	tok1 := signRS256(t, priv1, func(b *jwt.Builder) *jwt.Builder { return standardClaims(b, testIssuer, testAudience) })
-	_, err = reg.Verify(context.Background(), tok1)
+	_, err := reg.Verify(context.Background(), tok1)
 	testza.AssertNoError(t, err)
 
 	// Rotate: serve a brand-new key (new kid) and sign with it. No config reload.

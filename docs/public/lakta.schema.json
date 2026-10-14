@@ -285,6 +285,10 @@
               "jwks_url": {
                 "type": "string",
                 "description": "JWKSURL is the JWKS endpoint; empty triggers OIDC discovery from Issuer"
+              },
+              "token_type": {
+                "type": "string",
+                "description": "tokenType, when set, requires the payload claim \"typ\" to equal it"
               }
             },
             "additionalProperties": false

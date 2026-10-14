@@ -49,6 +49,10 @@ type IssuerConfig struct {
 	Algorithms []string `koanf:"algorithms"`
 	// ClockSkew is capped at maxClockSkew.
 	ClockSkew time.Duration `koanf:"clock_skew"`
+
+	// TokenType, when set, requires the payload claim "typ" to equal it
+	// (Keycloak access tokens carry typ=Bearer; refresh/ID tokens do not).
+	TokenType string `koanf:"token_type"`
 }
 
 // StaticKey is the isolated HS256 dev path, allow-only under Profiles.
@@ -64,6 +68,11 @@ type Option func(*Config)
 // WithName sets the instance name for this module.
 func WithName(name string) Option {
 	return func(c *Config) { c.Name = name }
+}
+
+// WithIssuers sets the trusted issuers (normally loaded from config).
+func WithIssuers(issuers ...IssuerConfig) Option {
+	return func(c *Config) { c.Issuers = issuers }
 }
 
 // NewDefaultConfig returns default configuration.

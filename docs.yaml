@@ -24,6 +24,9 @@ modules:
           - key: clock_skew
             type: time.Duration
             description: clockSkew is capped at maxClockSkew
+          - key: token_type
+            type: string
+            description: tokenType, when set, requires the payload claim "typ" to equal it
       - key: static_key
         type: '*verifier.StaticKey'
         fields:
