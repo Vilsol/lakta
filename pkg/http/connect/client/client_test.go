@@ -206,3 +206,35 @@ func TestInit_ProductionRequiresTLS(t *testing.T) {
 	m := connectclient.NewModule(connectclient.WithBaseURL("https://dbsvc.errs.svc:8080"))
 	testza.AssertNotNil(t, m.Init(h.Ctx()))
 }
+
+func TestAsService_TokenEndpointHangBounded(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, "server")
+
+	release := make(chan struct{})
+	tokenSrv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+	}))
+	t.Cleanup(tokenSrv.Close)
+	t.Cleanup(func() { close(release) })
+
+	secretFile := filepath.Join(t.TempDir(), "secret")
+	testza.AssertNil(t, os.WriteFile(secretFile, []byte("s3cret"), 0o600))
+	c := e.client(t,
+		connectclient.WithClientCredentials(tokenSrv.URL, "tmplsvc", secretFile),
+		connectclient.WithTokenTimeout(200*time.Millisecond),
+	)
+
+	done := make(chan error, 1)
+	go func() { done <- call(connectclient.AsService(t.Context()), c) }()
+	select {
+	case err := <-done:
+		testza.AssertNotNil(t, err)
+		testza.AssertEqual(t, int32(0), e.down.calls.Load())
+	case <-time.After(3 * time.Second):
+		t.Fatal("AsService call still waiting on a hung token endpoint")
+	}
+}

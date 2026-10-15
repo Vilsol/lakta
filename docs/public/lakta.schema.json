@@ -733,6 +733,12 @@
             "type": "string"
           }
         },
+        "token_timeout": {
+          "type": "string",
+          "description": "tokenTimeout bounds each token endpoint request",
+          "default": "5s",
+          "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+        },
         "token_url": {
           "type": "string",
           "description": "tokenURL, ClientID and ClientSecretFile configure AsService"

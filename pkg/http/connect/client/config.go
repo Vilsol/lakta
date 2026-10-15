@@ -10,7 +10,10 @@ import (
 	"github.com/samber/oops"
 )
 
-const defaultMaxDeadline = 30 * time.Second
+const (
+	defaultMaxDeadline  = 30 * time.Second
+	defaultTokenTimeout = 5 * time.Second
+)
 
 // Config represents configuration for the outbound client [Module].
 type Config struct {
@@ -30,13 +33,16 @@ type Config struct {
 	ClientSecretFile string   `koanf:"client_secret_file"`
 	Scopes           []string `koanf:"scopes"`
 
+	// TokenTimeout bounds each token endpoint request.
+	TokenTimeout time.Duration `koanf:"token_timeout"`
+
 	// TLSProvider builds the client TLS config during Init (e.g. spiffe.ClientTLS(serverID)).
 	TLSProvider func(ctx context.Context) (*tls.Config, error) `code_only:"WithTLSProvider" koanf:"-"`
 }
 
 // NewDefaultConfig returns default configuration.
 func NewDefaultConfig() Config {
-	return Config{Name: config.DefaultInstanceName, MaxDeadline: defaultMaxDeadline}
+	return Config{Name: config.DefaultInstanceName, MaxDeadline: defaultMaxDeadline, TokenTimeout: defaultTokenTimeout}
 }
 
 // NewConfig returns configuration with provided options based on defaults.
@@ -70,3 +76,6 @@ func WithClientCredentials(tokenURL, clientID, secretFile string, scopes ...stri
 		c.TokenURL, c.ClientID, c.ClientSecretFile, c.Scopes = tokenURL, clientID, secretFile, scopes
 	}
 }
+
+// WithTokenTimeout bounds each token endpoint request.
+func WithTokenTimeout(d time.Duration) Option { return func(c *Config) { c.TokenTimeout = d } }

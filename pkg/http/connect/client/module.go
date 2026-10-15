@@ -3,6 +3,7 @@ package connectclient
 import (
 	"context"
 	"crypto/tls"
+	"net/http"
 	"os"
 	"strings"
 
@@ -73,7 +74,8 @@ func (m *Module) Init(ctx context.Context) error {
 			TokenURL:     m.config.TokenURL,
 			Scopes:       m.config.Scopes,
 		}
-		tokens = cc.TokenSource(context.WithoutCancel(ctx))
+		tokenCtx := context.WithValue(context.WithoutCancel(ctx), oauth2.HTTPClient, &http.Client{Timeout: m.config.TokenTimeout})
+		tokens = cc.TokenSource(tokenCtx)
 	}
 
 	m.client = newClient(tlsConfig, m.config, tokens)

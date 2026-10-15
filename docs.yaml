@@ -449,6 +449,11 @@ modules:
       - key: scopes
         type: '[]string'
         envVar: LAKTA_MODULES__HTTP__CONNECT_CLIENT__<NAME>__SCOPES
+      - key: token_timeout
+        type: time.Duration
+        default: 5s
+        envVar: LAKTA_MODULES__HTTP__CONNECT_CLIENT__<NAME>__TOKEN_TIMEOUT
+        description: tokenTimeout bounds each token endpoint request
     codeOnly:
       - option: WithTLSProvider
         type: ""
