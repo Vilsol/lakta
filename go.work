@@ -22,6 +22,7 @@ use (
 	./pkg/grpc
 	./pkg/health
 	./pkg/http/connect
+	./pkg/http/connect/client
 	./pkg/http/fiber
 	./pkg/http/management
 	./pkg/logging/slog
@@ -40,3 +41,11 @@ use (
 )
 
 replace github.com/Vilsol/lakta v0.0.6 => .
+
+// Modules added after the last tag; drop each line once it is tagged.
+replace (
+	github.com/Vilsol/lakta/pkg/auth/connect v0.4.1 => ./pkg/auth/connect
+	github.com/Vilsol/lakta/pkg/auth/spiffe v0.4.1 => ./pkg/auth/spiffe
+	github.com/Vilsol/lakta/pkg/http/connect/client v0.4.1 => ./pkg/http/connect/client
+	github.com/Vilsol/lakta/pkg/http/management v0.4.1 => ./pkg/http/management
+)

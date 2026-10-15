@@ -148,6 +148,15 @@
               },
               "additionalProperties": false
             },
+            "connect_client": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/http_connect_client"
+                }
+              },
+              "additionalProperties": false
+            },
             "fiber": {
               "type": "object",
               "patternProperties": {
@@ -695,6 +704,38 @@
           "items": {
             "type": "string"
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "http_connect_client": {
+      "type": "object",
+      "properties": {
+        "base_url": {
+          "type": "string",
+          "description": "baseURL of the downstream service, e.g. https://dbsvc.errs.svc:8080"
+        },
+        "client_id": {
+          "type": "string"
+        },
+        "client_secret_file": {
+          "type": "string"
+        },
+        "max_deadline": {
+          "type": "string",
+          "description": "maxDeadline caps every call: the deadline is min(inbound remaining, MaxDeadline)",
+          "default": "30s",
+          "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "token_url": {
+          "type": "string",
+          "description": "tokenURL, ClientID and ClientSecretFile configure AsService"
         }
       },
       "additionalProperties": false

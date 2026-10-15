@@ -422,6 +422,38 @@ modules:
         type: '[]connect.MountedHook'
         description: registers a hook that receives the mounted services
   - category: http
+    type: connect_client
+    package: github.com/Vilsol/lakta/pkg/http/connect/client
+    configPath: modules.http.connect_client.<name>
+    description: represents configuration for the outbound client [Module]
+    fields:
+      - key: base_url
+        type: string
+        envVar: LAKTA_MODULES__HTTP__CONNECT_CLIENT__<NAME>__BASE_URL
+        description: baseURL of the downstream service, e.g. https://dbsvc.errs.svc:8080
+      - key: max_deadline
+        type: time.Duration
+        default: 30s
+        envVar: LAKTA_MODULES__HTTP__CONNECT_CLIENT__<NAME>__MAX_DEADLINE
+        description: 'maxDeadline caps every call: the deadline is min(inbound remaining, MaxDeadline)'
+      - key: token_url
+        type: string
+        envVar: LAKTA_MODULES__HTTP__CONNECT_CLIENT__<NAME>__TOKEN_URL
+        description: tokenURL, ClientID and ClientSecretFile configure AsService
+      - key: client_id
+        type: string
+        envVar: LAKTA_MODULES__HTTP__CONNECT_CLIENT__<NAME>__CLIENT_ID
+      - key: client_secret_file
+        type: string
+        envVar: LAKTA_MODULES__HTTP__CONNECT_CLIENT__<NAME>__CLIENT_SECRET_FILE
+      - key: scopes
+        type: '[]string'
+        envVar: LAKTA_MODULES__HTTP__CONNECT_CLIENT__<NAME>__SCOPES
+    codeOnly:
+      - option: WithTLSProvider
+        type: ""
+        description: sets the client TLS config builder
+  - category: http
     type: fiber
     package: github.com/Vilsol/lakta/pkg/http/fiber
     configPath: modules.http.fiber.<name>

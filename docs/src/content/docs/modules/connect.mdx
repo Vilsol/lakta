@@ -77,6 +77,16 @@ With `WithTLSProvider` (for example `spiffe.ServerTLS()`), the server requires c
 
 `WithMountedHook` receives the descriptors of every mounted protobuf service at the end of `Init` (for example to check that every RPC carries an authorization rule). A hook error fails `Init`.
 
+## Outbound client
+
+`pkg/http/connect/client` (`connectclient`) builds clients for service-to-service calls. Pass `Client.HTTPClient()`, `Client.BaseURL()` and `Client.Options()` to a generated `NewXxxClient`.
+
+- **mTLS:** `WithTLSProvider(spiffe.ClientTLS("spiffe://td/ns/x/sa/dbsvc"))` accepts only the expected server.
+- **Credentials per call, fail-closed:** `AsUser(ctx)` forwards the inbound user token, `AsService(ctx)` uses OAuth2 client credentials (`token_url`, `client_id`, `client_secret_file`), `WithToken(ctx, raw)` uses an explicit token. A call without a choice fails before dialing.
+- **Propagation:** request ID, trace context and the verified client IP.
+- **Deadline:** `min(inbound remaining, max_deadline)`.
+- **Errors:** downstream failures become `UNAVAILABLE` (transient codes) or `INTERNAL`; the downstream code and message never reach your caller. `DownstreamCode(err)` returns the original code for branching.
+
 ## Transport security
 
 By default the server listens in plaintext with h2c enabled (`WithH2C`), so gRPC clients connect without TLS. Configure file-path based TLS to serve HTTP/2-over-TLS instead — when TLS is set, h2c is ignored.
