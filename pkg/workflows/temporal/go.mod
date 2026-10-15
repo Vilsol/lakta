@@ -7,9 +7,14 @@ require (
 	github.com/Vilsol/lakta v0.4.1
 	github.com/Vilsol/lakta/pkg/testkit v0.4.1
 	github.com/Vilsol/slox v0.1.0
+	github.com/hellofresh/health-go/v5 v5.5.5
 	github.com/knadh/koanf/v2 v2.3.5
+	github.com/samber/do/v2 v2.0.0
 	github.com/samber/oops v1.23.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0
+	go.opentelemetry.io/otel v1.44.0
+	go.opentelemetry.io/otel/metric v1.44.0
+	go.opentelemetry.io/otel/trace v1.44.0
 	go.temporal.io/sdk v1.47.0
 	go.temporal.io/sdk/contrib/opentelemetry v0.8.1
 	google.golang.org/grpc v1.83.2
@@ -54,7 +59,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/pterm/pterm v0.12.83 // indirect
 	github.com/robfig/cron v1.2.0 // indirect
-	github.com/samber/do/v2 v2.0.0 // indirect
 	github.com/samber/go-type-to-string v1.8.0 // indirect
 	github.com/samber/lo v1.53.0 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
@@ -64,9 +68,6 @@ require (
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/otel v1.44.0 // indirect
-	go.opentelemetry.io/otel/metric v1.44.0 // indirect
-	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	go.temporal.io/api v1.63.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect

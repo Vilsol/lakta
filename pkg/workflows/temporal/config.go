@@ -2,6 +2,7 @@ package temporal
 
 import (
 	"context"
+	"time"
 
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/knadh/koanf/v2"
@@ -45,6 +46,14 @@ type Config struct {
 
 	// Registrars holds a list of functions for registering workflows and activities on a Temporal worker.
 	Registrars []Registrar `code_only:"WithRegistrar" koanf:"-"`
+
+	// Enabled turns the client and worker on. When false, nothing connects and
+	// Start just waits for shutdown (tests, services that only start workflows
+	// elsewhere). Default true.
+	Enabled bool `koanf:"enabled"`
+
+	healthInterval time.Duration
+	backoff        time.Duration
 }
 
 // NewDefaultConfig returns default configuration
@@ -54,6 +63,10 @@ func NewDefaultConfig() Config {
 		Target:     defaultTarget,
 		Registrars: make([]Registrar, 0),
 		Namespace:  "default",
+		Enabled:    true,
+
+		healthInterval: defaultHealthInterval,
+		backoff:        defaultBackoff,
 	}
 }
 
@@ -136,6 +149,19 @@ func WithNamespace(namespace string) Option {
 // WithInsecure enables or disables insecure transport credentials.
 func WithInsecure(insecure bool) Option {
 	return func(m *Config) { m.Insecure = insecure }
+}
+
+// WithEnabled turns the client and worker on or off.
+func WithEnabled(enabled bool) Option {
+	return func(m *Config) { m.Enabled = enabled }
+}
+
+func withHealthInterval(d time.Duration) Option {
+	return func(m *Config) { m.healthInterval = d }
+}
+
+func withBackoff(d time.Duration) Option {
+	return func(m *Config) { m.backoff = d }
 }
 
 // WithRegistrar adds a workflow/activity registrar (code-only).

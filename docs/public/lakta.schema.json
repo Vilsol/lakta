@@ -1150,6 +1150,11 @@
     "workflows_temporal": {
       "type": "object",
       "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "enabled turns the client and worker on. When false, nothing connects and",
+          "default": true
+        },
         "insecure": {
           "type": "boolean",
           "description": "insecure indicates whether transport credentials should be bypassed, enabling an insecure connection"

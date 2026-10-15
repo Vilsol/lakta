@@ -2,44 +2,73 @@ package temporal
 
 import (
 	"context"
+	"log/slog"
 	"reflect"
-	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/Vilsol/slox"
+	"github.com/hellofresh/health-go/v5"
 	"github.com/knadh/koanf/v2"
+	"github.com/samber/do/v2"
 	"github.com/samber/oops"
+	"go.opentelemetry.io/otel"
+	otelmetric "go.opentelemetry.io/otel/metric"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/contrib/opentelemetry"
 	"go.temporal.io/sdk/interceptor"
 	"go.temporal.io/sdk/worker"
 )
 
-// Module manages a Temporal client and worker lifecycle.
+const (
+	defaultHealthInterval = 10 * time.Second
+	defaultBackoff        = time.Second
+	maxBackoff            = 30 * time.Second
+	healthCheckTimeout    = 5 * time.Second
+)
+
+// stopper is the part of worker.Worker the run loop needs after a successful start.
+type stopper interface{ Stop() }
+
+// Module runs a Temporal worker without needing Temporal at boot: Init builds
+// a lazy client (no dial) and validates the registrars; Start keeps trying to
+// start the worker with backoff. The module is ready only once the worker has
+// started and while periodic health checks pass; it exports
+// temporal_worker_connected and temporal_dial_failures.
 type Module struct {
 	lakta.NamedBase
 
 	config Config
 	client client.Client
-	worker worker.Worker
 
-	// interruptCh is closed to signal worker.Run to stop the worker.
-	interruptCh chan any
-	// stopOnce guards interruptCh closure so worker stop happens exactly once.
-	stopOnce sync.Once
-	// closeOnce guards client.Close so it happens exactly once.
-	closeOnce sync.Once
+	tracing interceptor.Interceptor
+
+	startWorker func(ctx context.Context) (stopper, error)
+	checkHealth func(ctx context.Context) error
+
+	started  atomic.Bool
+	running  atomic.Bool
+	healthy  atomic.Bool
+	failures atomic.Int64
+	stopped  chan struct{}
+
+	dialFailures otelmetric.Int64Counter
 }
 
-// NewModule creates a new Temporal module with the given options.
+// NewModule creates a new Temporal module.
 func NewModule(options ...Option) *Module {
 	cfg := NewConfig(options...)
-	return &Module{
-		NamedBase:   lakta.NewNamedBase(cfg.Name),
-		config:      cfg,
-		interruptCh: make(chan any),
+	m := &Module{
+		NamedBase: lakta.NewNamedBase(cfg.Name),
+		config:    cfg,
+		stopped:   make(chan struct{}),
 	}
+	m.startWorker = m.defaultStartWorker
+	m.checkHealth = m.defaultCheckHealth
+	return m
 }
 
 // ConfigPath returns the koanf path for this module's configuration.
@@ -59,38 +88,50 @@ func (m *Module) Provides() []reflect.Type {
 	}
 }
 
-// Dependencies declares the types this module needs from DI before Init.
+// Dependencies declares what this module uses when present, so it initializes
+// after logging, telemetry and the health container.
 func (m *Module) Dependencies() ([]reflect.Type, []reflect.Type) {
-	return nil, nil
+	return nil, []reflect.Type{
+		reflect.TypeFor[*koanf.Koanf](),
+		reflect.TypeFor[*slog.Logger](),
+		reflect.TypeFor[oteltrace.TracerProvider](),
+		reflect.TypeFor[otelmetric.MeterProvider](),
+		reflect.TypeFor[*health.Health](),
+	}
 }
 
-// Init connects to Temporal and registers the client in DI before Start runs.
+// Init builds the lazy client and checks that the registrars succeed on a
+// throwaway worker. It never contacts Temporal.
 func (m *Module) Init(ctx context.Context) error {
+	if !m.config.Enabled {
+		return nil
+	}
 	if m.config.TaskQueue == "" {
 		return oops.Errorf("task queue is required in temporal configuration")
 	}
 
-	tracingInterceptor, err := opentelemetry.NewTracingInterceptor(opentelemetry.TracerOptions{})
+	tracing, err := opentelemetry.NewTracingInterceptor(opentelemetry.TracerOptions{})
 	if err != nil {
 		return oops.Wrapf(err, "failed to create tracing interceptor")
 	}
+	m.tracing = tracing
 
-	clientOpts := m.config.ClientOptions(
-		slox.From(ctx),
-		[]interceptor.ClientInterceptor{tracingInterceptor},
-	)
-	m.client, err = client.Dial(clientOpts)
+	m.client, err = client.NewLazyClient(m.config.ClientOptions(slox.From(ctx), []interceptor.ClientInterceptor{tracing}))
 	if err != nil {
-		return oops.Wrapf(err, "failed to connect to Temporal")
+		return oops.Wrapf(err, "failed to create Temporal client")
 	}
 
-	m.worker = worker.New(m.client, m.config.TaskQueue, m.config.WorkerOptions(ctx, []interceptor.WorkerInterceptor{tracingInterceptor}))
-
+	probe := worker.New(m.client, m.config.TaskQueue, m.config.WorkerOptions(ctx, []interceptor.WorkerInterceptor{tracing}))
 	for _, register := range m.config.Registrars {
-		if err := register(ctx, m.worker); err != nil {
-			m.closeClient()
+		if err := register(ctx, probe); err != nil {
+			m.client.Close()
 			return oops.Wrapf(err, "failed to register workflows and activities")
 		}
+	}
+
+	if err := m.registerTelemetry(ctx); err != nil {
+		m.client.Close()
+		return err
 	}
 
 	lakta.ProvideValue[client.Client](ctx, m.client)
@@ -98,44 +139,138 @@ func (m *Module) Init(ctx context.Context) error {
 	return nil
 }
 
-// Start runs the worker, blocking until the runtime context is cancelled.
-func (m *Module) Start(ctx context.Context) error {
-	// Watch the runtime context: cancellation closes interruptCh so worker.Run unblocks.
-	go func() {
-		select {
-		case <-ctx.Done():
-			m.signalStop()
-		case <-m.interruptCh:
-		}
-	}()
+func (m *Module) registerTelemetry(ctx context.Context) error {
+	provider := otel.GetMeterProvider()
+	if mp, err := do.Invoke[otelmetric.MeterProvider](lakta.GetInjector(ctx)); err == nil {
+		provider = mp
+	}
+	meter := provider.Meter("github.com/Vilsol/lakta/pkg/workflows/temporal")
 
-	if err := m.worker.Run(m.interruptCh); err != nil {
-		m.closeClient()
-		return oops.Wrapf(err, "failed to start worker")
+	var err error
+	m.dialFailures, err = meter.Int64Counter("temporal_dial_failures",
+		otelmetric.WithDescription("Failed attempts to start the Temporal worker."))
+	if err != nil {
+		return oops.Wrapf(err, "failed to create dial failure counter")
+	}
+
+	_, err = meter.Int64ObservableGauge("temporal_worker_connected",
+		otelmetric.WithDescription("1 while the Temporal worker runs and Temporal answers health checks."),
+		otelmetric.WithInt64Callback(func(ctx context.Context, o otelmetric.Int64Observer) error {
+			if m.Ready(ctx) == nil {
+				o.Observe(1)
+			} else {
+				o.Observe(0)
+			}
+			return nil
+		}))
+	if err != nil {
+		return oops.Wrapf(err, "failed to create worker gauge")
+	}
+
+	if h, herr := do.Invoke[*health.Health](lakta.GetInjector(ctx)); herr == nil {
+		if rerr := h.Register(health.Config{Name: "temporal-" + m.config.Name, Check: m.Ready}); rerr != nil {
+			return oops.Wrapf(rerr, "failed to register readiness check")
+		}
 	}
 
 	return nil
 }
 
-// Shutdown stops the worker and closes the Temporal client.
-func (m *Module) Shutdown(_ context.Context) error {
-	m.signalStop()
-	m.closeClient()
+// Ready fails until the worker has started and whenever Temporal stops
+// answering health checks.
+func (m *Module) Ready(_ context.Context) error {
+	if !m.running.Load() {
+		return oops.Errorf("temporal worker is not running")
+	}
+	if !m.healthy.Load() {
+		return oops.Errorf("temporal is not answering health checks")
+	}
 	return nil
 }
 
-// signalStop closes interruptCh once, unblocking worker.Run which stops the worker.
-func (m *Module) signalStop() {
-	m.stopOnce.Do(func() {
-		close(m.interruptCh)
-	})
+// Start keeps trying to start the worker until it runs, then blocks until ctx
+// is done and stops the worker. When disabled it only waits for ctx.
+func (m *Module) Start(ctx context.Context) error {
+	m.started.Store(true)
+	defer close(m.stopped)
+
+	if !m.config.Enabled {
+		<-ctx.Done()
+		return nil
+	}
+
+	go m.healthLoop(ctx)
+
+	backoff := m.config.backoff
+	for {
+		w, err := m.startWorker(ctx)
+		if err == nil {
+			m.running.Store(true)
+			<-ctx.Done()
+			m.running.Store(false)
+			w.Stop()
+			return nil
+		}
+
+		m.failures.Add(1)
+		if m.dialFailures != nil {
+			m.dialFailures.Add(ctx, 1)
+		}
+		slox.Warn(ctx, "temporal worker failed to start, retrying",
+			slog.Any("error", err), slog.Duration("retry_in", backoff))
+
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(backoff):
+		}
+		backoff = min(backoff*2, maxBackoff) //nolint:mnd // exponential backoff
+	}
 }
 
-// closeClient closes the Temporal client at most once.
-func (m *Module) closeClient() {
-	m.closeOnce.Do(func() {
-		if m.client != nil {
-			m.client.Close()
+func (m *Module) healthLoop(ctx context.Context) {
+	for {
+		checkCtx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
+		m.healthy.Store(m.checkHealth(checkCtx) == nil)
+		cancel()
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(m.config.healthInterval):
 		}
-	})
+	}
+}
+
+func (m *Module) defaultStartWorker(ctx context.Context) (stopper, error) { //nolint:ireturn // narrow internal interface
+	w := worker.New(m.client, m.config.TaskQueue, m.config.WorkerOptions(ctx, []interceptor.WorkerInterceptor{m.tracing}))
+	for _, register := range m.config.Registrars {
+		if err := register(ctx, w); err != nil {
+			return nil, oops.Wrapf(err, "failed to register workflows and activities")
+		}
+	}
+	if err := w.Start(); err != nil {
+		return nil, oops.Wrapf(err, "failed to start worker")
+	}
+	return w, nil
+}
+
+func (m *Module) defaultCheckHealth(ctx context.Context) error {
+	_, err := m.client.CheckHealth(ctx, &client.CheckHealthRequest{})
+	return oops.Wrapf(err, "temporal health check failed")
+}
+
+// Shutdown waits for Start to stop the worker, then closes the client.
+func (m *Module) Shutdown(ctx context.Context) error {
+	if m.started.Load() {
+		select {
+		case <-m.stopped:
+		case <-ctx.Done():
+			return oops.Wrapf(ctx.Err(), "temporal worker did not stop in time")
+		}
+	}
+	if m.client != nil {
+		m.client.Close()
+	}
+	return nil
 }

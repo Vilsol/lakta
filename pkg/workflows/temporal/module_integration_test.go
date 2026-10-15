@@ -5,6 +5,7 @@ package temporal_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/MarvinJWendt/testza"
 	"github.com/Vilsol/lakta/pkg/testkit"
@@ -40,4 +41,32 @@ func TestTemporalModule_Start_ConnectsAndRunsWorker(t *testing.T) {
 
 	rh := testkit.NewRuntimeHarness(t, m)
 	testza.AssertNil(t, rh.Shutdown())
+}
+
+func TestTemporalModule_ReadyOnlyWithExistingNamespace(t *testing.T) {
+	t.Parallel()
+
+	srv := startDevServer(t)
+
+	ready := pkgtemporal.NewModule(
+		pkgtemporal.WithTarget(srv.FrontendHostPort()),
+		pkgtemporal.WithTaskQueue("ready-queue"),
+		pkgtemporal.WithInsecure(true),
+	)
+	missing := pkgtemporal.NewModule(
+		pkgtemporal.WithName("missing"),
+		pkgtemporal.WithTarget(srv.FrontendHostPort()),
+		pkgtemporal.WithNamespace("does-not-exist"),
+		pkgtemporal.WithTaskQueue("missing-queue"),
+		pkgtemporal.WithInsecure(true),
+	)
+	testkit.NewRuntimeHarness(t, ready)
+	testkit.NewRuntimeHarness(t, missing)
+
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) && ready.Ready(t.Context()) != nil {
+		time.Sleep(100 * time.Millisecond)
+	}
+	testza.AssertNil(t, ready.Ready(t.Context()))
+	testza.AssertNotNil(t, missing.Ready(t.Context()))
 }

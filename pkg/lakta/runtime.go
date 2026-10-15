@@ -204,6 +204,20 @@ func (r *Runtime) RunContext(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			slox.Info(ctx, "shutdown signal received")
+
+			// Sync modules see the same cancellation; let their Start return
+			// (e.g. a worker finishing in-flight tasks) before any Shutdown runs,
+			// within the one shutdown deadline.
+			stopCtx, cancel := shutdownContext(ctx)
+			defer cancel()
+
+			select {
+			case <-syncDone:
+			case <-stopCtx.Done():
+				slox.Warn(ctx, "sync modules did not return before the shutdown deadline")
+			}
+
+			return r.shutdown(stopCtx, initialized, info)
 		case <-syncDone:
 			// A sync module returned, so we are shutting down regardless. Surface the
 			// originating cause only if it was a genuine failure — not a clean exit

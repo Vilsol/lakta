@@ -832,6 +832,11 @@ modules:
         type: bool
         envVar: LAKTA_MODULES__WORKFLOWS__TEMPORAL__<NAME>__INSECURE
         description: insecure indicates whether transport credentials should be bypassed, enabling an insecure connection
+      - key: enabled
+        type: bool
+        default: "true"
+        envVar: LAKTA_MODULES__WORKFLOWS__TEMPORAL__<NAME>__ENABLED
+        description: enabled turns the client and worker on. When false, nothing connects and
     codeOnly:
       - option: Credentials
         type: credentials.TransportCredentials

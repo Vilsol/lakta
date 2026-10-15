@@ -94,6 +94,15 @@ func (s *WorkflowServer) StartOrderWorkflow(ctx context.Context, req *v1.StartOr
 }
 ```
 
+## Lazy connection and readiness
+
+`Init` never contacts Temporal: it builds a lazy client and checks the registrars on a throwaway worker. `Start` keeps trying to start the worker with backoff (1 s doubling to 30 s), so the service stays live while Temporal is down.
+
+- Readiness (registered on `*health.Health` when present) passes only after the worker has started (which validates the namespace) and while periodic `CheckHealth` calls succeed.
+- Metrics: `temporal_worker_connected` (1/0) and `temporal_dial_failures`.
+- `enabled: false` turns the client and worker off; `Start` then only waits for shutdown.
+- On shutdown the worker stops (finishing in-flight tasks within the deadline) before the client closes.
+
 ## Configuration Reference
 
 <ModuleConfig category="workflows" type="temporal" />
