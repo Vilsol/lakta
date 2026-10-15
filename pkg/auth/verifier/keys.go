@@ -25,9 +25,17 @@ type lazyKeys struct {
 	issuer  string
 	refresh time.Duration
 
-	mu      sync.Mutex // serializes discovery and fetches
-	jwksURL string
-	set     atomic.Value // jwk.Set once loaded
+	mu       sync.Mutex // guards inflight
+	inflight *keysFetch
+	jwksURL  string       // written only by the single in-flight fetch
+	set      atomic.Value // jwk.Set once loaded
+}
+
+// keysFetch is one fetch shared by every caller that arrives while it runs.
+type keysFetch struct {
+	done chan struct{}
+	set  jwk.Set
+	err  error
 }
 
 func newLazyKeys(issuer, jwksURL string) *lazyKeys {
@@ -47,19 +55,47 @@ func (k *lazyKeys) get(ctx context.Context) (jwk.Set, error) { //nolint:ireturn 
 	return k.fetch(ctx, false)
 }
 
-// fetch loads the keys. Without force it returns early when another caller
-// already loaded them while this one waited for the lock.
+// fetch loads the keys, joining a fetch already in flight. Without force it
+// returns the cached keys when present. The fetch itself is detached from ctx,
+// so a caller giving up does not fail the others; ctx only bounds the wait.
 func (k *lazyKeys) fetch(ctx context.Context, force bool) (jwk.Set, error) { //nolint:ireturn // jwk.Set is the library's type
 	k.mu.Lock()
-	defer k.mu.Unlock()
-
 	if s, ok := k.loaded(); ok && !force {
+		k.mu.Unlock()
 		return s, nil
 	}
+	f := k.inflight
+	if f == nil {
+		f = &keysFetch{done: make(chan struct{})}
+		k.inflight = f
+		go k.do(context.WithoutCancel(ctx), f)
+	}
+	k.mu.Unlock()
 
+	select {
+	case <-f.done:
+		return f.set, f.err
+	case <-ctx.Done():
+		return nil, oops.Wrapf(ctx.Err(), "auth: gave up waiting for jwks of %q", k.issuer)
+	}
+}
+
+func (k *lazyKeys) do(ctx context.Context, f *keysFetch) {
 	ctx, cancel := context.WithTimeout(ctx, jwksFetchTimeout)
 	defer cancel()
 
+	f.set, f.err = k.load(ctx)
+	if f.err == nil {
+		k.set.Store(f.set)
+	}
+
+	k.mu.Lock()
+	k.inflight = nil
+	k.mu.Unlock()
+	close(f.done)
+}
+
+func (k *lazyKeys) load(ctx context.Context) (jwk.Set, error) { //nolint:ireturn // jwk.Set is the library's type
 	if k.jwksURL == "" {
 		url, err := discoverJWKS(ctx, k.issuer)
 		if err != nil {
@@ -72,8 +108,6 @@ func (k *lazyKeys) fetch(ctx context.Context, force bool) (jwk.Set, error) { //n
 	if err != nil {
 		return nil, oops.Wrapf(err, "auth: failed to fetch jwks %q", k.jwksURL)
 	}
-	k.set.Store(set)
-
 	return set, nil
 }
 
