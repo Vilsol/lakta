@@ -69,6 +69,10 @@ var errNoteNotFound = oops.In("note").Code("NOTE_NOT_FOUND").Tags(errors.ClassNo
 
 Before connect reads the request body, an HTTP middleware refuses `GET` to procedures unless `allow_get` is set, and for unary procedures caps the body at `read_max_bytes` and applies `read_timeout`. Streams are capped per message by `read_max_bytes` only. `WithHTTPMiddleware` adds your own middleware around the whole handler.
 
+### Caller identity (mTLS)
+
+With `WithTLSProvider` (for example `spiffe.ServerTLS()`), the server requires client certificates and h2c is off. An HTTP middleware runs before the body is read: it takes the caller's SPIFFE ID from the certificate URI SAN (`PeerID(ctx)`), refuses callers not in `allowed_callers` with `PERMISSION_DENIED` (an empty list refuses everyone), and believes `X-Client-IP` only from `trusted_ip_callers` (`ClientIP(ctx)`); the raw header never reaches handlers. Rejections and failed TLS handshakes emit `security_event` log lines. With `require_peer_auth: true`, a production profile refuses to start without mTLS or with an empty `allowed_callers`.
+
 ### Mounted services
 
 `WithMountedHook` receives the descriptors of every mounted protobuf service at the end of `Init` (for example to check that every RPC carries an authorization rule). A hook error fails `Init`.

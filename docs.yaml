@@ -1,5 +1,19 @@
 modules:
   - category: auth
+    type: spiffe
+    package: github.com/Vilsol/lakta/pkg/auth/spiffe
+    configPath: modules.auth.spiffe.<name>
+    description: represents configuration for the SPIFFE [Module]
+    fields:
+      - key: socket_path
+        type: string
+        envVar: LAKTA_MODULES__AUTH__SPIFFE__<NAME>__SOCKET_PATH
+        description: socketPath is the Workload API address, e.g. unix:///spiffe-workload-api/spire-agent.sock
+      - key: trust_domain
+        type: string
+        envVar: LAKTA_MODULES__AUTH__SPIFFE__<NAME>__TRUST_DOMAIN
+        description: trustDomain is the trust domain peers must belong to
+  - category: auth
     type: verifier
     package: github.com/Vilsol/lakta/pkg/auth/verifier
     configPath: modules.auth.verifier.<name>
@@ -364,6 +378,18 @@ modules:
         type: bool
         envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__ALLOW_GET
         description: allowGet permits Connect GET requests (side-effect-free RPCs). Default
+      - key: allowed_callers
+        type: '[]string'
+        envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__ALLOWED_CALLERS
+        description: allowedCallers lists the SPIFFE IDs allowed to call this server when peer
+      - key: trusted_ip_callers
+        type: '[]string'
+        envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__TRUSTED_IP_CALLERS
+        description: trustedIPCallers lists the SPIFFE IDs whose X-Client-IP header is believed
+      - key: require_peer_auth
+        type: bool
+        envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__REQUIRE_PEER_AUTH
+        description: requirePeerAuth makes mTLS and a non-empty AllowedCallers mandatory under
       - key: read_header_timeout
         type: time.Duration
         default: 10s
@@ -374,6 +400,9 @@ modules:
         envVar: LAKTA_MODULES__HTTP__CONNECT__<NAME>__TLS
         description: TLS configures file-path based transport security. When unset the server
     codeOnly:
+      - option: WithTLSProvider
+        type: ""
+        description: builds the server TLS config during Init
       - option: WithHandler
         type: map[string]http.Handler
         description: registers a pre-built (path, handler) pair directly; spreads a

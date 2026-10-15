@@ -2,11 +2,13 @@ package connect
 
 import (
 	"context"
+	"crypto/tls"
 	stderrors "errors"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/netip"
+	"os"
 	"reflect"
 	"slices"
 	"sync"
@@ -15,6 +17,7 @@ import (
 	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/Vilsol/slox"
 	"github.com/knadh/koanf/v2"
+	"github.com/samber/do/v2"
 	"github.com/samber/oops"
 	"golang.org/x/sync/errgroup"
 )
@@ -28,9 +31,10 @@ type Module struct {
 
 	config Config
 
-	handler  http.Handler
-	server   *http.Server
-	addrPort netip.AddrPort
+	handler   http.Handler
+	tlsConfig *tls.Config
+	server    *http.Server
+	addrPort  netip.AddrPort
 
 	mu       sync.Mutex
 	listener net.Listener
@@ -83,6 +87,19 @@ func (m *Module) Init(ctx context.Context) error {
 	for _, mw := range slices.Backward(m.config.HTTPMiddlewares) {
 		handler = mw(handler)
 	}
+	handler = m.config.peerMiddleware(handler)
+
+	if err := m.checkProduction(ctx); err != nil {
+		return err
+	}
+
+	if m.config.TLSProvider != nil {
+		tlsConfig, terr := m.config.TLSProvider(ctx)
+		if terr != nil {
+			return oops.Wrapf(terr, "failed to build server TLS config")
+		}
+		m.tlsConfig = tlsConfig
+	}
 
 	addrPort, err := m.config.AddrPort()
 	if err != nil {
@@ -103,9 +120,12 @@ func (m *Module) Start(ctx context.Context) error {
 		return oops.Wrapf(err, "failed to listen on %s", m.addrPort)
 	}
 
-	tlsConfig, err := m.config.ServerTLSConfig()
-	if err != nil {
-		return oops.Wrapf(err, "failed to build server TLS config")
+	tlsConfig := m.tlsConfig
+	if tlsConfig == nil {
+		tlsConfig, err = m.config.ServerTLSConfig()
+		if err != nil {
+			return oops.Wrapf(err, "failed to build server TLS config")
+		}
 	}
 
 	// Handlers see the runtime ctx values (injector, logger) but not its
@@ -117,8 +137,9 @@ func (m *Module) Start(ctx context.Context) error {
 		MaxHeaderBytes:    m.config.MaxHeaderBytes,
 		TLSConfig:         tlsConfig,
 		BaseContext:       func(net.Listener) context.Context { return baseCtx },
+		ErrorLog:          newHandshakeLogger(baseCtx),
 	}
-	if m.config.H2C && !m.config.TLS.Enabled() {
+	if m.config.H2C && tlsConfig == nil {
 		protocols := new(http.Protocols)
 		protocols.SetHTTP1(true)
 		protocols.SetUnencryptedHTTP2(true)
@@ -173,10 +194,31 @@ func (m *Module) Shutdown(ctx context.Context) error {
 	return oops.Wrapf(srv.Shutdown(ctx), "failed to shut down connect server")
 }
 
-// Dependencies declares the optional *koanf.Koanf this module needs before Init
-// (copied from grpc/server). No required deps; Provides nothing.
+// checkProduction enforces RequirePeerAuth under a production profile: mTLS
+// must be configured and the caller allow-list must not be empty.
+func (m *Module) checkProduction(ctx context.Context) error {
+	if !m.config.RequirePeerAuth {
+		return nil
+	}
+	profile := config.Profile(os.Getenv("LAKTA_PROFILE"))
+	if p, err := do.Invoke[config.Profile](lakta.GetInjector(ctx)); err == nil {
+		profile = p
+	}
+	if !profile.IsProduction() {
+		return nil
+	}
+	if m.config.TLSProvider == nil && !m.config.TLS.Enabled() {
+		return oops.Errorf("connect: mTLS is required under production profile %q", profile)
+	}
+	if len(m.config.AllowedCallers) == 0 {
+		return oops.Errorf("connect: allowed_callers must not be empty under production profile %q", profile)
+	}
+	return nil
+}
+
+// Dependencies declares the optional types this module reads before Init.
 func (m *Module) Dependencies() ([]reflect.Type, []reflect.Type) {
-	return nil, []reflect.Type{reflect.TypeFor[*koanf.Koanf]()}
+	return nil, []reflect.Type{reflect.TypeFor[*koanf.Koanf](), reflect.TypeFor[config.Profile]()}
 }
 
 // Addr returns the listener's network address, or nil before Start (tests bind port: 0).

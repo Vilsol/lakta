@@ -5,6 +5,7 @@ package main
 import (
 	"github.com/Vilsol/lakta/pkg/reflectcfg"
 
+	pkg_auth_spiffe "github.com/Vilsol/lakta/pkg/auth/spiffe"
 	pkg_auth_verifier "github.com/Vilsol/lakta/pkg/auth/verifier"
 	pkg_cache_memory "github.com/Vilsol/lakta/pkg/cache/memory"
 	pkg_db_drivers_pgx "github.com/Vilsol/lakta/pkg/db/drivers/pgx"
@@ -27,6 +28,7 @@ import (
 )
 
 var defaultEntries = []reflectcfg.Entry{
+	reflectcfg.FromModule(pkg_auth_spiffe.NewModule(), pkg_auth_spiffe.NewDefaultConfig()),
 	reflectcfg.FromModule(pkg_auth_verifier.NewModule(), pkg_auth_verifier.NewDefaultConfig()),
 	reflectcfg.FromModule(pkg_cache_memory.NewModule(), pkg_cache_memory.NewDefaultConfig()),
 	reflectcfg.FromModule(pkg_db_drivers_pgx.NewModule(), pkg_db_drivers_pgx.NewDefaultConfig()),

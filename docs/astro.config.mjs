@@ -88,6 +88,7 @@ export default defineConfig({
 						{ label: 'Database (pgx)', slug: 'modules/database' },
 						{ label: 'Health Checks', slug: 'modules/health' },
 						{ label: 'Management Server', slug: 'modules/management' },
+						{ label: 'SPIFFE', slug: 'modules/spiffe' },
 						{ label: 'Authentication', slug: 'modules/auth' },
 						{ label: 'Error Handling', slug: 'modules/errors' },
 						{ label: 'Validation', slug: 'modules/validation' },

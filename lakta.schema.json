@@ -9,6 +9,15 @@
         "auth": {
           "type": "object",
           "properties": {
+            "spiffe": {
+              "type": "object",
+              "patternProperties": {
+                "^[A-Za-z0-9_-]+$": {
+                  "$ref": "#/$defs/auth_spiffe"
+                }
+              },
+              "additionalProperties": false
+            },
             "verifier": {
               "type": "object",
               "patternProperties": {
@@ -251,6 +260,20 @@
     }
   },
   "$defs": {
+    "auth_spiffe": {
+      "type": "object",
+      "properties": {
+        "socket_path": {
+          "type": "string",
+          "description": "socketPath is the Workload API address, e.g. unix:///spiffe-workload-api/spire-agent.sock"
+        },
+        "trust_domain": {
+          "type": "string",
+          "description": "trustDomain is the trust domain peers must belong to"
+        }
+      },
+      "additionalProperties": false
+    },
     "auth_verifier": {
       "type": "object",
       "properties": {
@@ -607,6 +630,13 @@
           "type": "boolean",
           "description": "allowGet permits Connect GET requests (side-effect-free RPCs). Default"
         },
+        "allowed_callers": {
+          "type": "array",
+          "description": "allowedCallers lists the SPIFFE IDs allowed to call this server when peer",
+          "items": {
+            "type": "string"
+          }
+        },
         "default_deadline": {
           "type": "string",
           "description": "defaultDeadline is applied to unary calls whose client sent none",
@@ -651,9 +681,20 @@
           "description": "readTimeout bounds reading the entire request incl. body for unary",
           "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$"
         },
+        "require_peer_auth": {
+          "type": "boolean",
+          "description": "requirePeerAuth makes mTLS and a non-empty AllowedCallers mandatory under"
+        },
         "tls": {
           "type": "string",
           "description": "TLS configures file-path based transport security. When unset the server"
+        },
+        "trusted_ip_callers": {
+          "type": "array",
+          "description": "trustedIPCallers lists the SPIFFE IDs whose X-Client-IP header is believed",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false

@@ -1,0 +1,29 @@
+---
+title: SPIFFE
+description: X.509-SVIDs from the SPIFFE Workload API for mutual TLS.
+---
+
+import ModuleConfig from '../../../components/ModuleConfig.astro';
+import ModuleCodeOnly from '../../../components/ModuleCodeOnly.astro';
+
+`pkg/auth/spiffe` fetches the workload's X.509-SVID from the SPIFFE Workload API (e.g. the SPIRE agent socket) and provides a `*spiffe.Source` in DI.
+
+- `Init` never waits for the agent. The source connects in the background; TLS handshakes fail until the first SVID arrives.
+- Readiness (registered on `*health.Health` when present) is false until then and whenever the current SVID has expired.
+- Rotation needs no restart.
+- Under a production profile, a `.local` trust domain is refused.
+
+```go
+spiffe.NewModule(),
+connect.NewModule(connect.WithTLSProvider(spiffe.ServerTLS())),
+```
+
+`spiffe.ServerTLS()` accepts any member of the trust domain at the handshake (the connect server enforces its own caller allow-list); `spiffe.ClientTLS(serverID)` accepts only the expected server. `spiffetest` provides a fake Workload API and CA for tests.
+
+## Configuration Reference
+
+<ModuleConfig category="auth" type="spiffe" />
+
+### Code-only options
+
+<ModuleCodeOnly category="auth" type="spiffe" />

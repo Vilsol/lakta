@@ -66,6 +66,21 @@ type Config struct {
 	// false: GET is refused with 405.
 	AllowGet bool `koanf:"allow_get"`
 
+	// AllowedCallers lists the SPIFFE IDs allowed to call this server when peer
+	// auth is active (TLSProvider set or RequirePeerAuth). Empty denies everyone.
+	AllowedCallers []string `koanf:"allowed_callers"`
+
+	// TrustedIPCallers lists the SPIFFE IDs whose X-Client-IP header is believed.
+	TrustedIPCallers []string `koanf:"trusted_ip_callers"`
+
+	// RequirePeerAuth makes mTLS and a non-empty AllowedCallers mandatory under
+	// a production profile (anything but dev/test), failing Init otherwise.
+	RequirePeerAuth bool `koanf:"require_peer_auth"`
+
+	// TLSProvider builds the server *tls.Config during Init (e.g. SPIFFE SVIDs).
+	// It takes precedence over TLS and disables h2c.
+	TLSProvider func(ctx context.Context) (*tls.Config, error) `code_only:"WithTLSProvider" koanf:"-"`
+
 	// ReadHeaderTimeout bounds reading request headers (maps to
 	// http.Server.ReadHeaderTimeout). Default 10s slowloris guard.
 	ReadHeaderTimeout time.Duration `koanf:"read_header_timeout"`
@@ -210,6 +225,26 @@ func WithMaxDeadline(d time.Duration) Option {
 // WithAllowGet permits Connect GET requests.
 func WithAllowGet(allow bool) Option {
 	return func(m *Config) { m.AllowGet = allow }
+}
+
+// WithAllowedCallers sets the SPIFFE IDs allowed to call the server.
+func WithAllowedCallers(ids ...string) Option {
+	return func(m *Config) { m.AllowedCallers = ids }
+}
+
+// WithTrustedIPCallers sets the SPIFFE IDs whose X-Client-IP is believed.
+func WithTrustedIPCallers(ids ...string) Option {
+	return func(m *Config) { m.TrustedIPCallers = ids }
+}
+
+// WithRequirePeerAuth makes mTLS and allowed callers mandatory in production.
+func WithRequirePeerAuth(require bool) Option {
+	return func(m *Config) { m.RequirePeerAuth = require }
+}
+
+// WithTLSProvider builds the server TLS config during Init.
+func WithTLSProvider(fn func(ctx context.Context) (*tls.Config, error)) Option {
+	return func(m *Config) { m.TLSProvider = fn }
 }
 
 // WithHTTPMiddleware wraps the server handler; the first registered runs outermost.
