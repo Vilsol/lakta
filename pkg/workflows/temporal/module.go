@@ -46,7 +46,9 @@ type Module struct {
 
 	tracing interceptor.Interceptor
 
-	startWorker func(ctx context.Context) (stopper, error)
+	// startWorker starts a worker; onFatal is called if Temporal stops it on its
+	// own later (e.g. the namespace was deleted).
+	startWorker func(ctx context.Context, onFatal func(error)) (stopper, error)
 	checkHealth func(ctx context.Context) error
 
 	started  atomic.Bool
@@ -203,13 +205,26 @@ func (m *Module) Start(ctx context.Context) error {
 
 	backoff := m.config.backoff
 	for {
-		w, err := m.startWorker(ctx)
+		fatal := make(chan error, 1)
+		w, err := m.startWorker(ctx, func(err error) {
+			select {
+			case fatal <- err:
+			default:
+			}
+		})
 		if err == nil {
 			m.running.Store(true)
-			<-ctx.Done()
-			m.running.Store(false)
-			w.Stop()
-			return nil
+			select {
+			case <-ctx.Done():
+				m.running.Store(false)
+				w.Stop()
+				return nil
+			case err = <-fatal:
+				// Temporal stopped the worker; report NotReady and start a new one.
+				m.running.Store(false)
+				w.Stop()
+				err = oops.Wrapf(err, "temporal worker stopped")
+			}
 		}
 
 		m.failures.Add(1)
@@ -242,8 +257,10 @@ func (m *Module) healthLoop(ctx context.Context) {
 	}
 }
 
-func (m *Module) defaultStartWorker(ctx context.Context) (stopper, error) { //nolint:ireturn // narrow internal interface
-	w := worker.New(m.client, m.config.TaskQueue, m.config.WorkerOptions(ctx, []interceptor.WorkerInterceptor{m.tracing}))
+func (m *Module) defaultStartWorker(ctx context.Context, onFatal func(error)) (stopper, error) { //nolint:ireturn // narrow internal interface
+	opts := m.config.WorkerOptions(ctx, []interceptor.WorkerInterceptor{m.tracing})
+	opts.OnFatalError = onFatal
+	w := worker.New(m.client, m.config.TaskQueue, opts)
 	for _, register := range m.config.Registrars {
 		if err := register(ctx, w); err != nil {
 			return nil, oops.Wrapf(err, "failed to register workflows and activities")

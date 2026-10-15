@@ -9,6 +9,7 @@ import (
 	"github.com/Vilsol/lakta/pkg/config"
 	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/knadh/koanf/v2"
+	"github.com/samber/do/v2"
 	"github.com/samber/oops"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
@@ -44,6 +45,13 @@ func (m *Module) Init(ctx context.Context) error {
 	if m.config.BaseURL == "" {
 		return oops.Errorf("connectclient: base_url is required")
 	}
+	https := strings.HasPrefix(m.config.BaseURL, "https://")
+	if m.config.TLSProvider != nil && !https {
+		return oops.Errorf("connectclient: base_url %q must use https when a TLS provider is set", m.config.BaseURL)
+	}
+	if profile := activeProfile(ctx); profile.IsProduction() && (m.config.TLSProvider == nil || !https) {
+		return oops.Errorf("connectclient: mTLS (TLS provider and https base_url) is required under production profile %q", profile)
+	}
 
 	var tlsConfig *tls.Config
 	if m.config.TLSProvider != nil {
@@ -72,6 +80,13 @@ func (m *Module) Init(ctx context.Context) error {
 	lakta.ProvideValue(ctx, m.client)
 
 	return nil
+}
+
+func activeProfile(ctx context.Context) config.Profile {
+	if p, err := do.Invoke[config.Profile](lakta.GetInjector(ctx)); err == nil {
+		return p
+	}
+	return config.Profile(os.Getenv("LAKTA_PROFILE"))
 }
 
 // Shutdown closes idle connections.

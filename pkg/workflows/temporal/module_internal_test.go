@@ -75,7 +75,7 @@ func TestStart_RetriesUntilWorkerStartsThenReadyFollowsHealth(t *testing.T) {
 	var healthy atomic.Bool
 	healthy.Store(true)
 	w := &fakeWorker{}
-	m.startWorker = func(context.Context) (stopper, error) {
+	m.startWorker = func(context.Context, func(error)) (stopper, error) {
 		if attempts.Add(1) < 3 {
 			return nil, errors.New("temporal unreachable")
 		}
@@ -136,4 +136,39 @@ func TestShutdown_WithoutStartDoesNotHang(t *testing.T) {
 	start := time.Now()
 	testza.AssertNil(t, m.Shutdown(context.Background()))
 	testza.AssertTrue(t, time.Since(start) < time.Second)
+}
+
+func TestStart_FatalWorkerErrorMakesNotReadyAndRestarts(t *testing.T) {
+	t.Parallel()
+	h := testkit.NewHarness(t)
+	m := NewModule(WithTarget("127.0.0.1:1"), WithTaskQueue("q"), withHealthInterval(20*time.Millisecond), withBackoff(10*time.Millisecond))
+	testza.AssertNil(t, m.Init(h.Ctx()))
+
+	var attempts atomic.Int32
+	fatal := make(chan func(error), 2)
+	workers := make(chan *fakeWorker, 2)
+	m.startWorker = func(_ context.Context, onFatal func(error)) (stopper, error) {
+		attempts.Add(1)
+		w := &fakeWorker{}
+		fatal <- onFatal
+		workers <- w
+		return w, nil
+	}
+	m.checkHealth = func(context.Context) error { return nil }
+
+	ctx, cancel := context.WithCancel(h.Ctx())
+	done := make(chan error, 1)
+	go func() { done <- m.Start(ctx) }()
+
+	eventually(t, func() bool { return m.Ready(ctx) == nil })
+	first := <-workers
+	(<-fatal)(errors.New("namespace tmplsvc not found"))
+
+	eventually(t, func() bool { return attempts.Load() == 2 })
+	testza.AssertTrue(t, first.stopped.Load(), "the dead worker is stopped before restarting")
+	eventually(t, func() bool { return m.Ready(ctx) == nil })
+
+	cancel()
+	testza.AssertNil(t, <-done)
+	testza.AssertNil(t, m.Shutdown(context.Background()))
 }

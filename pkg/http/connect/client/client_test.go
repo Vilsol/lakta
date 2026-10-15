@@ -17,9 +17,11 @@ import (
 	"github.com/MarvinJWendt/testza"
 	"github.com/Vilsol/lakta/pkg/auth/spiffe/spiffetest"
 	"github.com/Vilsol/lakta/pkg/auth/verifier"
+	"github.com/Vilsol/lakta/pkg/config"
 	apperrors "github.com/Vilsol/lakta/pkg/errors"
 	connectmod "github.com/Vilsol/lakta/pkg/http/connect"
 	connectclient "github.com/Vilsol/lakta/pkg/http/connect/client"
+	"github.com/Vilsol/lakta/pkg/lakta"
 	"github.com/Vilsol/lakta/pkg/testkit"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -186,4 +188,21 @@ func TestImpostorServerRejected(t *testing.T) {
 	e := newEnv(t, "impostor")
 	testza.AssertNotNil(t, call(connectclient.WithToken(t.Context(), "t"), e.client(t)))
 	testza.AssertEqual(t, int32(0), e.down.calls.Load())
+}
+
+func TestInit_TLSProviderRequiresHTTPS(t *testing.T) {
+	t.Parallel()
+	m := connectclient.NewModule(
+		connectclient.WithBaseURL("http://dbsvc.errs.svc:8080"),
+		connectclient.WithTLSProvider(func(context.Context) (*tls.Config, error) { return &tls.Config{MinVersion: tls.VersionTLS12}, nil }),
+	)
+	testza.AssertNotNil(t, m.Init(testkit.NewHarness(t).Ctx()), "a bearer token must never go out over plain HTTP")
+}
+
+func TestInit_ProductionRequiresTLS(t *testing.T) {
+	t.Parallel()
+	h := testkit.NewHarness(t)
+	lakta.ProvideValue(h.Ctx(), config.Profile("prod"))
+	m := connectclient.NewModule(connectclient.WithBaseURL("https://dbsvc.errs.svc:8080"))
+	testza.AssertNotNil(t, m.Init(h.Ctx()))
 }
