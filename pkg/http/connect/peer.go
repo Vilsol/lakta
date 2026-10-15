@@ -69,6 +69,9 @@ func (c *Config) peerMiddleware(next http.Handler) http.Handler {
 			if peer == "" {
 				reason = "no_peer_identity"
 			}
+			id := resolveRequestID(r.Header.Get(RequestIDHeader))
+			ctx = withRequestID(ctx, id)
+			w.Header().Set(RequestIDHeader, id)
 			security.Emit(ctx, security.Event{Reason: reason, Procedure: r.URL.Path, Attrs: []slog.Attr{slog.String("caller_spiffe_id", peer)}})
 			_ = errWriter.Write(w, r, connect.NewError(connect.CodePermissionDenied, stderrors.New("caller not allowed")))
 			return

@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -162,6 +163,22 @@ func TestPeer_UnlistedCallerDeniedAndLogged(t *testing.T) {
 	testza.AssertEqual(t, connect.CodePermissionDenied, connect.CodeOf(err))
 	testza.AssertContains(t, logs.String(), `"log.type":"security_event"`)
 	testza.AssertContains(t, logs.String(), otherID)
+}
+
+func TestPeer_DenialCarriesRequestID(t *testing.T) {
+	t.Parallel()
+	ca := newCA(t)
+	base, logs := startMTLS(t, ca, connectmod.WithAllowedCallers(allowedID))
+
+	const id = "01J9ZK5V7Q8N3XGJ6M2B4C5D6E"
+	req := connect.NewRequest(&testv1.EchoRequest{})
+	req.Header().Set(connectmod.RequestIDHeader, id)
+	_, err := testv1connect.NewEchoServiceClient(mtlsClient(ca, ca.leaf(t, otherID)), base).Echo(t.Context(), req)
+
+	var cerr *connect.Error
+	testza.AssertTrue(t, errors.As(err, &cerr))
+	testza.AssertEqual(t, id, cerr.Meta().Get(connectmod.RequestIDHeader))
+	testza.AssertContains(t, logs.String(), `"request_id":"`+id+`"`)
 }
 
 func TestPeer_EmptyAllowListDeniesAll(t *testing.T) {
