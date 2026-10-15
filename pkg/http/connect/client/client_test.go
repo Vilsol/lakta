@@ -26,7 +26,10 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-const procedure = "/test.Svc/Echo"
+const (
+	procedure       = "/test.Svc/Echo"
+	streamProcedure = "/test.Svc/Stream"
+)
 
 type downstream struct {
 	calls  atomic.Int32
@@ -35,7 +38,8 @@ type downstream struct {
 }
 
 func (d *downstream) handler() http.Handler {
-	return connect.NewUnaryHandler(
+	mux := http.NewServeMux()
+	mux.Handle(procedure, connect.NewUnaryHandler(
 		procedure,
 		func(_ context.Context, req *connect.Request[wrapperspb.StringValue]) (*connect.Response[wrapperspb.StringValue], error) {
 			d.calls.Add(1)
@@ -45,7 +49,19 @@ func (d *downstream) handler() http.Handler {
 			}
 			return connect.NewResponse(wrapperspb.String("ok")), nil
 		},
-	)
+	))
+	mux.Handle(streamProcedure, connect.NewServerStreamHandler(
+		streamProcedure,
+		func(_ context.Context, req *connect.Request[wrapperspb.StringValue], stream *connect.ServerStream[wrapperspb.StringValue]) error {
+			d.calls.Add(1)
+			d.header.Store(req.Header().Clone())
+			if d.fail != 0 {
+				return connect.NewError(d.fail, errSecret)
+			}
+			return stream.Send(wrapperspb.String("ok"))
+		},
+	))
+	return mux
 }
 
 func (d *downstream) last() http.Header {
@@ -89,6 +105,19 @@ func (e *env) client(t *testing.T, opts ...connectclient.Option) *connectclient.
 func call(ctx context.Context, c *connectclient.Client) error {
 	_, err := connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](c.HTTPClient(), c.BaseURL()+procedure, c.Options()...).
 		CallUnary(ctx, connect.NewRequest(wrapperspb.String("hi")))
+	return err //nolint:wrapcheck // tests inspect the raw error
+}
+
+func callStream(ctx context.Context, c *connectclient.Client) error {
+	stream, err := connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](c.HTTPClient(), c.BaseURL()+streamProcedure, c.Options()...).
+		CallServerStream(ctx, connect.NewRequest(wrapperspb.String("hi")))
+	if err != nil {
+		return err //nolint:wrapcheck // tests inspect the raw error
+	}
+	for stream.Receive() {
+	}
+	err = stream.Err()
+	_ = stream.Close()
 	return err //nolint:wrapcheck // tests inspect the raw error
 }
 
@@ -237,4 +266,41 @@ func TestAsService_TokenEndpointHangBounded(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("AsService call still waiting on a hung token endpoint")
 	}
+}
+
+func TestStream_ForwardsCredentialsAndClientIP(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, "server")
+
+	ctx := connectmod.WithClientIP(userCtx(t, "user-token"), netip.MustParseAddr("203.0.113.9"))
+	testza.AssertNil(t, callStream(connectclient.AsUser(ctx), e.client(t)))
+	testza.AssertEqual(t, "Bearer user-token", e.down.last().Get("Authorization"))
+	testza.AssertEqual(t, "203.0.113.9", e.down.last().Get("X-Client-IP"))
+}
+
+func TestStream_NoCredentialModeFailsBeforeDialing(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, "server")
+	testza.AssertNotNil(t, callStream(t.Context(), e.client(t)))
+	testza.AssertEqual(t, int32(0), e.down.calls.Load())
+}
+
+func TestStream_DownstreamErrorNotPassedThrough(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, "server")
+	e.down.fail = connect.CodeNotFound
+
+	err := callStream(connectclient.WithToken(t.Context(), "t"), e.client(t))
+	testza.AssertEqual(t, apperrors.CodeInternal, apperrors.FromError(err).Code)
+	testza.AssertEqual(t, connect.CodeNotFound, connectclient.DownstreamCode(err))
+}
+
+func TestStream_DeadlineCappedAtMax(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, "server")
+	testza.AssertNil(t, callStream(connectclient.WithToken(t.Context(), "t"), e.client(t, connectclient.WithMaxDeadline(2*time.Second))))
+
+	ms, err := strconv.Atoi(e.down.last().Get("Connect-Timeout-Ms"))
+	testza.AssertNil(t, err)
+	testza.AssertTrue(t, ms > 0 && ms <= 2000, ms)
 }

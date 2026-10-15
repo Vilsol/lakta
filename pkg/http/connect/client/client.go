@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/tls"
 	stderrors "errors"
+	"io"
+	"maps"
 	"net/http"
 	"time"
 
@@ -71,32 +73,106 @@ func DownstreamCode(err error) connect.Code {
 }
 
 func (c *Client) outbound() connect.Interceptor { //nolint:ireturn // connect.Interceptor is the composition unit
-	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
-		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			token, err := c.bearer(ctx)
-			if err != nil {
-				return nil, oops.Tags(apperrors.ClassInternal).Wrap(err)
-			}
-			req.Header().Set("Authorization", "Bearer "+token)
-
-			if id := connectmod.RequestID(ctx); id != "" {
-				req.Header().Set(connectmod.RequestIDHeader, id)
-			}
-			if addr, ok := connectmod.ClientIP(ctx); ok {
-				req.Header().Set(connectmod.ClientIPHeader, addr.String())
-			}
-
-			ctx, cancel := c.capDeadline(ctx)
-			defer cancel()
-
-			resp, err := next(ctx, req)
-			if err != nil {
-				return nil, mapError(err)
-			}
-			return resp, nil
-		}
-	})
+	return outboundInterceptor{c: c}
 }
+
+// outboundInterceptor sets credentials, request ID and client IP, caps the
+// deadline and maps downstream errors on unary and streaming calls.
+type outboundInterceptor struct{ c *Client }
+
+func (o outboundInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
+	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+		if err := o.c.setHeaders(ctx, req.Header()); err != nil {
+			return nil, err
+		}
+
+		ctx, cancel := o.c.capDeadline(ctx)
+		defer cancel()
+
+		resp, err := next(ctx, req)
+		if err != nil {
+			return nil, mapError(err)
+		}
+		return resp, nil
+	}
+}
+
+func (o outboundInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
+	return func(ctx context.Context, spec connect.Spec) connect.StreamingClientConn {
+		header := http.Header{}
+		if err := o.c.setHeaders(ctx, header); err != nil {
+			return &failedConn{spec: spec, err: err}
+		}
+
+		ctx, cancel := o.c.capDeadline(ctx)
+		conn := next(ctx, spec)
+		maps.Copy(conn.RequestHeader(), header)
+		return &outboundConn{StreamingClientConn: conn, cancel: cancel}
+	}
+}
+
+func (outboundInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+	return next
+}
+
+func (c *Client) setHeaders(ctx context.Context, h http.Header) error {
+	token, err := c.bearer(ctx)
+	if err != nil {
+		return oops.Tags(apperrors.ClassInternal).Wrap(err)
+	}
+	h.Set("Authorization", "Bearer "+token)
+
+	if id := connectmod.RequestID(ctx); id != "" {
+		h.Set(connectmod.RequestIDHeader, id)
+	}
+	if addr, ok := connectmod.ClientIP(ctx); ok {
+		h.Set(connectmod.ClientIPHeader, addr.String())
+	}
+	return nil
+}
+
+// outboundConn maps downstream stream errors and releases the capped deadline.
+type outboundConn struct {
+	connect.StreamingClientConn
+
+	cancel context.CancelFunc
+}
+
+func (o *outboundConn) Send(msg any) error { return mapStreamError(o.StreamingClientConn.Send(msg)) }
+
+func (o *outboundConn) Receive(msg any) error {
+	return mapStreamError(o.StreamingClientConn.Receive(msg))
+}
+
+func (o *outboundConn) CloseResponse() error {
+	defer o.cancel()
+	return mapStreamError(o.StreamingClientConn.CloseResponse())
+}
+
+// mapStreamError keeps io.EOF intact: it is how streams signal their end.
+func mapStreamError(err error) error {
+	if err == nil || stderrors.Is(err, io.EOF) {
+		return err
+	}
+	return mapError(err)
+}
+
+// failedConn fails every call without dialing, so a stream without
+// credentials never reaches the downstream.
+type failedConn struct {
+	spec connect.Spec
+	err  error
+}
+
+func (f *failedConn) Spec() connect.Spec           { return f.spec }
+func (f *failedConn) Peer() connect.Peer           { return connect.Peer{} }
+func (f *failedConn) Send(any) error               { return f.err }
+func (f *failedConn) RequestHeader() http.Header   { return http.Header{} }
+func (f *failedConn) CloseRequest() error          { return nil }
+func (f *failedConn) Receive(any) error            { return f.err }
+func (f *failedConn) ResponseHeader() http.Header  { return http.Header{} }
+func (f *failedConn) ResponseTrailer() http.Header { return http.Header{} }
+func (f *failedConn) CloseResponse() error         { return nil }
 
 func (c *Client) capDeadline(ctx context.Context) (context.Context, context.CancelFunc) {
 	if c.maxDeadline <= 0 {
