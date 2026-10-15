@@ -162,3 +162,52 @@ func TestProductionGuard_RefusesLocalTrustDomain(t *testing.T) {
 	m := spiffe.NewModule(spiffe.WithSocketPath("unix:///nonexistent.sock"), spiffe.WithTrustDomain("errs.local"))
 	testza.AssertNotNil(t, m.Init(h.Ctx()))
 }
+
+// resumes reports whether a second connection resumed the first one's session.
+func resumes(t *testing.T, serverTLS, clientTLS *tls.Config) bool {
+	t.Helper()
+	lis, err := tls.Listen("tcp", "127.0.0.1:0", serverTLS)
+	testza.AssertNil(t, err)
+	t.Cleanup(func() { _ = lis.Close() })
+	go func() {
+		for {
+			conn, err := lis.Accept()
+			if err != nil {
+				return
+			}
+			_, _ = conn.Write([]byte("x"))
+			_ = conn.Close()
+		}
+	}()
+
+	clientTLS = clientTLS.Clone()
+	clientTLS.ClientSessionCache = tls.NewLRUClientSessionCache(1)
+	resumed := false
+	for range 2 {
+		conn, err := (&tls.Dialer{Config: clientTLS}).DialContext(t.Context(), "tcp", lis.Addr().String())
+		testza.AssertNil(t, err)
+		_, _ = io.ReadAll(conn)
+		tlsConn, ok := conn.(*tls.Conn)
+		testza.AssertTrue(t, ok)
+		resumed = tlsConn.ConnectionState().DidResume
+		_ = conn.Close()
+	}
+	return resumed
+}
+
+func TestTLS_NoSessionResumption(t *testing.T) {
+	t.Parallel()
+	api := spiffetest.New(t, trustDomain, "server")
+	ctx, m, err := initModule(t, api.SocketPath())
+	testza.AssertNil(t, err)
+	eventually(t, func() bool { return m.Source().Ready(t.Context()) == nil })
+
+	serverTLS, err := spiffe.ServerTLS()(ctx)
+	testza.AssertNil(t, err)
+	testza.AssertFalse(t, resumes(t, serverTLS, api.Issue("caller").ClientTLS(api.ID("server"))),
+		"a resumed session skips the SVID check against the current trust bundle")
+
+	clientTLS, err := spiffe.ClientTLS(api.ID("peer").String())(ctx)
+	testza.AssertNil(t, err)
+	testza.AssertFalse(t, resumes(t, api.Issue("peer").ServerTLS(), clientTLS))
+}

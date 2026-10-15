@@ -27,6 +27,8 @@ func ServerTLS() TLSProvider {
 		cfg := tlsconfig.MTLSServerConfig(src, src, tlsconfig.AuthorizeMemberOf(src.TrustDomain()))
 		cfg.MinVersion = tls.VersionTLS12
 		cfg.NextProtos = []string{"h2", "http/1.1"}
+		// Resumption skips the SVID check, so a revoked or rotated-out peer could reconnect.
+		cfg.SessionTicketsDisabled = true
 		return cfg, nil
 	}
 }
@@ -46,6 +48,8 @@ func ClientTLS(serverID string) TLSProvider {
 		cfg := tlsconfig.MTLSClientConfig(src, src, tlsconfig.AuthorizeID(id))
 		cfg.MinVersion = tls.VersionTLS12
 		cfg.NextProtos = []string{"h2", "http/1.1"}
+		// Resumption skips the SVID check, so a revoked or rotated-out peer could reconnect.
+		cfg.SessionTicketsDisabled = true
 		return cfg, nil
 	}
 }
