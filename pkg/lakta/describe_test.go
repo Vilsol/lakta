@@ -7,7 +7,6 @@ import (
 
 	"github.com/MarvinJWendt/testza"
 	"github.com/Vilsol/lakta/pkg/lakta"
-	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/v2"
 )
 
@@ -47,8 +46,10 @@ func (m *describeLoaderModule) Shutdown(context.Context) error { return nil }
 
 func (m *describeLoaderModule) LoadForDescribe() (*koanf.Koanf, error) {
 	k := koanf.New(".")
-	if err := k.Load(confmap.Provider(m.values, "."), nil); err != nil {
-		return nil, err //nolint:wrapcheck // test fake
+	for key, v := range m.values {
+		if err := k.Set(key, v); err != nil {
+			return nil, err //nolint:wrapcheck // test fake
+		}
 	}
 	return k, nil
 }
