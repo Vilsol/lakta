@@ -50,7 +50,7 @@ type Config struct {
 	Name string `koanf:"-"`
 
 	// DSN is the database connection string used to configure the database connection.
-	DSN string `koanf:"dsn" required:"true"`
+	DSN string `koanf:"dsn" required:"true" secret:"true"`
 
 	// MaxOpenConns specifies the maximum number of open connections to the database. It maps to the "max_open_conns" configuration.
 	MaxOpenConns int32 `koanf:"max_open_conns"`

@@ -58,7 +58,7 @@ type IssuerConfig struct {
 // StaticKey is the isolated HS256 dev path, allow-only under Profiles.
 type StaticKey struct {
 	Algorithm string   `koanf:"algorithm"`
-	Secret    string   `koanf:"secret"`
+	Secret    string   `koanf:"secret"    secret:"true"`
 	Profiles  []string `koanf:"profiles"`
 }
 

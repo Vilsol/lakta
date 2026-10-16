@@ -49,6 +49,7 @@ modules:
             envVar: LAKTA_MODULES__AUTH__VERIFIER__<NAME>__STATIC_KEY__ALGORITHM
           - key: secret
             type: string
+            secret: true
             envVar: LAKTA_MODULES__AUTH__VERIFIER__<NAME>__STATIC_KEY__SECRET
           - key: profiles
             type: '[]string'
@@ -96,6 +97,7 @@ modules:
       - key: dsn
         type: string
         required: true
+        secret: true
         envVar: LAKTA_MODULES__DB__PGX__<NAME>__DSN
         description: DSN is the database connection string used to configure the database connection
       - key: max_open_conns

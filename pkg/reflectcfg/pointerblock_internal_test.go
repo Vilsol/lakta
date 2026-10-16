@@ -34,7 +34,7 @@ func TestProcessConfigPointerStructBlock(t *testing.T) {
 	doc := processConfig(Entry{
 		Path:   collectionTestPath,
 		Config: pointerBlockCfg{Retry: &pointerRetryCfg{Attempts: 3, Delay: 5 * time.Second}},
-	}, nil, nil)
+	}, "", nil, nil)
 
 	retry := doc.Fields[0]
 	testza.AssertEqual(t, "retry", retry.Key)
@@ -54,7 +54,7 @@ func TestProcessConfigPointerStructBlock(t *testing.T) {
 func TestProcessConfigNilPointerStructBlock(t *testing.T) {
 	t.Parallel()
 
-	doc := processConfig(Entry{Path: collectionTestPath, Config: pointerBlockCfg{}}, nil, nil)
+	doc := processConfig(Entry{Path: collectionTestPath, Config: pointerBlockCfg{}}, "", nil, nil)
 
 	retry := doc.Fields[0]
 	// a nil default still documents the block's fields, with zero defaults
@@ -71,7 +71,7 @@ func TestCollectionElementPointerFields(t *testing.T) {
 			Policies: []pointerElemCfg{{Name: "a", Retry: &pointerRetryCfg{Attempts: 2}}},
 			Backup:   []*pointerRetryCfg{{Attempts: 7}},
 		},
-	}, nil, nil)
+	}, "", nil, nil)
 
 	// pointer block inside a collection element recurses, without env vars
 	policies := doc.Fields[0]

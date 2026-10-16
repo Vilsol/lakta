@@ -59,6 +59,7 @@ type FieldDoc struct {
 	Default     string `yaml:"default,omitempty"`
 	Enum        string `yaml:"enum,omitempty"`
 	Required    bool   `yaml:"required,omitempty"`
+	Secret      bool   `yaml:"secret,omitempty"`
 	EnvVar      string `yaml:"envVar,omitempty"`
 	Description string `yaml:"description,omitempty"`
 	// Fields holds the sub-fields of a nested struct config block (e.g.
@@ -114,7 +115,7 @@ func Reflect(entries []Entry, modVersions map[string]string) Output {
 
 	var out Output
 	for _, e := range entries {
-		out.Modules = append(out.Modules, processConfig(e, modVersions, comments))
+		out.Modules = append(out.Modules, processConfig(e, "", modVersions, comments))
 	}
 	return out
 }
@@ -130,6 +131,10 @@ func configType(cfg any) reflect.Type {
 
 // EncodeYAML writes the doc tree as YAML (the current docgen behavior).
 func EncodeYAML(w io.Writer, out Output) error {
+	return encodeYAML(w, out)
+}
+
+func encodeYAML(w io.Writer, out any) error {
 	enc := yaml.NewEncoder(w)
 	enc.SetIndent(yamlIndent)
 	if err := enc.Encode(out); err != nil {
@@ -141,7 +146,10 @@ func EncodeYAML(w io.Writer, out Output) error {
 	return nil
 }
 
-func processConfig(e Entry, modVersions map[string]string, commentsByPkg map[string]sourceComments) ModuleDoc {
+// processConfig documents one entry. An empty configPath documents the module
+// generically ("modules.<category>.<type>.<name>"); otherwise keys and env vars
+// are built from configPath as given.
+func processConfig(e Entry, configPath string, modVersions map[string]string, commentsByPkg map[string]sourceComments) ModuleDoc {
 	t := reflect.TypeOf(e.Config)
 	v := reflect.ValueOf(e.Config)
 	if t.Kind() == reflect.Pointer {
@@ -154,11 +162,15 @@ func processConfig(e Entry, modVersions map[string]string, commentsByPkg map[str
 
 	comments := commentsByPkg[pkgPath]
 
+	if configPath == "" {
+		configPath = fmt.Sprintf("modules.%s.%s.<name>", category, modType)
+	}
+
 	doc := ModuleDoc{
 		Category:    category,
 		Type:        modType,
 		Package:     pkgPath,
-		ConfigPath:  fmt.Sprintf("modules.%s.%s.<name>", category, modType),
+		ConfigPath:  configPath,
 		Description: comments.structDoc,
 	}
 
@@ -233,6 +245,7 @@ func processConfig(e Entry, modVersions map[string]string, commentsByPkg map[str
 			Default:     defaultValue(v.FieldByName(f.Name)),
 			Enum:        f.Tag.Get("enum"),
 			Required:    f.Tag.Get("required") == tagValueTrue,
+			Secret:      f.Tag.Get("secret") == tagValueTrue,
 			EnvVar:      envVarName(doc.ConfigPath, koanfTag),
 			Description: comments.fields[f.Name],
 		}
@@ -293,6 +306,7 @@ func structFields(st reflect.Type, sv reflect.Value, comments sourceComments, co
 			Default:     defaultValue(sv.FieldByName(f.Name)),
 			Enum:        f.Tag.Get("enum"),
 			Required:    f.Tag.Get("required") == tagValueTrue,
+			Secret:      f.Tag.Get("secret") == tagValueTrue,
 			Description: comments.fieldsByType[typeName+"."+f.Name],
 		}
 		if configPath != "" {

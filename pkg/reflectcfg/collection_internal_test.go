@@ -32,7 +32,7 @@ func TestProcessConfigSliceOfStruct(t *testing.T) {
 	doc := processConfig(Entry{
 		Path:   collectionTestPath,
 		Config: collectionCfg{Endpoints: []collectionElemCfg{{Host: "localhost", Port: 9090}}},
-	}, nil, nil)
+	}, "", nil, nil)
 
 	testza.AssertEqual(t, 2, len(doc.Fields))
 
@@ -62,7 +62,7 @@ func TestProcessConfigSliceOfStruct(t *testing.T) {
 func TestProcessConfigMapOfStruct(t *testing.T) {
 	t.Parallel()
 
-	doc := processConfig(Entry{Path: collectionTestPath, Config: collectionCfg{}}, nil, nil)
+	doc := processConfig(Entry{Path: collectionTestPath, Config: collectionCfg{}}, "", nil, nil)
 
 	routes := doc.Fields[1]
 	testza.AssertEqual(t, "routes", routes.Key)
@@ -79,7 +79,7 @@ func TestStructFieldsCollectionOfStruct(t *testing.T) {
 	doc := processConfig(Entry{
 		Path:   collectionTestPath,
 		Config: collectionNestedCfg{Group: collectionGroupCfg{Endpoints: []collectionElemCfg{{Port: 8080}}}},
-	}, nil, nil)
+	}, "", nil, nil)
 
 	group := doc.Fields[0]
 	testza.AssertEqual(t, "group", group.Key)

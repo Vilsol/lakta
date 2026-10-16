@@ -218,7 +218,25 @@ func (m *Module) Init(ctx context.Context) error {
     // m.config is fully populated here
     return nil
 }
+
+// DescribeConfig reports the effective config for describe mode without
+// changing the module.
+func (m *Module) DescribeConfig(k *koanf.Koanf) (any, error) {
+    cfg := m.config
+    err := config.UnmarshalKoanf(&cfg, k, m.ConfigPath())
+    return cfg, err
+}
 ```
+
+## Describe mode
+
+`LAKTA_DESCRIBE=config` makes `Run` print every module's configuration and return without initializing or starting anything. It reads only the base `lakta.*` files from the config directories (not `/etc/lakta`), plus `WithValues`; it ignores the profile overlay, environment variables and CLI flags, and skips `Validate`. Set the renderer on the runtime:
+
+```go compile=skip
+lakta.NewRuntime(modules...).WithDescriber(reflectcfg.Describe).Run()
+```
+
+`reflectcfg.Describe` prints one YAML document, `entries: [{key, type, default, env, description, secret}]`, with concrete keys and env vars. Fields tagged `secret:"true"` print `<redacted>` as their default. Every module that implements `LoadConfig` also implements `DescribeConfig(k *koanf.Koanf) (any, error)`.
 
 ## Testing
 
