@@ -36,6 +36,13 @@ func (m *Module) LoadConfig(k *koanf.Koanf) error {
 	return m.config.LoadFromKoanf(k, m.ConfigPath())
 }
 
+// DescribeConfig returns the config loaded from k without changing the module.
+func (m *Module) DescribeConfig(k *koanf.Koanf) (any, error) {
+	cfg := m.config
+	err := cfg.LoadFromKoanf(k, m.ConfigPath())
+	return cfg, err
+}
+
 // Init creates the bus and provides it to the injector.
 func (m *Module) Init(ctx context.Context) error {
 	m.bus = NewBus(m.config.BufferSize)

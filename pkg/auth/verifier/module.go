@@ -48,6 +48,13 @@ func (m *Module) LoadConfig(k *koanf.Koanf) error {
 	return m.config.LoadFromKoanf(k, m.ConfigPath())
 }
 
+// DescribeConfig returns the config loaded from k without changing the module.
+func (m *Module) DescribeConfig(k *koanf.Koanf) (any, error) {
+	cfg := m.config
+	err := cfg.LoadFromKoanf(k, m.ConfigPath())
+	return cfg, err
+}
+
 // Init builds the Registry from config and provides it into DI. Under a
 // production profile it refuses configurations that only make sense in
 // development. When a *health.Health is in DI, it registers a readiness check

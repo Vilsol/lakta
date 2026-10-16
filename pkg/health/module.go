@@ -38,6 +38,13 @@ func (m *Module) LoadConfig(k *koanf.Koanf) error {
 	return m.config.LoadFromKoanf(k, m.ConfigPath())
 }
 
+// DescribeConfig returns the config loaded from k without changing the module.
+func (m *Module) DescribeConfig(k *koanf.Koanf) (any, error) {
+	cfg := m.config
+	err := cfg.LoadFromKoanf(k, m.ConfigPath())
+	return cfg, err
+}
+
 // Init creates the health instance and provides it to the injector
 func (m *Module) Init(ctx context.Context) error {
 	opts := make([]health.Option, 0, 1+len(m.config.Checks))

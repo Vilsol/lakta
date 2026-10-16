@@ -111,6 +111,13 @@ func (m *Module) Init(ctx context.Context) error {
 	return nil
 }
 
+// DescribeConfig returns the config loaded from k without changing the module.
+func (m *Module) DescribeConfig(k *koanf.Koanf) (any, error) {
+	cfg := m.config
+	err := cfg.LoadFromKoanf(k, m.ConfigPath())
+	return cfg, err
+}
+
 // Start listens and serves; races Serve against ctx.Done() (copied from grpc/server).
 // When H2C is set and TLS is not, the server advertises cleartext HTTP/2 so gRPC
 // clients connect without TLS (stdlib replacement for the deprecated x/net/h2c).

@@ -52,6 +52,13 @@ func (m *Module) LoadConfig(k *koanf.Koanf) error {
 	return m.config.LoadFromKoanf(k, m.ConfigPath())
 }
 
+// DescribeConfig returns the config loaded from k without changing the module.
+func (m *Module) DescribeConfig(k *koanf.Koanf) (any, error) {
+	cfg := m.config
+	err := cfg.LoadFromKoanf(k, m.ConfigPath())
+	return cfg, err
+}
+
 // Init resolves the optional DI MeterProvider (noop when otel is absent), then
 // registers a Builder per MergedCaches() entry into a fresh *cache.Registry.
 // Otter needs concrete [K,V] at build time but config only knows sizing, so each

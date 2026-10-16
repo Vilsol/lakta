@@ -57,6 +57,13 @@ func (m *Module) LoadConfig(k *koanf.Koanf) error {
 	return m.config.LoadFromKoanf(k, m.ConfigPath())
 }
 
+// DescribeConfig returns the config loaded from k without changing the module.
+func (m *Module) DescribeConfig(k *koanf.Koanf) (any, error) {
+	cfg := m.config
+	err := cfg.LoadFromKoanf(k, m.ConfigPath())
+	return cfg, err
+}
+
 // Init loads configuration, creates the Fiber app, and registers middleware and routes.
 func (m *Module) Init(ctx context.Context) error {
 	app := fiber.New(m.config.ToFiberConfig())

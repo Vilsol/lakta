@@ -88,6 +88,13 @@ func (m *Module) Init(ctx context.Context) error {
 	return nil
 }
 
+// DescribeConfig returns the config loaded from k without changing the module.
+func (m *Module) DescribeConfig(k *koanf.Koanf) (any, error) {
+	cfg := m.config
+	err := cfg.LoadFromKoanf(k, m.ConfigPath())
+	return cfg, err
+}
+
 // Start listens and serves until ctx is done.
 func (m *Module) Start(ctx context.Context) error {
 	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", m.addrPort.String())

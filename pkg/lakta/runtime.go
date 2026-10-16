@@ -25,7 +25,8 @@ const DefaultShutdownTimeout = 30 * time.Second
 
 // Runtime orchestrates module initialization, startup, and shutdown.
 type Runtime struct {
-	modules []Module
+	modules   []Module
+	describer Describer
 }
 
 // NewRuntime creates a runtime with the given modules. Init order follows the
@@ -47,6 +48,13 @@ func (r *Runtime) Run() error {
 // RunContext initializes, starts, and manages graceful shutdown of all modules.
 // ctx cancellation is the shutdown trigger — callers are responsible for signal handling.
 func (r *Runtime) RunContext(ctx context.Context) error {
+	if mode, ok := os.LookupEnv(DescribeEnv); ok {
+		return r.describe(ctx, mode)
+	}
+	return r.run(ctx)
+}
+
+func (r *Runtime) run(ctx context.Context) error {
 	sorted, meta, err := sortModules(r.modules)
 	if err != nil {
 		slox.Error(ctx, "failed resolving module order", slog.Any("error", err))

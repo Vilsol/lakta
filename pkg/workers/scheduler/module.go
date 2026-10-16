@@ -48,6 +48,13 @@ func (m *Module) LoadConfig(k *koanf.Koanf) error {
 	return m.config.LoadFromKoanf(k, m.ConfigPath())
 }
 
+// DescribeConfig returns the config loaded from k without changing the module.
+func (m *Module) DescribeConfig(k *koanf.Koanf) (any, error) {
+	cfg := m.config
+	err := cfg.LoadFromKoanf(k, m.ConfigPath())
+	return cfg, err
+}
+
 // Init builds the gocron scheduler, registers every merged job, and provides
 // the [Scheduler] to the injector so app modules can Register more jobs during
 // their own Init (topo-sort guarantees scheduler inits first when declared a dep).

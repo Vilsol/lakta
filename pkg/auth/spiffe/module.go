@@ -75,6 +75,13 @@ func (m *Module) Init(ctx context.Context) error {
 	return nil
 }
 
+// DescribeConfig returns the config loaded from k without changing the module.
+func (m *Module) DescribeConfig(k *koanf.Koanf) (any, error) {
+	cfg := m.config
+	err := cfg.LoadFromKoanf(k, m.ConfigPath())
+	return cfg, err
+}
+
 func activeProfile(ctx context.Context) config.Profile {
 	if p, err := do.Invoke[config.Profile](lakta.GetInjector(ctx)); err == nil {
 		return p

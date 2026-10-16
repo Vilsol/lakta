@@ -44,12 +44,16 @@ func getSupportedFormats() []formatDef {
 // extends the file list, so reload() replays it for free and the watcher (which
 // watches every discovered file) needs no change.
 func (m *Module) discoverConfigFiles() []configFile {
+	return discoverFiles(m.config.ConfigDirs, m.config.ConfigName, m.config.Profile)
+}
+
+func discoverFiles(dirs []string, name, profile string) []configFile {
 	var files []configFile
 
 	formats := getSupportedFormats()
-	for _, dir := range m.config.ConfigDirs {
+	for _, dir := range dirs {
 		for _, format := range formats {
-			base := filepath.Join(dir, m.config.ConfigName+format.ext)
+			base := filepath.Join(dir, name+format.ext)
 			if _, err := os.Stat(base); err == nil {
 				files = append(files, configFile{
 					path:   base,
@@ -60,8 +64,8 @@ func (m *Module) discoverConfigFiles() []configFile {
 			// Profile overlay: lakta.<profile>.<ext>, appended right after the
 			// base so its keys win. A missing overlay is skipped like a missing
 			// base file.
-			if m.config.Profile != "" {
-				overlay := filepath.Join(dir, m.config.ConfigName+"."+m.config.Profile+format.ext)
+			if profile != "" {
+				overlay := filepath.Join(dir, name+"."+profile+format.ext)
 				if _, err := os.Stat(overlay); err == nil {
 					files = append(files, configFile{
 						path:   overlay,
