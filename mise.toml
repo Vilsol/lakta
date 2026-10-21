@@ -1,7 +1,9 @@
 [tools]
-go = "1.26.6"
+go = "1.26.9"
 golangci-lint = "2.12.2"
 zig = "0.16.0"            # `zig cc` supplies the C linker the race detector needs (no system gcc required)
+# zig cc defaults to -mcpu=native; the explicit -target below pins baseline x86-64 so a
+# cached cgo object built on a newer CI runner can't SIGILL on an older one.
 buf = "1.73.0"           # proto lint/breaking/gen; local plugins only, no BSR at generate time
 "go:github.com/bokwoon95/wgo" = "latest"
 "go:google.golang.org/protobuf/cmd/protoc-gen-go" = "1.36.12"          # pinned (not latest) so dev and CI agree byte-for-byte
@@ -45,13 +47,13 @@ run = "go test ./..."
 
 [tasks.test-race]
 description = "Run tests with the race detector (zig cc supplies the C linker; no system gcc)"
-env = { CGO_ENABLED = "1", CC = "zig cc", CXX = "zig c++" }
+env = { CGO_ENABLED = "1", CC = "zig cc -target x86_64-linux-gnu", CXX = "zig c++ -target x86_64-linux-gnu" }
 run = "go test -race -count=1 ./..."
 
 [tasks.test-integration]
 dir = "{{ config_root }}"
 description = "Run DB + Temporal integration tests against real services (needs Docker + Postgres on localhost:5432 with test/test/test)"
-env = { LAKTA_INTEGRATION = "1", CGO_ENABLED = "1", CC = "zig cc", CXX = "zig c++" }
+env = { LAKTA_INTEGRATION = "1", CGO_ENABLED = "1", CC = "zig cc -target x86_64-linux-gnu", CXX = "zig c++ -target x86_64-linux-gnu" }
 run = """
 set -e
 ( cd ./pkg/db/drivers/pgx && go test -race -count=1 ./... )
@@ -156,7 +158,7 @@ echo "isolation OK"
 [tasks.ci-all]
 dir = "{{ config_root }}"
 description = "Build, test, race, lint every workspace module (parallel across cores); vuln scanning lives in vuln-all"
-env = { CGO_ENABLED = "1", CC = "zig cc", CXX = "zig c++" }
+env = { CGO_ENABLED = "1", CC = "zig cc -target x86_64-linux-gnu", CXX = "zig c++ -target x86_64-linux-gnu" }
 # The script needs bash (pipefail, export -f); mise's default `sh` is dash on
 # Ubuntu runners, which rejects `set -o pipefail`.
 shell = "bash -c"
@@ -258,7 +260,7 @@ go test $pats
 # Only -race needs the C linker; scoping the zig env here keeps the plain
 # test cache shared with everyday `go test` runs (CGO_ENABLED keys the cache).
 echo "== race =="
-CGO_ENABLED=1 CC="zig cc" CXX="zig c++" go test -race $pats
+CGO_ENABLED=1 CC="zig cc -target x86_64-linux-gnu" CXX="zig c++ -target x86_64-linux-gnu" go test -race $pats
 
 echo "== lint =="
 gitcommon=$(cd "$(git rev-parse --git-common-dir)" && pwd)

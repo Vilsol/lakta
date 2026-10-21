@@ -26,7 +26,7 @@ require (
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
 	github.com/pterm/pterm v0.12.83 // indirect
 	github.com/samber/lo v1.53.0 // indirect
-	github.com/samber/oops v1.22.0 // indirect
+	github.com/samber/oops v1.23.0 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.opentelemetry.io/otel v1.44.0 // indirect

@@ -4,11 +4,11 @@ go 1.26.4
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
-	github.com/Vilsol/lakta v0.4.1
+	github.com/Vilsol/lakta v0.5.0
 	github.com/Vilsol/lakta/pkg/db/drivers/pgx v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/lakta/pkg/db/sql v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/lakta/pkg/grpc v0.0.0-00010101000000-000000000000
-	github.com/Vilsol/lakta/pkg/health v0.4.1
+	github.com/Vilsol/lakta/pkg/health v0.5.0
 	github.com/Vilsol/lakta/pkg/http/fiber v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/lakta/pkg/logging/slog v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/lakta/pkg/logging/tint v0.0.0-00010101000000-000000000000
@@ -26,6 +26,7 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.2.2 // indirect
+	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -64,6 +65,7 @@ require (
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
+	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nexus-rpc/nexus-proto-annotations v0.1.0 // indirect
 	github.com/nexus-rpc/sdk-go v0.6.0 // indirect
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
@@ -71,6 +73,11 @@ require (
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/pressly/goose/v3 v3.27.3 // indirect
+	github.com/prometheus/client_golang v1.24.1 // indirect
+	github.com/prometheus/client_model v0.6.2 // indirect
+	github.com/prometheus/common v0.70.1 // indirect
+	github.com/prometheus/otlptranslator v1.0.0 // indirect
+	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/remychantenay/slog-otel v1.3.5 // indirect
 	github.com/robfig/cron v1.2.0 // indirect
 	github.com/samber/go-type-to-string v1.8.0 // indirect
@@ -96,6 +103,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.45.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.45.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.45.0 // indirect
+	go.opentelemetry.io/otel/exporters/prometheus v0.67.0 // indirect
 	go.opentelemetry.io/otel/log v0.21.0 // indirect
 	go.opentelemetry.io/otel/metric v1.45.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.45.0 // indirect

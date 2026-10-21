@@ -54,7 +54,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.3.1 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pterm/pterm v0.12.83 // indirect
-	github.com/samber/do/v2 v2.0.0 // indirect
+	github.com/samber/do/v2 v2.1.0 // indirect
 	github.com/samber/go-type-to-string v1.8.0 // indirect
 	github.com/samber/lo v1.53.0 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
@@ -74,5 +74,5 @@ require (
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/term v0.45.0 // indirect
-	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 )

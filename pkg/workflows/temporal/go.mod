@@ -9,7 +9,7 @@ require (
 	github.com/Vilsol/slox v0.1.0
 	github.com/hellofresh/health-go/v5 v5.5.5
 	github.com/knadh/koanf/v2 v2.3.5
-	github.com/samber/do/v2 v2.0.0
+	github.com/samber/do/v2 v2.1.0
 	github.com/samber/oops v1.23.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0
 	go.opentelemetry.io/otel v1.44.0

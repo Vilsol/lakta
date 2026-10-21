@@ -4,35 +4,40 @@ go 1.26.4
 
 require (
 	github.com/MarvinJWendt/testza v0.5.2
-	github.com/Vilsol/lakta/pkg/auth/verifier v0.4.1
+	github.com/Vilsol/lakta/pkg/auth/spiffe v0.5.0
+	github.com/Vilsol/lakta/pkg/auth/verifier v0.5.0
 	github.com/Vilsol/lakta/pkg/cache/memory v0.4.1
 	github.com/Vilsol/lakta/pkg/db/drivers/pgx v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/lakta/pkg/debug/actuator v0.4.1
 	github.com/Vilsol/lakta/pkg/events v0.4.1
 	github.com/Vilsol/lakta/pkg/features/flags v0.4.1
 	github.com/Vilsol/lakta/pkg/grpc v0.0.0-00010101000000-000000000000
-	github.com/Vilsol/lakta/pkg/health v0.4.1
-	github.com/Vilsol/lakta/pkg/http/connect v0.4.1
+	github.com/Vilsol/lakta/pkg/health v0.5.0
+	github.com/Vilsol/lakta/pkg/http/connect v0.5.0
+	github.com/Vilsol/lakta/pkg/http/connect/client v0.5.0
 	github.com/Vilsol/lakta/pkg/http/fiber v0.4.1
+	github.com/Vilsol/lakta/pkg/http/management v0.5.0
 	github.com/Vilsol/lakta/pkg/logging/slog v0.4.1
 	github.com/Vilsol/lakta/pkg/logging/tint v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/lakta/pkg/otel v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/lakta/pkg/resilience/policy v0.4.1
-	github.com/Vilsol/lakta/pkg/workers/pool v0.4.1
+	github.com/Vilsol/lakta/pkg/workers/pool v0.5.0
 	github.com/Vilsol/lakta/pkg/workers/scheduler v0.4.1
 	github.com/Vilsol/lakta/pkg/workflows/temporal v0.0.0-00010101000000-000000000000
 	golang.org/x/mod v0.40.0
 )
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260415201107-50325440f8f2.1 // indirect
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1 // indirect
 	buf.build/go/protovalidate v1.2.0 // indirect
 	cel.dev/expr v0.25.2 // indirect
 	connectrpc.com/connect v1.20.0 // indirect
 	connectrpc.com/otelconnect v0.9.0 // indirect
+	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
+	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
-	github.com/coreos/go-oidc/v3 v3.11.0 // indirect
+	github.com/coreos/go-oidc/v3 v3.20.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1 // indirect
 	github.com/failsafe-go/failsafe-go v0.9.6 // indirect
 	github.com/go-co-op/gocron/v2 v2.21.2 // indirect
@@ -43,20 +48,28 @@ require (
 	github.com/jonboulle/clockwork v0.5.0 // indirect
 	github.com/knadh/koanf/providers/env/v2 v2.0.0 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect
-	github.com/lestrrat-go/dsig v1.2.1 // indirect
+	github.com/lestrrat-go/dsig v1.3.0 // indirect
 	github.com/lestrrat-go/dsig-secp256k1 v1.0.0 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
-	github.com/lestrrat-go/httprc/v3 v3.0.5 // indirect
-	github.com/lestrrat-go/jwx/v3 v3.1.1 // indirect
+	github.com/lestrrat-go/httprc/v3 v3.0.6 // indirect
+	github.com/lestrrat-go/jwx/v3 v3.2.0 // indirect
 	github.com/lestrrat-go/option/v2 v2.0.0 // indirect
 	github.com/maypok86/otter/v2 v2.3.0 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
+	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nexus-rpc/nexus-proto-annotations v0.1.0 // indirect
 	github.com/pressly/goose/v3 v3.27.3 // indirect
+	github.com/prometheus/client_golang v1.24.1 // indirect
+	github.com/prometheus/client_model v0.6.2 // indirect
+	github.com/prometheus/common v0.70.1 // indirect
+	github.com/prometheus/otlptranslator v1.0.0 // indirect
+	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/sethvargo/go-retry v0.4.0 // indirect
+	github.com/spiffe/go-spiffe/v2 v2.7.0 // indirect
 	github.com/valyala/fastjson v1.6.10 // indirect
+	go.opentelemetry.io/otel/exporters/prometheus v0.67.0 // indirect
 	golang.org/x/exp v0.0.0-20260718201538-764159d718ef // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -67,7 +80,7 @@ require (
 	atomicgo.dev/cursor v0.2.0 // indirect
 	atomicgo.dev/keyboard v0.2.10 // indirect
 	atomicgo.dev/schedule v0.1.0 // indirect
-	github.com/Vilsol/lakta v0.4.1 // indirect
+	github.com/Vilsol/lakta v0.5.0 // indirect
 	github.com/Vilsol/lakta/pkg/reflectcfg v0.0.0-00010101000000-000000000000
 	github.com/Vilsol/slox v0.1.0 // indirect
 	github.com/andybalholm/brotli v1.2.2 // indirect

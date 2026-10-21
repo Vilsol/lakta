@@ -12,19 +12,36 @@ require (
 
 require (
 	atomicgo.dev/assert v0.0.2 // indirect
-	atomicgo.dev/cursor v0.1.1 // indirect
-	atomicgo.dev/keyboard v0.2.8 // indirect
-	github.com/containerd/console v1.0.3 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/gookit/color v1.5.2 // indirect
-	github.com/klauspost/cpuid/v2 v2.2.3 // indirect
-	github.com/lithammer/fuzzysearch v1.1.5 // indirect
-	github.com/mattn/go-runewidth v0.0.14 // indirect
-	github.com/pterm/pterm v0.12.53 // indirect
-	github.com/rivo/uniseg v0.2.0 // indirect
-	github.com/sergi/go-diff v1.2.0 // indirect
-	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
-	golang.org/x/sys v0.5.0 // indirect
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	atomicgo.dev/cursor v0.2.0 // indirect
+	atomicgo.dev/keyboard v0.2.10 // indirect
+	atomicgo.dev/schedule v0.1.0 // indirect
+	github.com/Vilsol/slox v0.1.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
+	github.com/containerd/console v1.0.5 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
+	github.com/gookit/color v1.6.1 // indirect
+	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
+	github.com/knadh/koanf/maps v0.1.2 // indirect
+	github.com/knadh/koanf/v2 v2.3.5 // indirect
+	github.com/lithammer/fuzzysearch v1.1.8 // indirect
+	github.com/mattn/go-runewidth v0.0.23 // indirect
+	github.com/mitchellh/copystructure v1.2.0 // indirect
+	github.com/mitchellh/reflectwalk v1.0.2 // indirect
+	github.com/oklog/ulid/v2 v2.1.1 // indirect
+	github.com/pterm/pterm v0.12.83 // indirect
+	github.com/samber/do/v2 v2.1.0 // indirect
+	github.com/samber/go-type-to-string v1.8.0 // indirect
+	github.com/samber/lo v1.53.0 // indirect
+	github.com/samber/oops v1.23.0 // indirect
+	github.com/sergi/go-diff v1.4.0 // indirect
+	github.com/sourcegraph/conc v0.3.0 // indirect
+	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
+	go.opentelemetry.io/otel v1.44.0 // indirect
+	go.opentelemetry.io/otel/trace v1.44.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/term v0.45.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 )

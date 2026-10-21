@@ -42,7 +42,7 @@ require (
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pterm/pterm v0.12.83 // indirect
 	github.com/samber/lo v1.53.0 // indirect
-	github.com/samber/oops v1.22.0 // indirect
+	github.com/samber/oops v1.23.0 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect

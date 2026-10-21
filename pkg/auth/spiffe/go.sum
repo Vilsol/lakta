@@ -10,10 +10,10 @@ github.com/MarvinJWendt/testza v0.5.2 h1:53KDo64C1z/h/d/stCYCPY69bt/OSwjq5KpFNwi
 github.com/MarvinJWendt/testza v0.5.2/go.mod h1:xu53QFE5sCdjtMCKk8YMQ2MnymimEctc4n3EjyIYvEY=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
-github.com/Vilsol/lakta v0.4.1 h1:FR6G5/Z40v/kgQKdfHLGSYEvhjSpTke9LX/W4jGJwPk=
-github.com/Vilsol/lakta v0.4.1/go.mod h1:X4+1l/duUm/pkpVmpn5mBvKjo6kZhilrijgKwWk9Vek=
-github.com/Vilsol/lakta/pkg/testkit v0.4.1 h1:j51REJOQteasjIzuLaS+2ZZ1k1WIWh1ch7YYonu4zpc=
-github.com/Vilsol/lakta/pkg/testkit v0.4.1/go.mod h1:Bgi4dg3n6z+qsGX4HambhgY8obgWTIOs2enrSjnF7iY=
+github.com/Vilsol/lakta v0.5.0 h1:WNF/qnngGhWh81O8ldhLtVXkACOlW9drzwXOsxTA45I=
+github.com/Vilsol/lakta v0.5.0/go.mod h1:1JH8RISMY5YjuTo91VSTJXotCppAyfkO1q+XGPm5bjA=
+github.com/Vilsol/lakta/pkg/testkit v0.5.0 h1:FjUPw0A3YTf8pMFUeq4HNe+C5yF0ts0d/QjoT78+5Fk=
+github.com/Vilsol/lakta/pkg/testkit v0.5.0/go.mod h1:vVxOzxsdLPhOHOrJQNt0IW31SlqyIVFfg2mBRHi9zbk=
 github.com/Vilsol/slox v0.1.0 h1:oppc4Q6Bym47mbeGIxO+uKaxHbzGNMWn9BQxRMHKKcE=
 github.com/Vilsol/slox v0.1.0/go.mod h1:UrkiCYCauzAFx23xq4AdvxllP78nVfCUqJ74Op1/KWw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=

@@ -24,7 +24,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/containerd/console v1.0.5 // indirect
-	github.com/coreos/go-oidc/v3 v3.11.0 // indirect
+	github.com/coreos/go-oidc/v3 v3.20.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
@@ -32,6 +32,7 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/gookit/color v1.6.1 // indirect
+	github.com/hellofresh/health-go/v5 v5.5.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/knadh/koanf/maps v0.1.2 // indirect
 	github.com/knadh/koanf/parsers/json v1.0.0 // indirect
@@ -53,7 +54,7 @@ require (
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.3.1 // indirect
 	github.com/pterm/pterm v0.12.83 // indirect
-	github.com/samber/do/v2 v2.0.0 // indirect
+	github.com/samber/do/v2 v2.1.0 // indirect
 	github.com/samber/go-type-to-string v1.8.0 // indirect
 	github.com/samber/lo v1.53.0 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
