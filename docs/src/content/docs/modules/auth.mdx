@@ -125,6 +125,18 @@ connect.WithSlot(connect.SlotAuth, authconnect.New(
 
 A missing token passes only for public procedures; an invalid token is always rejected. Handlers read the `*verifier.Principal` (with `Session` from `sid` and the self-redacting `Raw` token for forwarding) via `verifier.PrincipalFrom(ctx)`. Every rejection emits a `security_event` log line with the internal reason (`missing`, `expired`, `audience`, ...); the wire error stays an opaque `UNAUTHENTICATED`. Streams are cancelled when the token expires.
 
+### With an authorizer
+
+`authconnect.WithAuthorizer(a)` wires the auth slot, the authz slot (`a.Slot()`) and a mounted-service hook (`a.Mounted`) in one option. When `a` also has `IsPublic(procedure string) bool`, those procedures accept calls without a token. Add `connect.WithRequiredSlots(connect.SlotAuth, connect.SlotAuthz)` so a missing authorizer, or a handler mounted outside the slots, fails `Init`:
+
+```go
+connect.NewModule(
+	authconnect.WithAuthorizer(authorizer),
+	connect.WithRequiredSlots(connect.SlotAuth, connect.SlotAuthz),
+	connect.WithService(registrar),
+)
+```
+
 ### Lazy keys and readiness
 
 Issuer keys are discovered and fetched in the background (or on the first request), so services start while the identity provider is down. Until the first fetch succeeds, requests fail with `UNAVAILABLE` and the readiness check (registered on `*health.Health` when present) fails. Later refresh failures keep the cached keys.

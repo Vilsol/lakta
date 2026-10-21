@@ -71,6 +71,14 @@ type env struct {
 
 func start(t *testing.T, jwksUp bool) *env {
 	t.Helper()
+	return startWith(t, jwksUp, connectmod.WithSlot(connectmod.SlotAuth, authconnect.New(
+		authconnect.WithPublicProcedures(func(p string) bool { return p == publicRPC }),
+	)))
+}
+
+// startWith serves the test procedures with authOpts wiring authentication.
+func startWith(t *testing.T, jwksUp bool, authOpts ...connectmod.Option) *env {
+	t.Helper()
 
 	jwks := testkit.NewJWKS(t)
 	jwks.SetAvailable(jwksUp)
@@ -82,12 +90,9 @@ func start(t *testing.T, jwksUp bool) *env {
 		return nil
 	}
 
-	server := connectmod.NewModule(
+	server := connectmod.NewModule(append([]connectmod.Option{
 		connectmod.WithHost("127.0.0.1"),
 		connectmod.WithPort(0),
-		connectmod.WithSlot(connectmod.SlotAuth, authconnect.New(
-			authconnect.WithPublicProcedures(func(p string) bool { return p == publicRPC }),
-		)),
 		connectmod.WithService(func(_ context.Context, opts []connect.HandlerOption) (string, http.Handler) {
 			mux := http.NewServeMux()
 			mux.Handle(privateRPC, connect.NewUnaryHandler(privateRPC, whoami, opts...))
@@ -95,7 +100,7 @@ func start(t *testing.T, jwksUp bool) *env {
 			mux.Handle(streamRPC, connect.NewServerStreamHandler(streamRPC, streamDeadline, opts...))
 			return "/test.Svc/", mux
 		}),
-	)
+	}, authOpts...)...)
 
 	testkit.NewRuntimeHarness(t,
 		config.NewModule(config.WithConfigDirs("/nonexistent"), config.WithProfile("test")),

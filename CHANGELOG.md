@@ -7,6 +7,8 @@ All modules are versioned in lockstep; one entry per repo version.
 ### Added
 - `connect.WithRequiredSlots`: `Init` fails when a listed interceptor slot is empty, or when a
   handler is mounted outside the slot chain (a `WithHandler` entry or a non-protobuf path).
+- `authconnect.WithAuthorizer`: one option wires the auth slot, the authz slot and the
+  mounted-service hook from an authorizer (with its optional `IsPublic`).
 
 ### Changed
 - Split the framework into per-package modules. Import paths are unchanged

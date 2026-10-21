@@ -3,6 +3,8 @@
 //
 //	connect.WithSlot(connect.SlotAuth, authconnect.New(authconnect.WithPublicProcedures(isPublic)))
 //
+// or, with an authorizer that fills the authz slot too, WithAuthorizer.
+//
 // A missing token passes only for public procedures; an invalid token is
 // always rejected. Rejections are opaque UNAUTHENTICATED errors and emit a
 // security event with the internal reason. Streams are cancelled when the
