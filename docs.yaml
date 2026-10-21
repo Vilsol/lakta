@@ -423,6 +423,9 @@ modules:
       - option: WithMountedHook
         type: '[]connect.MountedHook'
         description: registers a hook that receives the mounted services
+      - option: WithRequiredSlots
+        type: '[]connect.Slot'
+        description: makes Init fail when a listed slot has no interceptor, and
   - category: http
     type: connect_client
     package: github.com/Vilsol/lakta/pkg/http/connect/client

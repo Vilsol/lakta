@@ -76,7 +76,15 @@ func (m *Module) Init(ctx context.Context) error {
 		paths = append(paths, path)
 	}
 
-	mounted := resolveMounted(paths)
+	mounted, unresolved := resolveMounted(paths)
+	if len(m.config.RequiredSlots) > 0 {
+		for path := range m.config.Handlers {
+			return oops.With("path", path).Errorf("handler mounted outside the required interceptor slots")
+		}
+		if len(unresolved) > 0 {
+			return oops.With("path", unresolved[0]).Errorf("mounted path is not a protobuf service, so the required interceptor slots never see it")
+		}
+	}
 	for _, hook := range m.config.MountedHooks {
 		if err := hook(ctx, mounted); err != nil {
 			return oops.Wrapf(err, "mounted-service hook failed")

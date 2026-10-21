@@ -4,6 +4,10 @@ All modules are versioned in lockstep; one entry per repo version.
 
 ## Unreleased
 
+### Added
+- `connect.WithRequiredSlots`: `Init` fails when a listed interceptor slot is empty, or when a
+  handler is mounted outside the slot chain (a `WithHandler` entry or a non-protobuf path).
+
 ### Changed
 - Split the framework into per-package modules. Import paths are unchanged
   (`pkg/` retained); integrations are now installed as separate modules so

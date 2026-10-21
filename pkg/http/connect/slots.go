@@ -69,6 +69,7 @@ func (c *Config) Interceptors(ctx context.Context) ([]connect.HandlerOption, err
 	maps.Copy(factories, c.Slots)
 
 	ics := make([]connect.Interceptor, 0, int(slotCount)+len(c.ExtraInterceptors))
+	filled := make(map[Slot]bool, slotCount)
 	for slot := range slotCount {
 		f, ok := factories[slot]
 		if !ok || f == nil {
@@ -80,6 +81,12 @@ func (c *Config) Interceptors(ctx context.Context) ([]connect.HandlerOption, err
 		}
 		if ic != nil {
 			ics = append(ics, ic)
+			filled[slot] = true
+		}
+	}
+	for _, slot := range c.RequiredSlots {
+		if !filled[slot] {
+			return nil, oops.With("slot", int(slot)).Errorf("required interceptor slot is empty")
 		}
 	}
 	ics = append(ics, c.ExtraInterceptors...)

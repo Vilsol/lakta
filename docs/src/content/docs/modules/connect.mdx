@@ -53,6 +53,8 @@ The interceptor chain is a fixed sequence of named slots (outer to inner). Every
 
 Replace or fill a slot with `WithSlot(slot, factory)`. Factories run during `Init`, so they can resolve DI dependencies. Security interceptors must implement `WrapStreamingHandler` as well as `WrapUnary`.
 
+`WithRequiredSlots(SlotAuth, SlotAuthz)` makes `Init` fail when a listed slot holds no interceptor, and when a handler is mounted outside the slot chain: any `WithHandler` entry, or a registrar whose path is not a protobuf service. Use it so a service cannot start without its security interceptors.
+
 ### Error boundary
 
 Every failed call is handled once, at the boundary:
@@ -75,7 +77,7 @@ With `WithTLSProvider` (for example `spiffe.ServerTLS()`), the server requires c
 
 ### Mounted services
 
-`WithMountedHook` receives the descriptors of every mounted protobuf service at the end of `Init` (for example to check that every RPC carries an authorization rule). A hook error fails `Init`.
+`WithMountedHook` receives the descriptors of every mounted protobuf service at the end of `Init` (for example to check that every RPC carries an authorization rule). A hook error fails `Init`. Paths that are not protobuf services are not passed to hooks; with required slots they fail `Init` instead.
 
 ## Outbound client
 

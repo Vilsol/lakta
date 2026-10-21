@@ -212,6 +212,87 @@ func TestSlots_FactoryErrorFailsInit(t *testing.T) {
 	testza.AssertNotNil(t, lakta.NewRuntime(m).RunContext(t.Context()))
 }
 
+func rejectAllSlot() connectmod.InterceptorFactory {
+	return func(context.Context) (connect.Interceptor, error) { return rejectAll{}, nil }
+}
+
+func echoService(_ context.Context, hopts []connect.HandlerOption) (string, http.Handler) {
+	return testv1connect.NewEchoServiceHandler(behaviorServer{}, hopts...)
+}
+
+func runInit(t *testing.T, opts ...connectmod.Option) error {
+	t.Helper()
+	opts = append([]connectmod.Option{connectmod.WithHost("127.0.0.1"), connectmod.WithPort(0)}, opts...)
+	return lakta.NewRuntime(connectmod.NewModule(opts...)).RunContext(t.Context()) //nolint:wrapcheck // tests inspect the raw error
+}
+
+func TestRequiredSlots_EmptySlotFailsInit(t *testing.T) {
+	t.Parallel()
+
+	err := runInit(t, connectmod.WithRequiredSlots(connectmod.SlotAuthz), connectmod.WithService(echoService))
+	testza.AssertNotNil(t, err)
+	testza.AssertContains(t, err.Error(), "required")
+}
+
+func TestRequiredSlots_NilInterceptorFailsInit(t *testing.T) {
+	t.Parallel()
+
+	err := runInit(t,
+		connectmod.WithRequiredSlots(connectmod.SlotAuthz),
+		connectmod.WithSlot(connectmod.SlotAuthz, func(context.Context) (connect.Interceptor, error) { return nil, nil }),
+		connectmod.WithService(echoService),
+	)
+	testza.AssertNotNil(t, err)
+	testza.AssertContains(t, err.Error(), "required")
+}
+
+func TestRequiredSlots_HandlerOutsideChainFailsInit(t *testing.T) {
+	t.Parallel()
+
+	err := runInit(t,
+		connectmod.WithRequiredSlots(connectmod.SlotAuth),
+		connectmod.WithSlot(connectmod.SlotAuth, rejectAllSlot()),
+		connectmod.WithService(echoService),
+		connectmod.WithHandler("/healthz", http.NotFoundHandler()),
+	)
+	testza.AssertNotNil(t, err)
+	testza.AssertContains(t, fmt.Sprintf("%+v", err), "/healthz")
+}
+
+func TestRequiredSlots_NonProtoServiceFailsInit(t *testing.T) {
+	t.Parallel()
+
+	err := runInit(t,
+		connectmod.WithRequiredSlots(connectmod.SlotAuth),
+		connectmod.WithSlot(connectmod.SlotAuth, rejectAllSlot()),
+		connectmod.WithService(func(context.Context, []connect.HandlerOption) (string, http.Handler) {
+			return "/not.a.Service/", http.NotFoundHandler()
+		}),
+	)
+	testza.AssertNotNil(t, err)
+	testza.AssertContains(t, fmt.Sprintf("%+v", err), "/not.a.Service/")
+}
+
+func TestRequiredSlots_FilledSlotsServe(t *testing.T) {
+	t.Parallel()
+
+	base, _ := startBehavior(t,
+		connectmod.WithRequiredSlots(connectmod.SlotAuth),
+		connectmod.WithSlot(connectmod.SlotAuth, rejectAllSlot()),
+	)
+	_, err := echo(t, base, "hi")
+	testza.AssertEqual(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+}
+
+func TestMountedHook_UnresolvedPathSkippedWithoutRequiredSlots(t *testing.T) {
+	t.Parallel()
+
+	base, _ := startBehavior(t, connectmod.WithHandler("/healthz", http.NotFoundHandler()))
+	resp, err := echo(t, base, "hi")
+	testza.AssertNil(t, err)
+	testza.AssertEqual(t, "hi", resp.Msg.GetMessage())
+}
+
 func TestHandlerCtx_CarriesInjectorAndLogger(t *testing.T) {
 	t.Parallel()
 

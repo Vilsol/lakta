@@ -109,6 +109,9 @@ type Config struct {
 
 	// MountedHooks receive the mounted services at the end of Init.
 	MountedHooks []MountedHook `code_only:"WithMountedHook" koanf:"-"`
+
+	// RequiredSlots must each hold an interceptor (see WithRequiredSlots).
+	RequiredSlots []Slot `code_only:"WithRequiredSlots" koanf:"-"`
 }
 
 // NewDefaultConfig returns default configuration.
@@ -250,6 +253,13 @@ func WithTLSProvider(fn func(ctx context.Context) (*tls.Config, error)) Option {
 // WithHTTPMiddleware wraps the server handler; the first registered runs outermost.
 func WithHTTPMiddleware(mw func(http.Handler) http.Handler) Option {
 	return func(m *Config) { m.HTTPMiddlewares = append(m.HTTPMiddlewares, mw) }
+}
+
+// WithRequiredSlots makes Init fail when a listed slot has no interceptor, and
+// when any handler is mounted outside the slot chain: a WithHandler entry, or a
+// registrar whose path is not a protobuf service.
+func WithRequiredSlots(slots ...Slot) Option {
+	return func(m *Config) { m.RequiredSlots = append(m.RequiredSlots, slots...) }
 }
 
 // WithInterceptors appends extra connect interceptors after every slot.

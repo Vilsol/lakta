@@ -25,23 +25,30 @@ func WithMountedHook(fn MountedHook) Option {
 }
 
 // resolveMounted maps mux paths ("/pkg.Service/") to service descriptors from
-// the global registry; paths that are not protobuf services are skipped.
-func resolveMounted(paths []string) []MountedService {
+// the global registry; paths that are not protobuf services are returned as
+// unresolved.
+func resolveMounted(paths []string) ([]MountedService, []string) {
 	services := make([]MountedService, 0, len(paths))
+	var unresolved []string
 	for _, path := range paths {
 		name := protoreflect.FullName(strings.Trim(path, "/"))
 		if !name.IsValid() {
+			unresolved = append(unresolved, path)
 			continue
 		}
 		d, err := protoregistry.GlobalFiles.FindDescriptorByName(name)
 		if err != nil {
+			unresolved = append(unresolved, path)
 			continue
 		}
-		if sd, ok := d.(protoreflect.ServiceDescriptor); ok {
-			services = append(services, MountedService{Path: path, Descriptor: sd})
+		sd, ok := d.(protoreflect.ServiceDescriptor)
+		if !ok {
+			unresolved = append(unresolved, path)
+			continue
 		}
+		services = append(services, MountedService{Path: path, Descriptor: sd})
 	}
-	return services
+	return services, unresolved
 }
 
 // procedures maps every "/pkg.Service/Method" path to whether the RPC is unary.
