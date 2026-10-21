@@ -60,7 +60,7 @@ require (
 )
 
 require (
-	github.com/Vilsol/lakta/pkg/testkit v0.4.1
+	github.com/Vilsol/lakta/pkg/testkit v0.5.0
 	github.com/knadh/koanf/providers/env/v2 v2.0.0
 	google.golang.org/grpc v1.83.2
 )
