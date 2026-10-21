@@ -2,7 +2,6 @@ package connect_test
 
 import (
 	"context"
-	"crypto/tls"
 	"net"
 	"net/http"
 	"strings"
@@ -15,7 +14,6 @@ import (
 	testv1 "github.com/Vilsol/lakta/pkg/http/connect/internal/gen/test/v1"
 	"github.com/Vilsol/lakta/pkg/http/connect/internal/gen/test/v1/testv1connect"
 	"github.com/Vilsol/lakta/pkg/testkit"
-	"golang.org/x/net/http2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -32,14 +30,10 @@ func (e echoServer) Echo(_ context.Context, req *connect.Request[testv1.EchoRequ
 }
 
 func h2cClient() *http.Client {
+	var protocols http.Protocols
+	protocols.SetUnencryptedHTTP2(true)
 	return &http.Client{
-		Transport: &http2.Transport{
-			AllowHTTP: true,
-			DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
-				var d net.Dialer
-				return d.DialContext(ctx, network, addr)
-			},
-		},
+		Transport: &http.Transport{Protocols: &protocols},
 	}
 }
 
