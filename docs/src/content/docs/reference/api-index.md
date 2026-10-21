@@ -44,6 +44,11 @@ pkg/config: Apply, Config, NewConfig, NewDefaultConfig (low-level/boilerplate co
 | `RenderWiringReport(info []ModuleInfo, prov map[string]string) string` | Render a `RuntimeInfo` snapshot as an aligned wiring table (boot debug log / `LAKTA_DEBUG_WIRING=1` dump) |
 | `HotReloadable` | Adds `OnReload(*koanf.Koanf)`; wired by the runtime for config reloads |
 | `ValidatableModule` | Adds `ValidateReload(*koanf.Koanf) error`; can veto a config hot-reload before it is committed |
+| `Runtime.WithDescriber(fn Describer) *Runtime` | Set the renderer used when `LAKTA_DESCRIBE=config` |
+| `Describer` | `func(w io.Writer, entries []DescribedConfig) error` describe-mode renderer, e.g. `reflectcfg.Describe` |
+| `DescribedConfig` | One module's configuration (`Path`, `Value`) at its koanf path |
+| `ConfigDescriber` | Adds `DescribeConfig(*koanf.Koanf) (any, error)`; reports effective config without initializing the module |
+| `DescribeLoader` | Adds `LoadForDescribe() (*koanf.Koanf, error)`; loads config files only for describe mode |
 
 ## pkg/config
 
@@ -56,6 +61,7 @@ pkg/config: Apply, Config, NewConfig, NewDefaultConfig (low-level/boilerplate co
 | `WithEnvPrefix(prefix string) Option` | Set env var prefix (default: `"LAKTA_"`) |
 | `WithProfile(name string) Option` | Overlay `lakta.<name>.<ext>` on the base config (default: `LAKTA_PROFILE`) |
 | `WithDebounceDelay(d time.Duration) Option` | Debounce window for fsnotify hot-reload events |
+| `WithValues(values map[string]any) Option` | Programmatic overrides by dotted koanf path; beat files/env/flags and survive reloads |
 | `Bind[T](path ...string) Module` | Bind a config sub-tree to a typed struct; adds as a module |
 | `Get[T](ctx) *T` | Read the current bound value (atomic, zero-alloc) |
 | `GetBinding[T](ctx) *Binding[T]` | Access the binding to register `OnChange` callbacks |
@@ -68,6 +74,7 @@ pkg/config: Apply, Config, NewConfig, NewDefaultConfig (low-level/boilerplate co
 | `ReloadNotifier.OnReload(fn)` | Register a reload callback |
 | `ReloadNotifier.OnValidate(fn)` | Register a validator that can veto a reload before commit |
 | `ProvenanceEntry` | Per-key config origin (`file`/`env`/`flag`/`default`) from `Module.ProvenanceSnapshot()` |
+| `Profile` | Active config profile, provided in DI (also `Module.Profile()`) |
 
 ## pkg/testkit
 
@@ -98,6 +105,10 @@ pkg/config: Apply, Config, NewConfig, NewDefaultConfig (low-level/boilerplate co
 | `Get[T](s) T` | Invoke `T` from the slice injector or `t.Fatal` (free generic function) |
 | `Slice.Provided() []string` | Names of services registered in the slice injector |
 | `Slice.Notifier() *ReloadNotifier` | Shared reload notifier, for `FireReload` in tests |
+| `NewJWKS(t) *JWKS` | In-process OIDC issuer (per-realm discovery, RS256 `/jwks`); stops when the test ends |
+| `JWKS.Sign(claims, opts...) string` | Sign a token; `IssuerURL(realm)`/`JWKSURL()` for wiring, `SetAvailable(bool)` to simulate outages |
+| `TokenOption` | Adjusts the claims of a token built by `JWKS.Sign` |
+| `WithExpiresIn(d time.Duration) TokenOption` | Set `exp` relative to now; negative values produce expired tokens |
 
 ## pkg/logging/slox
 
