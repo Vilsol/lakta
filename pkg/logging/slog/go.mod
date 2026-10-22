@@ -13,7 +13,7 @@ require (
 	github.com/samber/do/v2 v2.1.0
 	github.com/samber/oops v1.23.0
 	go.opentelemetry.io/contrib/bridges/otelslog v0.20.0
-	go.opentelemetry.io/otel/sdk v1.36.0
+	go.opentelemetry.io/otel/sdk v1.45.0
 )
 
 require (
