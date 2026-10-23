@@ -10,7 +10,7 @@ require (
 	github.com/knadh/koanf/v2 v2.3.5
 	github.com/prometheus/client_golang v1.24.1
 	github.com/samber/do/v2 v2.1.0
-	github.com/samber/oops v1.23.0
+	github.com/samber/oops v1.23.2
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.69.0
 	go.opentelemetry.io/otel v1.45.0
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.21.0
