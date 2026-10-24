@@ -4,7 +4,7 @@ golangci-lint = "2.12.2"
 zig = "0.16.0"            # `zig cc` supplies the C linker the race detector needs (no system gcc required)
 # zig cc defaults to -mcpu=native; the explicit -target below pins baseline x86-64 so a
 # cached cgo object built on a newer CI runner can't SIGILL on an older one.
-buf = "1.73.0"           # proto lint/breaking/gen; local plugins only, no BSR at generate time
+buf = "1.75.0"           # proto lint/breaking/gen; local plugins only, no BSR at generate time
 "go:github.com/bokwoon95/wgo" = "latest"
 "go:google.golang.org/protobuf/cmd/protoc-gen-go" = "1.36.12"          # pinned (not latest) so dev and CI agree byte-for-byte
 "go:connectrpc.com/connect/cmd/protoc-gen-connect-go" = "1.20.0"       # pinned (not latest) so dev and CI agree byte-for-byte
