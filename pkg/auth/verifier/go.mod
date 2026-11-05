@@ -12,7 +12,7 @@ require (
 	github.com/knadh/koanf/v2 v2.3.5
 	github.com/lestrrat-go/jwx/v3 v3.2.0
 	github.com/samber/do/v2 v2.1.0
-	github.com/samber/oops v1.23.0
+	github.com/samber/oops v1.23.2
 )
 
 require (
