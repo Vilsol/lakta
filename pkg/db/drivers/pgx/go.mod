@@ -14,7 +14,7 @@ require (
 	github.com/knadh/koanf/v2 v2.3.5
 	github.com/pressly/goose/v3 v3.27.3
 	github.com/samber/do/v2 v2.1.0
-	github.com/samber/oops v1.23.0
+	github.com/samber/oops v1.23.2
 	github.com/testcontainers/testcontainers-go v0.43.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.43.0
 	go.opentelemetry.io/otel v1.45.0
