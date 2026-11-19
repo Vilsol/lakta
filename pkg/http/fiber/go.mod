@@ -13,7 +13,7 @@ require (
 	github.com/gofiber/fiber/v3 v3.4.0
 	github.com/hellofresh/health-go/v5 v5.5.5
 	github.com/knadh/koanf/v2 v2.3.5
-	github.com/samber/oops v1.23.0
+	github.com/samber/oops v1.23.2
 	go.opentelemetry.io/otel/trace v1.45.0
 	golang.org/x/sync v0.23.0
 )
