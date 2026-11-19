@@ -9,10 +9,10 @@ require (
 	github.com/Vilsol/lakta/pkg/errors/fiber v0.5.1
 	github.com/Vilsol/lakta/pkg/testkit v0.5.1
 	github.com/gofiber/fiber/v3 v3.4.0
-	github.com/knadh/koanf/providers/confmap v1.0.0
+	github.com/knadh/koanf/providers/confmap v1.0.1
 	github.com/knadh/koanf/v2 v2.3.5
 	github.com/lestrrat-go/jwx/v3 v3.2.0
-	github.com/samber/oops v1.23.0
+	github.com/samber/oops v1.23.2
 )
 
 require (

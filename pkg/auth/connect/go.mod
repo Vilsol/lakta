@@ -9,8 +9,8 @@ require (
 	github.com/Vilsol/lakta/pkg/auth/verifier v0.5.1
 	github.com/Vilsol/lakta/pkg/http/connect v0.5.1
 	github.com/Vilsol/lakta/pkg/testkit v0.5.1
-	github.com/samber/oops v1.23.0
-	google.golang.org/protobuf v1.36.11
+	github.com/samber/oops v1.23.2
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
