@@ -13,9 +13,9 @@ require (
 	github.com/Vilsol/lakta/pkg/testkit v0.5.1
 	github.com/knadh/koanf/v2 v2.3.5
 	github.com/samber/do/v2 v2.1.0
-	github.com/samber/oops v1.23.0
+	github.com/samber/oops v1.23.2
 	golang.org/x/oauth2 v0.36.0
-	google.golang.org/protobuf v1.36.11
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
